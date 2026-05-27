@@ -4,52 +4,74 @@
   <meta charset="UTF-8">
   <title>Quiet Room - User</title>
   <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: #111;
-      color: #fff;
-      overflow: hidden;
-    }
-    #mainVideo {
-      width: 100%;
-      height: auto;
-      background: #000;
-    }
-    #selfVideo {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      width: 120px;
-      border-radius: 8px;
-      border: 2px solid #444;
-    }
-    #controls {
-      position: fixed;
-      bottom: 10px;
-      left: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    button {
-      padding: 10px 15px;
-      border: none;
-      border-radius: 6px;
-      background: #444;
-      color: #fff;
-      font-size: 14px;
-    }
-    #safeMessage {
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
-      padding: 10px 20px;
-      border-radius: 8px;
-      display: none;
-    }
+　　/* 全体レイアウトをスマホ最適化 */
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* タイトル */
+h1 {
+  font-size: 20px;
+  margin: 10px 0;
+  text-align: center;
+}
+
+/* カメラ映像（ユーザー側） */
+#video {
+  width: 90vw;
+  max-width: 500px;
+  height: auto;
+  border-radius: 12px;
+  background: #111;
+}
+
+/* モザイク後のキャンバス */
+#canvas {
+  width: 90vw;
+  max-width: 500px;
+  height: auto;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+/* ボタン類 */
+button {
+  width: 90vw;
+  max-width: 500px;
+  padding: 14px;
+  margin-top: 12px;
+  font-size: 18px;
+  border: none;
+  border-radius: 10px;
+  background: #444;
+  color: #fff;
+}
+
+/* 管理者側の映像 */
+.admin-video {
+  width: 90vw;
+  max-width: 500px;
+  height: auto;
+  border-radius: 12px;
+  background: #111;
+  margin-top: 10px;
+}
+
+/* スクロール防止 */
+html, body {
+  touch-action: none;
+}
+
   </style>
 </head>
 <body>
