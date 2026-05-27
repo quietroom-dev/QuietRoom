@@ -103,3 +103,51 @@
               canvas.height = 240;
               const ctx = canvas.getContext("2d");
               ctx.drawImage(img, 0, 0, 320, 240);
+              v.srcObject = canvas.captureStream();
+            };
+          }
+
+          const label = document.createElement("div");
+          label.textContent = "User: " + uid;
+
+          userBox.appendChild(v);
+          userBox.appendChild(label);
+          videoContainer.appendChild(userBox);
+        });
+      });
+    }
+
+    loadUsers();
+
+    // 🔄 更新ボタン
+    document.getElementById("refresh").onclick = () => {
+      loadUsers();
+      alert("更新しました");
+    };
+
+    // 🚫 強制ブロック
+    document.getElementById("forceBlock").onclick = () => {
+      const uid = prompt("ブロックするユーザーIDを入力");
+      if (!uid) return;
+      update(ref(db, "users/" + uid), { blocked: true });
+      alert("ユーザー " + uid + " をブロックしました");
+    };
+
+    // 🔌 強制切断
+    document.getElementById("forceDisconnect").onclick = () => {
+      const uid = prompt("切断するユーザーIDを入力");
+      if (!uid) return;
+      update(ref(db, "users/" + uid), { disconnect: true });
+      alert("ユーザー " + uid + " を切断しました");
+    };
+  </script>
+　<div id="version" style="
+  margin-top: 20px;
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+">
+  v1.0.1
+</div>
+</body>
+</html>
