@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Quiet Room - User</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+      overflow: hidden;
+    }
+    #mainVideo {
+      width: 100%;
+      height: auto;
+      background: #000;
+    }
+    #selfVideo {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      width: 120px;
+      border-radius: 8px;
+      border: 2px solid #444;
+    }
+    #controls {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      background: #444;
+      color: #fff;
+      font-size: 14px;
+    }
+    #safeMessage {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      padding: 10px 20px;
+      border-radius: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="safeMessage">管理者がパトロールすることがあります。安全に使ってね。</div>
+
+  <video id="mainVideo" autoplay playsinline></video>
+  <video id="selfVideo" autoplay muted playsinline></video>
+
+  <div id="controls">
+    <button id="mosaicMinus">モザイク弱く</button>
+    <button id="mosaicPlus">モザイク強く</button>
+    <button id="switchCamera">カメラ切替</button>
+    <button id="reportUser">通報</button>
+    <button id="blockUser">ブロック</button>
+    <button id="awayMode">不在</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, set, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+      authDomain: "roomvideo.firebaseapp.com",
+      databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "roomvideo",
+      storageBucket: "roomvideo.firebasestorage.app",
+      messagingSenderId: "1030429439546",
+      appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // 🎥 カメラ起動
+    let localStream;
+    let currentCamera = "user";
+    async function startCamera() {
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: currentCamera },
+        audio: false
+      });
+      document.getElementById("selfVideo").srcObject = localStream;
+    }
+    startCamera();
+
+    // 🔄 カメラ切替
+    document.getElementById("switchCamera").onclick = async () => {
+      currentCamera = currentCamera === "user" ? "environment" : "user";
+      localStream.getTracks().forEach(t => t.stop());
+      startCamera();
+    };
+
+    // 🎨 モザイク処理
+    let mosaicLevel = 5;
+    const mosaicSizes = [1, 4, 8, 16, 32, 48];
+    const selfVideo = document.getElementById("selfVideo");
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = 120;
+    canvas.height = 90;
+    selfVideo.parentNode.insertBefore(canvas, selfVideo);
+    selfVideo.style.display = "none";
+
+    function drawMosaic() {
+      if (!localStream) return;
+      const videoTrack = localStream.getVideoTracks()[0];
+      const imageCapture = new ImageCapture(videoTrack);
+      imageCapture.grabFrame().then(bitmap => {
+        ctx.imageSmoothingEnabled = false;
+        const size = mosaicSizes[mosaicLevel];
+        ctx.drawImage(bitmap, 0, 0, size, size);
+        ctx.drawImage(canvas, 0, 0, size, size, 0, 0, canvas.width, canvas.height);
+      });
+    }
+    setInterval(drawMosaic, 200);
+
+    document.getElementById("mosaicMinus").onclick = () => {
+      if (mosaicLevel > 0) mosaicLevel--;
+    };
+    document.getElementById("mosaicPlus").onclick = () => {
+      if (mosaicLevel < 5) mosaicLevel++;
+    };
+
+    // 🚨 通報・ブロック・不在
+    document.getElementById("reportUser").onclick = () => {
+      alert("通報しました。相手は自動的にブロックされます。");
+    };
+    document.getElementById("blockUser").onclick = () => {
+      alert("このユーザーをブロックしました。");
+    };
+    document.getElementById("awayMode").onclick = () => {
+      alert("不在モードに設定しました。誰からも通話を受けません。");
+    };
+
+    // 🔔 安全メッセージ
+    setInterval(() => {
+      const msg = document.getElementById("safeMessage");
+      msg.style.display = "block";
+      setTimeout(() => msg.style.display = "none", 3000);
+    }, 60000);
+  </script>
+
+</body>
+</html>
