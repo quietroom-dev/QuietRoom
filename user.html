@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Quiet Room - User</title>
+
 <style>
-  /* 画面いっぱいの縦長映像にする */
+/* 画面いっぱいの縦長映像にする */
 #mainVideo, #selfVideo, #canvas, .admin-video {
   position: fixed;
   top: 0;
@@ -40,187 +41,164 @@ button {
   backdrop-filter: blur(6px);
 }
 
-.mosaic-control {
-  width: 90vw;
-  max-width: 480px;
-  color: #fff;
-  font-size: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-#mosaicRange {
-  width: 100%;
-}
-
-#mosaicValue {
-  font-size: 12px;
-  color: #ccc;
-  text-align: right;
-}
-.mosaic-control {
+/* ▼▼▼ 縦長メーター UI ▼▼▼ */
+.mosaic-meter {
   position: fixed;
-  bottom: 120px;
-  width: 90vw;
-  max-width: 480px;
-  color: #fff;
-  font-size: 14px;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  z-index: 2;
+  align-items: center;
+  z-index: 3;
+  color: #fff;
+  font-size: 14px;
 }
+
+.meter-top, .meter-bottom {
+  padding: 6px 4px;
+  background: rgba(0,0,0,0.5);
+  border-radius: 6px;
+  margin: 6px 0;
+  user-select: none;
+}
+
+.meter-bar {
+  width: 26px;
+  height: 30vh;
+  background: rgba(255,255,255,0.2);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+#meterFill {
+  width: 100%;
+  height: 50%;
+  background: rgba(255,255,255,0.85);
+  transition: height 0.2s;
+}
+/* ▲▲▲ メーター UI ▲▲▲ */
 
 </style>
-
 </head>
+
 <body>
-　<div class="ui-layer">
-  <div class="mosaic-control">
-    <label for="mosaicRange">Mosaic</label>
-    <input id="mosaicRange" type="range" min="1" max="10" value="5" oninput="onMosaicChange(this.value)">
-    <span id="mosaicValue">5 / 10</span>
+
+<!-- メーター UI -->
+<div class="mosaic-meter">
+  <div class="meter-top" onclick="changeMosaic(-1)">▲ クリア</div>
+
+  <div class="meter-bar">
+    <div id="meterFill"></div>
   </div>
 
+  <div class="meter-bottom" onclick="changeMosaic(1)">▼ モザイク</div>
+</div>
+
+<!-- UIボタン -->
+<div class="ui-layer">
   <button onclick="start()">Start</button>
   <button onclick="stop()">Stop</button>
 </div>
 
-  <div id="safeMessage">管理者がパトロールすることがあります。安全に使ってね。</div>
+<div id="safeMessage">管理者がパトロールすることがあります。安全に使ってね。</div>
 
-  <video id="mainVideo" autoplay playsinline></video>
-  <video id="selfVideo" autoplay muted playsinline></video>
+<!-- 映像 -->
+<video id="mainVideo" autoplay playsinline></video>
+<video id="selfVideo" autoplay muted playsinline></video>
 
-  <div id="controls">
-    <button id="mosaicMinus">モザイク弱く</button>
-    <button id="mosaicPlus">モザイク強く</button>
-    <button id="switchCamera">カメラ切替</button>
-    <button id="reportUser">通報</button>
-    <button id="blockUser">ブロック</button>
-    <button id="awayMode">不在</button>
-  </div>
+<script type="module">
+/* Firebase */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, set, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "roomvideo",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+};
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
-      authDomain: "roomvideo.firebaseapp.com",
-      databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "roomvideo",
-      storageBucket: "roomvideo.firebasestorage.app",
-      messagingSenderId: "1030429439546",
-      appId: "1:1030429439546:web:1481670cb78deb35e2a703"
-    };
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+/* カメラ起動 */
+let localStream;
+let currentCamera = "user";
 
-    // 🎥 カメラ起動
-    let localStream;
-    let currentCamera = "user";
-    async function startCamera() {
-      localStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: currentCamera },
-        audio: false
-      });
-      document.getElementById("selfVideo").srcObject = localStream;
-    }
-    startCamera();
-
-    // 🔄 カメラ切替
-    document.getElementById("switchCamera").onclick = async () => {
-      currentCamera = currentCamera === "user" ? "environment" : "user";
-      localStream.getTracks().forEach(t => t.stop());
-      startCamera();
-    };
-
-    // 🎨 モザイク処理
-    let mosaicLevel = 5; // 初期値
-const mosaicSizes = [1, 4, 8, 16, 32, 48, 64, 80, 96, 112]; // 10段階に拡張
-
-function onMosaicChange(v) {
-  mosaicLevel = Number(v);
-  document.getElementById('mosaicValue').textContent = `${v} / 10`;
+async function startCamera() {
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentCamera },
+    audio: false
+  });
+  document.getElementById("selfVideo").srcObject = localStream;
 }
+startCamera();
 
-// 🎨 モザイク処理
+/* カメラ切替 */
+document.getElementById("switchCamera")?.addEventListener("click", async () => {
+  currentCamera = currentCamera === "user" ? "environment" : "user";
+  localStream.getTracks().forEach(t => t.stop());
+  startCamera();
+});
+
+/* ▼▼▼ モザイク処理 ▼▼▼ */
+let mosaicLevel = 5; // 1〜10
+const mosaicSizes = [1, 4, 8, 16, 24, 32, 40, 48, 56, 64];
+
+const selfVideo = document.getElementById("selfVideo");
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
+canvas.width = 120;
+canvas.height = 90;
+selfVideo.parentNode.insertBefore(canvas, selfVideo);
+selfVideo.style.display = "none";
+
 function drawMosaic() {
   if (!localStream) return;
   const videoTrack = localStream.getVideoTracks()[0];
   const imageCapture = new ImageCapture(videoTrack);
+
   imageCapture.grabFrame().then(bitmap => {
     ctx.imageSmoothingEnabled = false;
-    const size = mosaicSizes[mosaicLevel - 1]; // スライダー値に対応
+    const size = mosaicSizes[mosaicLevel - 1];
     ctx.drawImage(bitmap, 0, 0, size, size);
     ctx.drawImage(canvas, 0, 0, size, size, 0, 0, canvas.width, canvas.height);
   });
 }
+setInterval(drawMosaic, 200);
 
-    const selfVideo = document.getElementById("selfVideo");
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = 120;
-    canvas.height = 90;
-    selfVideo.parentNode.insertBefore(canvas, selfVideo);
-    selfVideo.style.display = "none";
-
-    function drawMosaic() {
-      if (!localStream) return;
-      const videoTrack = localStream.getVideoTracks()[0];
-      const imageCapture = new ImageCapture(videoTrack);
-      imageCapture.grabFrame().then(bitmap => {
-        ctx.imageSmoothingEnabled = false;
-        const size = mosaicSizes[mosaicLevel];
-        ctx.drawImage(bitmap, 0, 0, size, size);
-        ctx.drawImage(canvas, 0, 0, size, size, 0, 0, canvas.width, canvas.height);
-      });
-    }
-    setInterval(drawMosaic, 200);
-
-    document.getElementById("mosaicMinus").onclick = () => {
-      if (mosaicLevel > 0) mosaicLevel--;
-    };
-    document.getElementById("mosaicPlus").onclick = () => {
-      if (mosaicLevel < 5) mosaicLevel++;
-    };
-
-    // 🚨 通報・ブロック・不在
-    document.getElementById("reportUser").onclick = () => {
-      alert("通報しました。相手は自動的にブロックされます。");
-    };
-    document.getElementById("blockUser").onclick = () => {
-      alert("このユーザーをブロックしました。");
-    };
-    document.getElementById("awayMode").onclick = () => {
-      alert("不在モードに設定しました。誰からも通話を受けません。");
-    };
-
-    // 🔔 安全メッセージ
-    setInterval(() => {
-      const msg = document.getElementById("safeMessage");
-      msg.style.display = "block";
-      setTimeout(() => msg.style.display = "none", 3000);
-    }, 60000);
-    let mosaicLevel = 5; // 1〜10
-
-function onMosaicChange(v) {
-  mosaicLevel = Number(v);
-  document.getElementById('mosaicValue').textContent = `${v} / 10`;
-  // ここで実際のモザイク用の変数に反映する
-  // 例: pixelSize = 5 * mosaicLevel;
+/* ▼▼▼ メーターと連動 ▼▼▼ */
+function updateMeter() {
+  const percent = (mosaicLevel / 10) * 100;
+  document.getElementById("meterFill").style.height = percent + "%";
 }
 
-  </script>
-<div id="version" style="
-  margin-top: 20px;
-  font-size: 12px;
-  color: #888;
-  text-align: center;
-">
-  v1.0.6
+function changeMosaic(delta) {
+  mosaicLevel += delta;
+  if (mosaicLevel < 1) mosaicLevel = 1;
+  if (mosaicLevel > 10) mosaicLevel = 10;
+  updateMeter();
+}
+
+updateMeter(); // 初期反映
+
+/* 安全メッセージ */
+setInterval(() => {
+  const msg = document.getElementById("safeMessage");
+  msg.style.display = "block";
+  setTimeout(() => msg.style.display = "none", 3000);
+}, 60000);
+
+</script>
+
+<div id="version" style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
+  v1.0.7
 </div>
 
 </body>
