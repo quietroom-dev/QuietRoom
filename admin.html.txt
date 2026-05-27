@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Quiet Room - Admin</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #000;
+      color: #fff;
+    }
+    #videoContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
+    }
+    video {
+      width: 320px;
+      height: 240px;
+      background: #111;
+      border: 2px solid #444;
+      border-radius: 6px;
+    }
+    #controls {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      background: #444;
+      color: #fff;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2 style="padding:10px;">Quiet Room 管理者画面</h2>
+
+  <div id="controls">
+    <button id="refresh">更新</button>
+    <button id="forceBlock">強制ブロック</button>
+    <button id="forceDisconnect">強制切断</button>
+  </div>
+
+  <div id="videoContainer"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+      authDomain: "roomvideo.firebaseapp.com",
+      databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "roomvideo",
+      storageBucket: "roomvideo.firebasestorage.app",
+      messagingSenderId: "1030429439546",
+      appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const videoContainer = document.getElementById("videoContainer");
+
+    // 🔍 管理者が全ユーザーの映像を監視する（簡易版）
+    function loadUsers() {
+      videoContainer.innerHTML = "";
+      const usersRef = ref(db, "users");
+
+      onValue(usersRef, (snapshot) => {
+        videoContainer.innerHTML = "";
+        const users = snapshot.val();
+        if (!users) return;
+
+        Object.keys(users).forEach(uid => {
+          const userBox = document.createElement("div");
+          userBox.style.display = "flex";
+          userBox.style.flexDirection = "column";
+          userBox.style.alignItems = "center";
+
+          const v = document.createElement("video");
+          v.autoplay = true;
+          v.playsinline = true;
+          v.muted = true;
+
+          // 映像ストリーム（簡易：DataURLで送られてくる想定）
+          if (users[uid].frame) {
+            const img = new Image();
+            img.src = users[uid].frame;
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              canvas.width = 320;
+              canvas.height = 240;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, 320, 240);
