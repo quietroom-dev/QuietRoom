@@ -58,6 +58,18 @@ button {
   color: #ccc;
   text-align: right;
 }
+.mosaic-control {
+  position: fixed;
+  bottom: 120px;
+  width: 90vw;
+  max-width: 480px;
+  color: #fff;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 2;
+}
 
 </style>
 
@@ -125,8 +137,27 @@ button {
     };
 
     // 🎨 モザイク処理
-    let mosaicLevel = 5;
-    const mosaicSizes = [1, 4, 8, 16, 32, 48];
+    let mosaicLevel = 5; // 初期値
+const mosaicSizes = [1, 4, 8, 16, 32, 48, 64, 80, 96, 112]; // 10段階に拡張
+
+function onMosaicChange(v) {
+  mosaicLevel = Number(v);
+  document.getElementById('mosaicValue').textContent = `${v} / 10`;
+}
+
+// 🎨 モザイク処理
+function drawMosaic() {
+  if (!localStream) return;
+  const videoTrack = localStream.getVideoTracks()[0];
+  const imageCapture = new ImageCapture(videoTrack);
+  imageCapture.grabFrame().then(bitmap => {
+    ctx.imageSmoothingEnabled = false;
+    const size = mosaicSizes[mosaicLevel - 1]; // スライダー値に対応
+    ctx.drawImage(bitmap, 0, 0, size, size);
+    ctx.drawImage(canvas, 0, 0, size, size, 0, 0, canvas.width, canvas.height);
+  });
+}
+
     const selfVideo = document.getElementById("selfVideo");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
@@ -188,7 +219,7 @@ function onMosaicChange(v) {
   color: #888;
   text-align: center;
 ">
-  v1.0.4
+  v1.0.5
 </div>
 
 </body>
