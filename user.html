@@ -37,10 +37,40 @@
     color: #fff;
     backdrop-filter: blur(6px);
   }
+  .mosaic-control {
+  width: 90vw;
+  max-width: 480px;
+  color: #fff;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#mosaicRange {
+  width: 100%;
+}
+
+#mosaicValue {
+  font-size: 12px;
+  color: #ccc;
+  text-align: right;
+}
+
 </style>
 
 </head>
 <body>
+　<div class="ui-layer">
+  <div class="mosaic-control">
+    <label for="mosaicRange">Mosaic</label>
+    <input id="mosaicRange" type="range" min="1" max="10" value="5" oninput="onMosaicChange(this.value)">
+    <span id="mosaicValue">5 / 10</span>
+  </div>
+
+  <button onclick="start()">Start</button>
+  <button onclick="stop()">Stop</button>
+</div>
 
   <div id="safeMessage">管理者がパトロールすることがあります。安全に使ってね。</div>
 
@@ -140,6 +170,15 @@
       msg.style.display = "block";
       setTimeout(() => msg.style.display = "none", 3000);
     }, 60000);
+    let mosaicLevel = 5; // 1〜10
+
+function onMosaicChange(v) {
+  mosaicLevel = Number(v);
+  document.getElementById('mosaicValue').textContent = `${v} / 10`;
+  // ここで実際のモザイク用の変数に反映する
+  // 例: pixelSize = 5 * mosaicLevel;
+}
+
   </script>
 <div id="version" style="
   margin-top: 20px;
@@ -147,7 +186,7 @@
   color: #888;
   text-align: center;
 ">
-  v1.0.2-user
+  v1.0.3
 </div>
 
 </body>
