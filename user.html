@@ -5,42 +5,6 @@
   <title>Quiet Room - User</title>
 
 <style>
-/* 画面いっぱいの縦長映像にする */
-#mainVideo, #selfVideo, #canvas, .admin-video {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  object-fit: cover;
-  z-index: 1;
-}
-
-/* UIボタンを映像の上に重ねる */
-.ui-layer {
-  position: fixed;
-  bottom: 20px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  z-index: 2;
-}
-
-/* ボタンをアプリ風に */
-button {
-  width: 90vw;
-  max-width: 480px;
-  padding: 14px;
-  font-size: 18px;
-  border: none;
-  border-radius: 14px;
-  background: rgba(0,0,0,0.6);
-  color: #fff;
-  backdrop-filter: blur(6px);
-}
-
 /* 相手の映像（全画面） */
 #mainVideo {
   position: fixed;
@@ -57,12 +21,49 @@ button {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 10vw;
-  height: 10vh;
+  width: 20vw;
+  height: 20vh;
   object-fit: cover;
   border-radius: 8px;
-  z-index: 2;
+  z-index: 3;
   box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+
+/* モザイク用 canvas（自分の映像の上に重ねる） */
+#selfCanvas {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 20vw;
+  height: 20vh;
+  z-index: 4;
+  border-radius: 8px;
+}
+
+/* UIボタン */
+.ui-layer {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 5;
+}
+
+button {
+  width: 90vw;
+  max-width: 480px;
+  padding: 14px;
+  font-size: 18px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  backdrop-filter: blur(6px);
 }
 
 /* メーター（積み上げ型） */
@@ -106,24 +107,22 @@ button {
   margin: 6px 0;
   user-select: none;
 }
-
-
 </style>
 </head>
 
 <body>
+
 <!-- 相手の映像（大画面） -->
 <video id="mainVideo" autoplay playsinline></video>
 
 <!-- 自分の映像（小窓） -->
 <video id="selfVideo" autoplay muted playsinline></video>
+<canvas id="selfCanvas"></canvas>
 
 <!-- メーター -->
 <div class="mosaic-meter">
   <div class="meter-top" onclick="changeMosaic(-1)">▲ クリア</div>
-  <div class="meter-bar">
-    <div id="meterFill"></div>
-  </div>
+  <div class="meter-bar" id="meterBar"></div>
   <div class="meter-bottom" onclick="changeMosaic(1)">▼ モザイク</div>
 </div>
 
@@ -133,12 +132,6 @@ button {
   <button onclick="start()">Start</button>
   <button onclick="stop()">Stop</button>
 </div>
-
-<div id="safeMessage">管理者がパトロールすることがあります。安全に使ってね。</div>
-
-<!-- 映像 -->
-<video id="mainVideo" autoplay playsinline></video>
-<video id="selfVideo" autoplay muted playsinline></video>
 
 <script type="module">
 /* Firebase */
@@ -155,8 +148,7 @@ const firebaseConfig = {
   appId: "1:1030429439546:web:1481670cb78deb35e2a703"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+initializeApp(firebaseConfig);
 
 /* カメラ起動 */
 let localStream;
@@ -172,26 +164,49 @@ async function startCamera() {
 startCamera();
 
 /* カメラ切替 */
-document.getElementById("switchCamera")?.addEventListener("click", async () => {
+document.getElementById("switchCamera").onclick = async () => {
   currentCamera = currentCamera === "user" ? "environment" : "user";
   localStream.getTracks().forEach(t => t.stop());
   startCamera();
-});
+};
 
 /* ▼▼▼ モザイク処理 ▼▼▼ */
 let mosaicLevel = 5;
 const mosaicSizes = [1, 4, 8, 16, 24, 32, 40, 48, 56, 64];
 
 const selfVideo = document.getElementById("selfVideo");
-const canvas = document.createElement("canvas");
+const canvas = document.getElementById("selfCanvas");
 const ctx = canvas.getContext("2d");
-canvas.width = 120;
-canvas.height = 90;
-selfVideo.parentNode.insertBefore(canvas, selfVideo);
-selfVideo.style.display = "none";
 
-/* メーター生成 */
-const meterBar = document.querySelector(".meter-bar");
+/* canvas を小窓サイズに合わせる */
+function resizeCanvas() {
+  canvas.width = selfVideo.clientWidth;
+  canvas.height = selfVideo.clientHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+setTimeout(resizeCanvas, 500);
+
+/* モザイク描画 */
+function drawMosaic() {
+  if (!localStream) return;
+
+  const videoTrack = localStream.getVideoTracks()[0];
+  const imageCapture = new ImageCapture(videoTrack);
+
+  imageCapture.grabFrame().then(bitmap => {
+    ctx.imageSmoothingEnabled = false;
+    const size = mosaicSizes[mosaicLevel - 1];
+
+    ctx.drawImage(bitmap, 0, 0, size, size);
+    ctx.drawImage(canvas, 0, 0, size, size, 0, 0, canvas.width, canvas.height);
+  });
+}
+setInterval(drawMosaic, 200);
+
+/* ▼▼▼ メーター（積み上げ型） ▼▼▼ */
+const meterBar = document.getElementById("meterBar");
+
+/* ブロック生成 */
 for (let i = 0; i < 10; i++) {
   const block = document.createElement("div");
   block.className = "meter-block";
@@ -214,42 +229,8 @@ function changeMosaic(delta) {
   updateMeter();
 }
 
-/* モザイク処理 */
-function drawMosaic() {
-  if (!localStream) return;
-  const videoTrack = localStream.getVideoTracks()[0];
-  const imageCapture = new ImageCapture(videoTrack);
-  imageCapture.grabFrame().then(bitmap => {
-    ctx.imageSmoothingEnabled = false;
-    const size = mosaicSizes[mosaicLevel - 1];
-    ctx.drawImage(bitmap, 0, 0, size, size);
-    ctx.drawImage(canvas, 0, 0, size, size, 0, 0, canvas.width, canvas.height);
-  });
-}
-setInterval(drawMosaic, 200);
-updateMeter();
-
-/* カメラ切替 */
-let currentCamera = "user";
-document.getElementById("switchCamera").onclick = async () => {
-  currentCamera = currentCamera === "user" ? "environment" : "user";
-  localStream.getTracks().forEach(t => t.stop());
-  startCamera();
-};
-
-
-/* 安全メッセージ */
-setInterval(() => {
-  const msg = document.getElementById("safeMessage");
-  msg.style.display = "block";
-  setTimeout(() => msg.style.display = "none", 3000);
-}, 60000);
-
+updateMeter(); // 初期反映
 </script>
-
-<div id="version" style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
-  v1.0.9
-</div>
 
 </body>
 </html>
