@@ -274,15 +274,12 @@ document.getElementById("meterDown").addEventListener("click", () => window.chan
 
 
 /* 初期化は DOMContentLoaded 後に確実に実行 */
-window.addEventListener("DOMContentLoaded", () => {
-  initMeter();
-  // canvas サイズ合わせ（video がまだ来ていない場合もあるので少し遅延）
-  setTimeout(resizeCanvas, 300);
-});
+initMeter();
+setTimeout(resizeCanvas, 300);
 
 </script>
 
-v1.0.1
+v1.0.2
 
 </body>
 </html>
