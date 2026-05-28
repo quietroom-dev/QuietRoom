@@ -3,9 +3,21 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Quiet Room - User</title>
+<title>Quiet Room</title>
 
 <style>
+v1.1.1
+/* =========================
+   全体
+========================= */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: sans-serif;
+}
 
 /* =========================
    相手映像（全画面）
@@ -13,11 +25,29 @@
 #mainVideo {
   position: fixed;
   inset: 0;
+
   width: 100vw;
   height: 100vh;
-  object-fit: cover;
-  z-index: 1;
+
+  /* 全体を見せる */
+  object-fit: contain;
+
   background: #000;
+
+  z-index: 1;
+}
+
+/* 相手映像モザイク */
+#mainCanvas {
+  position: fixed;
+  inset: 0;
+
+  width: 100vw;
+  height: 100vh;
+
+  z-index: 2;
+
+  pointer-events: none;
 }
 
 /* =========================
@@ -25,46 +55,48 @@
 ========================= */
 #selfVideo {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 20vw;
-  height: 20vh;
-  min-width: 140px;
-  min-height: 100px;
-  object-fit: cover;
-  border-radius: 12px;
-  z-index: 3;
-  background: #000;
-  box-shadow: 0 0 10px rgba(0,0,0,0.45);
-}
 
-/* モザイクCanvas */
-#selfCanvas {
-  position: fixed;
-  bottom: 20px;
   right: 20px;
-  width: 20vw;
-  height: 20vh;
-  min-width: 140px;
-  min-height: 100px;
+  bottom: 20px;
+
+  width: 24vw;
+  height: 24vh;
+
+  min-width: 180px;
+  min-height: 130px;
+
+  /* 全体表示 */
+  object-fit: contain;
+
+  background: #000;
+
   border-radius: 12px;
-  z-index: 4;
-  pointer-events: none;
+
+  z-index: 5;
+
+  box-shadow: 0 0 12px rgba(0,0,0,0.5);
 }
 
 /* =========================
-   UIボタン
+   UI
 ========================= */
 .ui-layer {
   position: fixed;
+
   left: 50%;
   bottom: 20px;
+
   transform: translateX(-50%);
+
   display: flex;
   flex-direction: column;
+
   gap: 12px;
+
   align-items: center;
-  z-index: 10;
+
+  z-index: 20;
+
   width: 100%;
 }
 
@@ -73,13 +105,16 @@ button {
   max-width: 480px;
 
   padding: 14px;
+
   border: none;
   border-radius: 14px;
 
   font-size: 18px;
+
   color: #fff;
 
   background: rgba(0,0,0,0.6);
+
   backdrop-filter: blur(6px);
 
   cursor: pointer;
@@ -87,28 +122,28 @@ button {
 
 button:disabled {
   opacity: 0.45;
-  cursor: not-allowed;
 }
 
 /* =========================
-   モザイクメーター
+   メーター
 ========================= */
 .mosaic-meter {
   position: fixed;
+
   right: 12px;
   top: 50%;
+
   transform: translateY(-50%);
 
   display: flex;
   flex-direction: column;
   align-items: center;
 
-  z-index: 20;
+  z-index: 30;
+
   color: #fff;
-  user-select: none;
 }
 
-/* バー本体 */
 .meter-bar {
   width: 42px;
   height: 34vh;
@@ -119,41 +154,37 @@ button:disabled {
   gap: 4px;
 }
 
-/* 各ブロック */
 .meter-block {
   flex: 1;
 
   width: 100%;
 
-  background: rgba(255,255,255,0.22);
+  border-radius: 8px;
 
   border: 2px solid rgba(255,255,255,0.7);
 
-  border-radius: 8px;
+  background: rgba(255,255,255,0.2);
 
-  transition:
-    background 0.12s ease,
-    transform 0.12s ease;
+  transition: 0.15s;
 }
 
-/* 点灯 */
 .meter-block.active {
   background: rgba(255,255,255,1);
 }
 
-/* 上下ボタン */
 .meter-top,
 .meter-bottom {
   margin: 8px 0;
-  padding: 6px 10px;
 
-  background: rgba(0,0,0,0.55);
+  padding: 6px 10px;
 
   border-radius: 8px;
 
-  font-size: 14px;
+  background: rgba(0,0,0,0.55);
 
   cursor: pointer;
+
+  user-select: none;
 }
 
 </style>
@@ -162,29 +193,42 @@ button:disabled {
 <body>
 
 <!-- 相手映像 -->
-<video id="mainVideo" autoplay playsinline></video>
+<video
+  id="mainVideo"
+  autoplay
+  playsinline
+></video>
+
+<!-- 相手映像モザイク -->
+<canvas id="mainCanvas"></canvas>
 
 <!-- 自分映像 -->
-<video id="selfVideo" autoplay muted playsinline></video>
-
-<!-- モザイク描画 -->
-<canvas id="selfCanvas"></canvas>
+<video
+  id="selfVideo"
+  autoplay
+  muted
+  playsinline
+></video>
 
 <!-- メーター -->
 <div class="mosaic-meter">
 
-  <div class="meter-top" id="meterUp">
+  <div
+    class="meter-top"
+    id="meterUp"
+  >
     ▲ クリア
   </div>
 
   <div
     class="meter-bar"
     id="meterBar"
-    role="list"
-    aria-label="Mosaic Level"
   ></div>
 
-  <div class="meter-bottom" id="meterDown">
+  <div
+    class="meter-bottom"
+    id="meterDown"
+  >
     ▼ モザイク
   </div>
 
@@ -201,7 +245,10 @@ button:disabled {
     Start
   </button>
 
-  <button id="stopBtn" disabled>
+  <button
+    id="stopBtn"
+    disabled
+  >
     Stop
   </button>
 
@@ -216,8 +263,11 @@ button:disabled {
 let localStream = null;
 let currentCamera = "user";
 
-/* モザイクレベル 1〜10 */
-let mosaicLevel = 5;
+/*
+  相手が選んだモザイク強度
+  1〜10
+*/
+let remoteMosaicLevel = 5;
 
 /* モザイク粒度 */
 const mosaicSizes = [
@@ -234,26 +284,33 @@ const mosaicSizes = [
 ];
 
 /* =========================================
-   要素取得
+   要素
 ========================================= */
 
-const selfVideo = document.getElementById("selfVideo");
-const mainVideo = document.getElementById("mainVideo");
+const selfVideo =
+  document.getElementById("selfVideo");
 
-const canvas = document.getElementById("selfCanvas");
-const ctx = canvas.getContext("2d");
+const mainVideo =
+  document.getElementById("mainVideo");
 
-const meterBar = document.getElementById("meterBar");
+const mainCanvas =
+  document.getElementById("mainCanvas");
 
-const startBtn = document.getElementById("startBtn");
-const stopBtn = document.getElementById("stopBtn");
+const mainCtx =
+  mainCanvas.getContext("2d");
+
+const meterBar =
+  document.getElementById("meterBar");
 
 /* =========================================
-   Offscreen Canvas（毎回生成しない）
+   Offscreen
 ========================================= */
 
-const offCanvas = document.createElement("canvas");
-const offCtx = offCanvas.getContext("2d");
+const offCanvas =
+  document.createElement("canvas");
+
+const offCtx =
+  offCanvas.getContext("2d");
 
 /* =========================================
    カメラ開始
@@ -271,17 +328,25 @@ async function startCamera() {
         audio: false
       });
 
+    /*
+      自分映像
+    */
     selfVideo.srcObject = localStream;
 
-    /* デモ用:
-       mainVideoにも同じ映像 */
+    /*
+      今はデモとして
+      相手映像にも同じ映像を入れる
+
+      実運用では
+      remoteStream を入れる
+    */
     mainVideo.srcObject = localStream;
 
     setTimeout(resizeCanvas, 200);
 
   } catch (err) {
 
-    console.error("カメラ起動エラー:", err);
+    console.error(err);
 
   }
 }
@@ -324,54 +389,60 @@ document
    Start / Stop
 ========================================= */
 
-function startApp() {
+document
+  .getElementById("startBtn")
+  .addEventListener("click", () => {
 
-  startBtn.disabled = true;
-  stopBtn.disabled = false;
+    document.getElementById(
+      "startBtn"
+    ).disabled = true;
 
-  startCamera();
-}
+    document.getElementById(
+      "stopBtn"
+    ).disabled = false;
 
-function stopApp() {
+    startCamera();
 
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
+  });
 
-  stopCamera();
+document
+  .getElementById("stopBtn")
+  .addEventListener("click", () => {
 
-  ctx.clearRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-}
+    document.getElementById(
+      "startBtn"
+    ).disabled = false;
 
-startBtn.addEventListener("click", startApp);
-stopBtn.addEventListener("click", stopApp);
+    document.getElementById(
+      "stopBtn"
+    ).disabled = true;
+
+    stopCamera();
+
+  });
 
 /* =========================================
-   Canvas サイズ調整
+   Canvasサイズ
 ========================================= */
 
 function resizeCanvas() {
 
-  const rect =
-    selfVideo.getBoundingClientRect();
-
   const dpr =
     window.devicePixelRatio || 1;
 
-  canvas.style.width = rect.width + "px";
-  canvas.style.height = rect.height + "px";
+  mainCanvas.width =
+    window.innerWidth * dpr;
 
-  canvas.width =
-    Math.max(1, Math.floor(rect.width * dpr));
+  mainCanvas.height =
+    window.innerHeight * dpr;
 
-  canvas.height =
-    Math.max(1, Math.floor(rect.height * dpr));
+  mainCanvas.style.width =
+    window.innerWidth + "px";
 
-  ctx.setTransform(
+  mainCanvas.style.height =
+    window.innerHeight + "px";
+
+  mainCtx.setTransform(
     dpr,
     0,
     0,
@@ -387,41 +458,47 @@ window.addEventListener(
 );
 
 /* =========================================
-   モザイク描画
+   相手映像モザイク描画
 ========================================= */
 
-function drawMosaic() {
+function drawRemoteMosaic() {
 
   if (
-    !selfVideo ||
-    selfVideo.readyState < 2
+    mainVideo.readyState < 2
   ) {
     return;
   }
 
-  const displayW = canvas.clientWidth;
-  const displayH = canvas.clientHeight;
+  const w =
+    mainCanvas.clientWidth;
+
+  const h =
+    mainCanvas.clientHeight;
 
   const size =
     mosaicSizes[
       Math.max(
         0,
-        Math.min(9, mosaicLevel - 1)
+        Math.min(
+          9,
+          remoteMosaicLevel - 1
+        )
       )
     ];
 
-  /* Offscreen サイズ */
+  /*
+    小さく描画
+  */
   offCanvas.width = size;
 
   offCanvas.height =
     Math.max(
       1,
-      Math.round(size * (displayH / displayW))
+      Math.round(size * (h / w))
     );
 
   offCtx.imageSmoothingEnabled = false;
 
-  /* 小さく描画 */
   offCtx.clearRect(
     0,
     0,
@@ -430,24 +507,26 @@ function drawMosaic() {
   );
 
   offCtx.drawImage(
-    selfVideo,
+    mainVideo,
     0,
     0,
     offCanvas.width,
     offCanvas.height
   );
 
-  /* 拡大描画 */
-  ctx.imageSmoothingEnabled = false;
+  /*
+    拡大描画
+  */
+  mainCtx.imageSmoothingEnabled = false;
 
-  ctx.clearRect(
+  mainCtx.clearRect(
     0,
     0,
-    canvas.width,
-    canvas.height
+    mainCanvas.width,
+    mainCanvas.height
   );
 
-  ctx.drawImage(
+  mainCtx.drawImage(
     offCanvas,
     0,
     0,
@@ -455,13 +534,16 @@ function drawMosaic() {
     offCanvas.height,
     0,
     0,
-    canvas.width,
-    canvas.height
+    mainCanvas.width,
+    mainCanvas.height
   );
 }
 
 /* 描画ループ */
-setInterval(drawMosaic, 120);
+setInterval(
+  drawRemoteMosaic,
+  120
+);
 
 /* =========================================
    メーター初期化
@@ -476,12 +558,8 @@ function initMeter() {
     const block =
       document.createElement("div");
 
-    block.className = "meter-block";
-
-    block.setAttribute(
-      "role",
-      "listitem"
-    );
+    block.className =
+      "meter-block";
 
     meterBar.appendChild(block);
   }
@@ -504,7 +582,7 @@ function updateMeter() {
 
     block.classList.toggle(
       "active",
-      index < mosaicLevel
+      index < remoteMosaicLevel
     );
 
   });
@@ -516,28 +594,37 @@ function updateMeter() {
 
 function changeMosaic(delta) {
 
-  mosaicLevel += delta;
+  remoteMosaicLevel += delta;
 
-  if (mosaicLevel < 1) {
-    mosaicLevel = 1;
+  if (remoteMosaicLevel < 1) {
+    remoteMosaicLevel = 1;
   }
 
-  if (mosaicLevel > 10) {
-    mosaicLevel = 10;
+  if (remoteMosaicLevel > 10) {
+    remoteMosaicLevel = 10;
   }
+
+  /*
+    本来ここで
+    相手へ送信する
+
+    socket.send(...)
+  */
 
   updateMeter();
 }
 
 /* =========================================
-   メーターボタン
+   メーター操作
 ========================================= */
 
 document
   .getElementById("meterUp")
   .addEventListener("click", () => {
 
-    /* クリア方向 */
+    /*
+      クリア方向
+    */
     changeMosaic(-1);
 
   });
@@ -546,7 +633,9 @@ document
   .getElementById("meterDown")
   .addEventListener("click", () => {
 
-    /* モザイク強化 */
+    /*
+      モザイク強化
+    */
     changeMosaic(1);
 
   });
@@ -557,14 +646,11 @@ document
 
 initMeter();
 
-setTimeout(
-  resizeCanvas,
-  300
-);
+resizeCanvas();
 
 startCamera();
 
 </script>
-v1.1.0
+
 </body>
 </html>
