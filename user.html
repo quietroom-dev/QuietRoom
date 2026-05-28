@@ -27,6 +27,7 @@
   border-radius: 8px;
   z-index: 3;
   box-shadow: 0 0 8px rgba(0,0,0,0.4);
+  background: #000;
 }
 
 /* モザイク用 canvas（自分の映像の上に重ねる） */
@@ -38,6 +39,7 @@
   height: 20vh;
   z-index: 4;
   border-radius: 8px;
+  pointer-events: none; /* 小窓の操作を邪魔しない */
 }
 
 /* UIボタン */
@@ -75,7 +77,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  z-index: 10;
+  z-index: 20;
   color: #fff;
   font-size: 14px;
 }
@@ -86,26 +88,30 @@ button {
   display: flex;
   flex-direction: column-reverse;
   gap: 2px;
+  margin: 6px 0;
 }
 
 .meter-block {
   width: 100%;
   height: 10%;
-  background: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.18);
   border-radius: 4px;
-  transition: background 0.2s;
+  transition: background 0.18s, transform 0.12s;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08);
 }
 
 .meter-block.active {
-  background: rgba(255,255,255,0.9);
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(220,220,220,0.95));
+  transform: scaleY(1.02);
 }
 
 .meter-top, .meter-bottom {
-  padding: 6px 4px;
+  padding: 6px 8px;
   background: rgba(0,0,0,0.5);
   border-radius: 6px;
   margin: 6px 0;
   user-select: none;
+  cursor: pointer;
 }
 </style>
 </head>
@@ -120,128 +126,165 @@ button {
 <canvas id="selfCanvas"></canvas>
 
 <!-- メーター -->
-<div class="mosaic-meter">
-  <div class="meter-top" onclick="changeMosaic(-1)">▲ クリア</div>
-  <div class="meter-bar" id="meterBar"></div>
-  <div class="meter-bottom" onclick="changeMosaic(1)">▼ モザイク</div>
+<div class="mosaic-meter" aria-hidden="false">
+  <div class="meter-top" id="meterUp">▲ クリア</div>
+  <div class="meter-bar" id="meterBar" role="list"></div>
+  <div class="meter-bottom" id="meterDown">▼ モザイク</div>
 </div>
 
 <!-- UIボタン -->
 <div class="ui-layer">
   <button id="switchCamera">カメラ切替</button>
-  <button onclick="start()">Start</button>
-  <button onclick="stop()">Stop</button>
+  <button id="startBtn">Start</button>
+  <button id="stopBtn">Stop</button>
 </div>
 
 <script type="module">
-/* Firebase */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
-  authDomain: "roomvideo.firebaseapp.com",
-  databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "roomvideo",
-  storageBucket: "roomvideo.firebasestorage.app",
-  messagingSenderId: "1030429439546",
-  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
-};
-
-initializeApp(firebaseConfig);
-
-/* カメラ起動 */
-let localStream;
+/* --- 初期設定 --- */
+let localStream = null;
 let currentCamera = "user";
 
+/* カメラ起動 */
 async function startCamera() {
-  localStream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: currentCamera },
-    audio: false
-  });
-  document.getElementById("selfVideo").srcObject = localStream;
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: currentCamera },
+      audio: false
+    });
+    const selfVideo = document.getElementById("selfVideo");
+    selfVideo.srcObject = localStream;
+    // canvas サイズを合わせる（少し遅延して要素サイズが確定してから）
+    setTimeout(resizeCanvas, 200);
+  } catch (err) {
+    console.error("カメラ起動エラー:", err);
+  }
 }
 startCamera();
 
 /* カメラ切替 */
-document.getElementById("switchCamera").onclick = async () => {
+document.getElementById("switchCamera").addEventListener("click", async () => {
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+  }
   currentCamera = currentCamera === "user" ? "environment" : "user";
-  localStream.getTracks().forEach(t => t.stop());
-  startCamera();
+  await startCamera();
+});
+
+/* Start / Stop（ダミー。必要なら実装を差し替えて） */
+window.start = function() {
+  document.getElementById("startBtn").disabled = true;
+  document.getElementById("stopBtn").disabled = false;
+};
+window.stop = function() {
+  document.getElementById("startBtn").disabled = false;
+  document.getElementById("stopBtn").disabled = true;
 };
 
-/* ▼▼▼ モザイク処理 ▼▼▼ */
-let mosaicLevel = 5;
-const mosaicSizes = [1, 4, 8, 16, 24, 32, 40, 48, 56, 64];
+/* --- モザイク処理 --- */
+let mosaicLevel = 5; // 1..10
+const mosaicSizes = [1,4,8,12,16,20,28,36,48,64];
 
 const selfVideo = document.getElementById("selfVideo");
 const canvas = document.getElementById("selfCanvas");
 const ctx = canvas.getContext("2d");
 
-/* canvas を小窓サイズに合わせる */
+/* canvas を小窓サイズに合わせる（ピクセル比を考慮） */
 function resizeCanvas() {
-  canvas.width = selfVideo.clientWidth;
-  canvas.height = selfVideo.clientHeight;
+  const rect = selfVideo.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // スケーリングを合わせる
 }
 window.addEventListener("resize", resizeCanvas);
-setTimeout(resizeCanvas, 500);
 
-/* モザイク描画 */
+/* モザイク描画（video要素から直接描画） */
 function drawMosaic() {
-  if (!localStream) return;
+  if (!selfVideo || selfVideo.readyState < 2) return;
+  // canvas の表示サイズ（CSSピクセル）
+  const displayW = canvas.clientWidth;
+  const displayH = canvas.clientHeight;
+  const size = mosaicSizes[Math.max(0, Math.min(9, mosaicLevel - 1))];
 
-  const videoTrack = localStream.getVideoTracks()[0];
-  const imageCapture = new ImageCapture(videoTrack);
-
-  imageCapture.grabFrame().then(bitmap => {
-    ctx.imageSmoothingEnabled = false;
-    const size = mosaicSizes[mosaicLevel - 1];
-
-    ctx.drawImage(bitmap, 0, 0, size, size);
-    ctx.drawImage(canvas, 0, 0, size, size, 0, 0, canvas.width, canvas.height);
-  });
+  // 1) 小さく描いて 2) 拡大してピクセル化
+  // 一時的に描画先を canvas（上書き）で行う
+  // drawImage(video, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+  // まず小さく描く（左上に）
+  ctx.imageSmoothingEnabled = false;
+  // 描画先を小サイズで一旦描く（0,0,size,size）
+  // To preserve aspect, draw scaled small then scale up to canvas
+  // We'll draw video into a tiny area then scale up
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // draw small into a temporary offscreen canvas would be ideal, but we can draw directly:
+  // draw video scaled down to (size x size) at 0,0 then scale that to full canvas
+  // Use an offscreen canvas to avoid flicker
+  const off = document.createElement("canvas");
+  off.width = size;
+  off.height = Math.max(1, Math.round(size * (displayH / displayW)));
+  const offCtx = off.getContext("2d");
+  offCtx.imageSmoothingEnabled = false;
+  // draw video into offscreen with fit
+  offCtx.drawImage(selfVideo, 0, 0, off.width, off.height);
+  // then draw the offscreen scaled to visible canvas
+  ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, canvas.width, canvas.height);
 }
-setInterval(drawMosaic, 200);
 
-/* ▼▼▼ メーター（積み上げ型） ▼▼▼ */
-const meterBar = document.getElementById("meterBar");
+/* 描画ループ */
+setInterval(drawMosaic, 120);
 
-/* ブロック生成 */
-for (let i = 0; i < 10; i++) {
-  const block = document.createElement("div");
-  block.className = "meter-block";
-  meterBar.appendChild(block);
+/* --- メーター（積み上げ型） --- */
+function initMeter() {
+  const meterBar = document.getElementById("meterBar");
+  if (!meterBar) return;
+  // 既にブロックがある場合はクリア
+  meterBar.innerHTML = "";
+  for (let i = 0; i < 10; i++) {
+    const block = document.createElement("div");
+    block.className = "meter-block";
+    block.setAttribute("role", "listitem");
+    meterBar.appendChild(block);
+  }
+  updateMeter();
 }
 
 /* メーター更新 */
 function updateMeter() {
   const blocks = document.querySelectorAll(".meter-block");
   blocks.forEach((b, i) => {
+    // i: 0 が下（column-reverse のため視覚的に下に来る）
     b.classList.toggle("active", i < mosaicLevel);
   });
 }
 
-/* メーター操作 */
-function changeMosaic(delta) {
+/* メーター操作（グローバルに公開） */
+window.changeMosaic = function(delta) {
   mosaicLevel += delta;
   if (mosaicLevel < 1) mosaicLevel = 1;
   if (mosaicLevel > 10) mosaicLevel = 10;
   updateMeter();
-}
+};
 
-updateMeter(); // 初期反映
+/* ▲/▼ クリックイベント（アクセシビリティ向上） */
+document.getElementById("meterUp").addEventListener("click", () => window.changeMosaic(-1));
+document.getElementById("meterDown").addEventListener("click", () => window.changeMosaic(1));
+
+/* 初期化は DOMContentLoaded 後に確実に実行 */
+window.addEventListener("DOMContentLoaded", () => {
+  initMeter();
+  // canvas サイズ合わせ（video がまだ来ていない場合もあるので少し遅延）
+  setTimeout(resizeCanvas, 300);
+});
+
+/* バージョン表示（任意） */
+const versionDiv = document.createElement("div");
+versionDiv.id = "version";
+versionDiv.style.cssText = "position:fixed;bottom:5px;left:50%;transform:translateX(-50%);font-size:12px;color:#ccc;z-index:30;";
+versionDiv.textContent = "v1.0.1";
+document.body.appendChild(versionDiv);
+
 </script>
-<div id="version" style="
-  position: fixed;
-  bottom: 5px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  color: #ccc;
-  z-index: 20;
-">
-  v1.0.9
-</div>
 
 </body>
 </html>
