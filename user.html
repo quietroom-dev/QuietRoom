@@ -281,12 +281,17 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 /* バージョン表示（任意） */
-const versionDiv = document.createElement("div");
-versionDiv.id = "version";
-versionDiv.style.cssText = "position:fixed;bottom:5px;left:50%;transform:translateX(-50%);font-size:12px;color:#ccc;z-index:30;";
-versionDiv.textContent = "v1.0.1";
-document.body.appendChild(versionDiv);
-
+<div id="version" style="
+  position: fixed;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #ccc;
+  z-index: 20;
+">
+  v1.0.1
+</div>
 </script>
 
 </body>
