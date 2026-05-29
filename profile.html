@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuietRoom プロフィール一覧</title>
+
+  <!-- Firebase（compat版） -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    .user-card {
+      background: #222;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+    }
+    .user-card h3 {
+      margin: 0 0 5px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>プロフィール一覧</h2>
+
+  <div id="userList"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+      authDomain: "roomvideo.firebaseapp.com",
+      databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "roomvideo",
+      storageBucket: "roomvideo.firebasestorage.app",
+      messagingSenderId: "1030429439546",
+      appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const userList = document.getElementById("userList");
+
+    // user コレクションを読み込む
+    db.collection("user").get().then(snapshot => {
+      snapshot.forEach(doc => {
+        const data = doc.data();
+
+        const card = document.createElement("div");
+        card.className = "user-card";
+
+        card.innerHTML = `
+          <h3>${data.nickname}</h3>
+          <p>性別：${data.gender}</p>
+          <p>年齢：${data.age}</p>
+          <p>都道府県：${data.prefecture}</p>
+          <p>ひとこと：${data.comment}</p>
+        `;
+
+        userList.appendChild(card);
+      });
+    });
+  </script>
+</body>
+</html>
