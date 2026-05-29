@@ -50,24 +50,41 @@
     const userList = document.getElementById("userList");
 
     // user コレクションを読み込む
-    db.collection("user").get().then(snapshot => {
+    db.collection("user")
+  .orderBy("online", "desc")
+  .get()
+  .then(snapshot => {
       snapshot.forEach(doc => {
         const data = doc.data();
 
         const card = document.createElement("div");
         card.className = "user-card";
 
-        card.innerHTML = `
-          <h3>${data.nickname}</h3>
-          <p>性別：${data.gender}</p>
-          <p>年齢：${data.age}</p>
-          <p>都道府県：${data.prefecture}</p>
-          <p>ひとこと：${data.comment}</p>
-        `;
+        const statusIcon = data.online ? "🔴" : "⚫️";
+
+card.innerHTML = `
+  <h3>${statusIcon} ${data.nickname}</h3>
+  <p>性別：${data.gender}</p>
+  <p>年齢：${data.age}</p>
+  <p>都道府県：${data.prefecture}</p>
+  <p>ひとこと：${data.comment}</p>
+`;
+
 
         userList.appendChild(card);
       });
     });
+    const myUid = localStorage.getItem("myUid");
+if (myUid) {
+  db.collection("user").doc(myUid).update({ online: true });
+}
+window.addEventListener("beforeunload", () => {
+  const myUid = localStorage.getItem("myUid");
+  if (myUid) {
+    db.collection("user").doc(myUid).update({ online: false });
+  }
+});
+
   </script>
 </body>
 </html>
