@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuietRoom プロフィール登録</title>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
+    input, select, textarea {
+      width: 80%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: none;
+    }
+    button {
+      width: 80%;
+      padding: 12px;
+      background-color: #4caf50;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>プロフィール登録</h2>
+
+  <input id="nickname" placeholder="ニックネーム">
+  <select id="gender">
+    <option value="">性別</option>
+    <option value="男性">男性</option>
+    <option value="女性">女性</option>
+    <option value="その他">その他</option>
+  </select>
+  <input id="age" type="number" placeholder="年齢">
+  <input id="prefecture" placeholder="都道府県">
+  <textarea id="comment" placeholder="ひとこと"></textarea>
+
+  <button onclick="saveProfile()">登録</button>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "あなたのAPIキー",
+      authDomain: "あなたのプロジェクトID.firebaseapp.com",
+      projectId: "あなたのプロジェクトID",
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function saveProfile() {
+      const data = {
+        nickname: document.getElementById("nickname").value,
+        gender: document.getElementById("gender").value,
+        age: Number(document.getElementById("age").value),
+        prefecture: document.getElementById("prefecture").value,
+        comment: document.getElementById("comment").value,
+        reportCount: 0,
+        blockedUsers: [],
+        friends: [],
+        createdAt: new Date()
+      };
+
+      db.collection("users").add(data).then(docRef => {
+        localStorage.setItem("myUid", docRef.id);
+        window.location.href = "profiles.html";
+      });
+    }
+  </script>
+</body>
+</html>
