@@ -29,6 +29,7 @@
 </head>
 
 <body>
+  <button onclick="location.reload()">🔄 更新</button>
   <h2>プロフィール一覧</h2>
 
   <div id="userList"></div>
@@ -84,6 +85,10 @@ window.addEventListener("beforeunload", () => {
     db.collection("user").doc(myUid).update({ online: false });
   }
 });
+  // 1分ごとにページを自動更新
+setInterval(() => {
+  location.reload();
+}, 60000); // 60000ms = 1分
 
   </script>
 </body>
