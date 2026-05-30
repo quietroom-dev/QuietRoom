@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Quiet Room</title>
 
+<!-- ▼▼ WebRTC に必要な Firebase 読み込み（追加） ▼▼ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<!-- ▲▲ ここまで追加 ▲▲ -->
+
 <style>
-v1.1.2
+v2.0.0
 /* =========================
    全体
 ========================= */
@@ -245,6 +250,42 @@ body {
 <script type="module">
 
 /* =========================================
+   ▼▼ Firebase 初期化（追加） ▼▼
+========================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  projectId: "roomvideo",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+/* ▲▲ ここまで追加 ▲▲ */
+
+
+/* =========================================
+   ▼▼ URL から相手 UID を取得（追加） ▼▼
+========================================= */
+const params = new URLSearchParams(window.location.search);
+const targetUid = params.get("target");
+/* ▲▲ ここまで追加 ▲▲ */
+
+
+/* =========================================
+   ▼▼ WebRTC PeerConnection（追加） ▼▼
+========================================= */
+let pc = new RTCPeerConnection({
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" }
+  ]
+});
+/* ▲▲ ここまで追加 ▲▲ */
+
+
+/* =========================================
    状態
 ========================================= */
 
@@ -322,10 +363,14 @@ async function startCamera() {
     selfVideo.srcObject = localStream;
 
     /*
-      デモ用:
-      相手映像にも同じ映像
+      ▼▼ WebRTC に自分の映像を追加（追加） ▼▼
     */
-    mainVideo.srcObject = localStream;
+    localStream.getTracks().forEach(track => {
+      pc.addTrack(track, localStream);
+    });
+    /*
+      ▲▲ ここまで追加 ▲▲
+    */
 
     setTimeout(
       resizeCanvas,
@@ -338,6 +383,58 @@ async function startCamera() {
 
   }
 }
+
+/* =========================================
+   ▼▼ 相手映像を受信（追加） ▼▼
+========================================= */
+pc.ontrack = (event) => {
+  mainVideo.srcObject = event.streams[0];
+};
+/* ▲▲ ここまで追加 ▲▲ */
+
+
+/* =========================================
+   ▼▼ ICE candidate を Firestore に保存（追加） ▼▼
+========================================= */
+const callDoc = db.collection("calls").doc(targetUid);
+const offerCandidates = callDoc.collection("offerCandidates");
+const answerCandidates = callDoc.collection("answerCandidates");
+
+pc.onicecandidate = (event) => {
+  if (event.candidate) {
+    offerCandidates.add(event.candidate.toJSON());
+  }
+};
+/* ▲▲ ここまで追加 ▲▲ */
+
+
+/* =========================================
+   ▼▼ Offer を作成して Firestore に送信（追加） ▼▼
+========================================= */
+async function startCall() {
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  await callDoc.set({ offer });
+
+  callDoc.onSnapshot(async (snapshot) => {
+    const data = snapshot.data();
+    if (!pc.currentRemoteDescription && data?.answer) {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    }
+  });
+
+  answerCandidates.onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(change => {
+      if (change.type === "added") {
+        const candidate = new RTCIceCandidate(change.doc.data());
+        pc.addIceCandidate(candidate);
+      }
+    });
+  });
+}
+/* ▲▲ ここまで追加 ▲▲ */
+
 
 /* =========================================
    カメラ停止
@@ -580,13 +677,6 @@ function changeMosaic(delta) {
     remoteMosaicLevel = 10;
   }
 
-  /*
-    本来はここで
-    相手へ送信
-
-    socket.send(...)
-  */
-
   updateMeter();
 }
 
@@ -598,7 +688,6 @@ document
   .getElementById("meterUp")
   .addEventListener("click", () => {
 
-    /* クリア */
     changeMosaic(-1);
 
   });
@@ -607,7 +696,6 @@ document
   .getElementById("meterDown")
   .addEventListener("click", () => {
 
-    /* モザイク強化 */
     changeMosaic(1);
 
   });
@@ -621,6 +709,10 @@ initMeter();
 resizeCanvas();
 
 startCamera();
+
+/* ▼▼ WebRTC 通話開始（追加） ▼▼ */
+startCall();
+/* ▲▲ ここまで追加 ▲▲ */
 
 </script>
 
