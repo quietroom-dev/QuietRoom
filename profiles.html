@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v.1.0.0
+  v.1.0.1
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuietRoom プロフィール一覧</title>
@@ -50,7 +50,13 @@
     const db = firebase.firestore();
 
     const userList = document.getElementById("userList");
-
+    
+     // 自分をオンラインにする
+    const myUid = localStorage.getItem("myUid");
+    if (myUid) {
+      db.collection("user").doc(myUid).update({ online: true });
+    }
+    
     // user コレクションを読み込む
     db.collection("user")
   .orderBy("online", "desc")
@@ -58,11 +64,10 @@
   .then(snapshot => {
       snapshot.forEach(doc => {
         const data = doc.data();
+        const statusIcon = data.online ? "🔴" : "⚫️";
 
         const card = document.createElement("div");
         card.className = "user-card";
-
-        const statusIcon = data.online ? "🔴" : "⚫️";
 
 card.innerHTML = `
   <h3>${statusIcon} ${data.nickname}</h3>
