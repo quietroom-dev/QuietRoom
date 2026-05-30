@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuietRoom プロフィール編集</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+body {
+  background: #111;
+  color: #eee;
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #222;
+  color: #fff;
+}
+
+button {
+  padding: 12px 20px;
+  background: #333;
+  border: 1px solid #666;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+/* ▼ 着信UI ▼ */
+#incomingCall {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 999;
+  text-align: center;
+  padding: 20px;
+}
+#incomingCall button {
+  margin-top: 12px;
+  padding: 10px 20px;
+  background: #333;
+  border: 1px solid #666;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h2>プロフィール編集</h2>
+
+<div>
+  <label>ニックネーム</label>
+  <input id="nickname">
+
+  <label>性別</label>
+  <select id="gender">
+    <option value="男性">男性</option>
+    <option value="女性">女性</option>
+    <option value="その他">その他</option>
+  </select>
+
+  <label>年齢</label>
+  <input id="age" type="number">
+
+  <label>都道府県</label>
+  <input id="prefecture">
+
+  <label>ひとこと</label>
+  <textarea id="comment"></textarea>
+
+  <button onclick="saveProfile()">保存する</button>
+  <button onclick="location.href='profiles.html'">一覧へ戻る</button>
+</div>
+
+<!-- ▼ 着信UI ▼ -->
+<div id="incomingCall">
+  <h2>📞 着信があります</h2>
+  <div id="callerProfile"></div>
+  <button onclick="acceptCall()">出る</button>
+  <button onclick="declineCall()">出ない</button>
+</div>
+
+<script>
+/* =========================================
+   Firebase 初期化
+========================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  projectId: "roomvideo",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* =========================================
+   自分のUID
+========================================= */
+const myUid = localStorage.getItem("myUid");
+
+/* =========================================
+   プロフィール読み込み
+========================================= */
+db.collection("user").doc(myUid).get().then(doc => {
+  const d = doc.data();
+  nickname.value = d.nickname;
+  gender.value = d.gender;
+  age.value = d.age;
+  prefecture.value = d.prefecture;
+  comment.value = d.comment;
+});
+
+/* =========================================
+   プロフィール保存
+========================================= */
+function saveProfile() {
+  db.collection("user").doc(myUid).update({
+    nickname: nickname.value,
+    gender: gender.value,
+    age: age.value,
+    prefecture: prefecture.value,
+    comment: comment.value
+  }).then(() => {
+    alert("保存しました");
+  });
+}
+
+/* =========================================
+   ▼▼ 着信リスナー（profile-edit.html 専用） ▼▼
+========================================= */
+db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
+  const data = snap.data();
+  if (!data) return;
+
+  if (data.offer && data.from) {
+    showIncomingCall(data.from);
+  }
+});
+
+/* =========================================
+   ▼▼ 着信UIを表示 ▼▼
+========================================= */
+async function showIncomingCall(fromUid) {
+  const prof = await db.collection("user").doc(fromUid).get();
+  const d = prof.data();
+
+  callerProfile.innerHTML = `
+    <p>名前：${d.nickname}</p>
+    <p>性別：${d.gender}</p>
+    <p>都道府県：${d.prefecture}</p>
+    <p>ひとこと：${d.comment}</p>
+  `;
+
+  window._incomingFrom = fromUid;
+  incomingCall.style.display = "flex";
+}
+
+/* =========================================
+   ▼▼ 出る ▼▼
+========================================= */
+function acceptCall() {
+  const from = window._incomingFrom;
+  window.location.href = `video.html?target=${from}`;
+}
+
+/* =========================================
+   ▼▼ 出ない ▼▼
+========================================= */
+function declineCall() {
+  db.collection("calls").doc(myUid).delete();
+  incomingCall.style.display = "none";
+}
+</script>
+
+</body>
+</html>
