@@ -64,7 +64,7 @@
   .then(snapshot => {
       snapshot.forEach(doc => {
         const data = doc.data();
-        const statusIcon = data.online ? "🔴" : "⚫️";
+        const statusIcon = data.online ? "💡" : "💤";
 
         const card = document.createElement("div");
         card.className = "user-card";
