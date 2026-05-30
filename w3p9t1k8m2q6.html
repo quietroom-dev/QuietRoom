@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.0.0
+  v1.0.2
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>QuietRoom Monitor</title>
@@ -40,6 +40,13 @@ video, canvas {
   height: 100%;
   object-fit: contain;
   background: #000;
+}
+
+.profile {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #ccc;
 }
 
 .btn-row {
@@ -93,7 +100,6 @@ video, canvas {
 
 <!-- A -->
 <div class="section">
-  <h3>A さん</h3>
 
   <div class="row">
     <div class="small-box">
@@ -104,6 +110,15 @@ video, canvas {
     </div>
   </div>
 
+  <!-- ▼ プロフィール表示（追加） -->
+  <div class="profile">
+    <div>名前：<span id="aName"></span></div>
+    <div>性別：<span id="aGender"></span></div>
+    <div>地域：<span id="aPref"></span></div>
+    <div>コメント：<span id="aComment"></span></div>
+    <div>通報：<span id="aReport"></span> 回</div>
+  </div>
+
   <div class="btn-row">
     <button class="btn" id="aAudio">音声 ON/OFF</button>
     <button class="btn" id="aBan">BAN</button>
@@ -112,7 +127,6 @@ video, canvas {
 
 <!-- B -->
 <div class="section">
-  <h3>B さん</h3>
 
   <div class="row">
     <div class="small-box">
@@ -121,6 +135,15 @@ video, canvas {
     <div class="small-box">
       <canvas id="bMosaic"></canvas>
     </div>
+  </div>
+
+  <!-- ▼ プロフィール表示（追加） -->
+  <div class="profile">
+    <div>名前：<span id="bName"></span></div>
+    <div>性別：<span id="bGender"></span></div>
+    <div>地域：<span id="bPref"></span></div>
+    <div>コメント：<span id="bComment"></span></div>
+    <div>通報：<span id="bReport"></span> 回</div>
   </div>
 
   <div class="btn-row">
@@ -163,6 +186,22 @@ db.collection("calls").doc("A").onSnapshot(doc=>{
 db.collection("calls").doc("B").onSnapshot(doc=>{
   if(doc.data()?.mosaic) bLevel = doc.data().mosaic;
 });
+
+/* ============================
+   プロフィール取得（追加）
+============================ */
+async function loadProfile(uid, elements) {
+  const doc = await db.collection("profiles").doc(uid).get();
+  if (!doc.exists) return;
+
+  const data = doc.data();
+
+  elements.name.textContent = data.nickname || "名無し";
+  elements.gender.textContent = data.gender || "-";
+  elements.pref.textContent = data.prefecture || "-";
+  elements.comment.textContent = data.comment || "";
+  elements.report.textContent = data.reportCount || 0;
+}
 
 /* ============================
    映像要素
@@ -248,6 +287,25 @@ function connectToUser(uid, videoElement) {
 
 connectToUser("A", aRaw);
 connectToUser("B", bRaw);
+
+/* ============================
+   プロフィール読み込み（追加）
+============================ */
+loadProfile("A", {
+  name: document.getElementById("aName"),
+  gender: document.getElementById("aGender"),
+  pref: document.getElementById("aPref"),
+  comment: document.getElementById("aComment"),
+  report: document.getElementById("aReport")
+});
+
+loadProfile("B", {
+  name: document.getElementById("bName"),
+  gender: document.getElementById("bGender"),
+  pref: document.getElementById("bPref"),
+  comment: document.getElementById("bComment"),
+  report: document.getElementById("bReport")
+});
 
 /* ============================
    大画面表示
