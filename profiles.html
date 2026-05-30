@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.0.0
+  v1.0.1
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuietRoom プロフィール一覧</title>
@@ -149,7 +149,9 @@ setInterval(() => location.reload(), 60000);
 /* =========================================
    ▼▼ 着信リスナー ▼▼
 ========================================= */
+  alert("着信リスナーを設定したよ myUid=" + myUid);
 db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
+  alert("onSnapshot 発火！ data=" + JSON.stringify(snap.data()));
   const data = snap.data();
   if (!data) return;
 
