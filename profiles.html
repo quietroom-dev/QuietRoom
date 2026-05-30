@@ -81,10 +81,6 @@ card.innerHTML = `
         userList.appendChild(card);
       });
     });
-    const myUid = localStorage.getItem("myUid");
-if (myUid) {
-  db.collection("user").doc(myUid).update({ online: true });
-}
 window.addEventListener("beforeunload", () => {
   const myUid = localStorage.getItem("myUid");
   if (myUid) {
