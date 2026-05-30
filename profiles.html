@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v.1.0.1
+  v.1.0.2
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuietRoom プロフィール一覧</title>
@@ -75,6 +75,7 @@ card.innerHTML = `
   <p>年齢：${data.age}</p>
   <p>都道府県：${data.prefecture}</p>
   <p>ひとこと：${data.comment}</p>
+  <button onclick="startCall('${doc.id}')">📞 通話する</button>
 `;
 
 
@@ -90,8 +91,12 @@ window.addEventListener("beforeunload", () => {
   // 1分ごとにページを自動更新
 setInterval(() => {
   location.reload();
-}, 60000); // 60000ms = 1分
+}, 60000); // 60000ms = 1分 
 
   </script>
+  function startCall(targetUid) {
+  window.location.href = `video.html?target=${targetUid}`;
+}
+
 </body>
 </html>
