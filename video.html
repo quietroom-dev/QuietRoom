@@ -277,15 +277,19 @@ pc.onicecandidate = (event) => {
 /* =========================================
    ▼▼ Offer を作成して Firestore に送信（from 対応）
 ========================================= */
-async function startCall() {
+   alert("video.html 読み込まれた");
+   async function startCall() {
+   alert("startCallが読み込まれた");
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
   // 🔧 修正：from を確実に書き込む
+   alert("Firestore に書き込むよ target=" + targetUid);
   await callDoc.set({
     offer: offer,
     from: myUid
   });
+       alert("Firestore に書き込んだよ");
 
   callDoc.onSnapshot(async (snapshot) => {
     const data = snapshot.data();
