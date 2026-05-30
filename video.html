@@ -7,22 +7,17 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-v2.2.1
+
 <style>
-/* =========================
-   全体
-========================= */
-html,
-body {
+html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
   background: #000;
   font-family: sans-serif;
 }
-/* =========================
-   相手映像（全画面）
-========================= */
+
+/* 相手映像 */
 #mainVideo {
   position: fixed;
   inset: 0;
@@ -32,19 +27,8 @@ body {
   background: #000;
   z-index: 1;
 }
-/* モザイク表示 */
-#selfCanvas {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  width: 24vw;
-  height: 24vh;
-  min-width: 180px;
-  min-height: 130px;
-  z-index: 11;
-  pointer-events: none;
-}
 
+/* モザイク */
 #mainCanvas {
   position: fixed;
   inset: 0;
@@ -53,9 +37,8 @@ body {
   z-index: 2;
   pointer-events: none;
 }
-/* =========================
-   自分映像（右上）
-========================= */
+
+/* 自分映像 */
 #selfVideo {
   position: fixed;
   top: 16px;
@@ -70,10 +53,8 @@ body {
   z-index: 10;
   box-shadow: 0 0 12px rgba(0,0,0,0.5);
 }
-<canvas id="selfCanvas"></canvas>
-/* =========================
-   右上ボタン群
-========================= */
+
+/* UI */
 .top-ui {
   position: fixed;
   top: 16px;
@@ -82,7 +63,6 @@ body {
   gap: 10px;
   z-index: 30;
 }
-/* シンプル丸ボタン */
 .icon-btn {
   width: 52px;
   height: 52px;
@@ -94,9 +74,8 @@ body {
   backdrop-filter: blur(6px);
   cursor: pointer;
 }
-/* =========================
-   モザイクメーター
-========================= */
+
+/* モザイクメーター */
 .mosaic-meter {
   position: fixed;
   right: 12px;
@@ -162,8 +141,7 @@ body {
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<script type="module">
-alert("myUid = " + localStorage.getItem("myUid"));
+<script>
 /* =========================================
    Firebase 初期化
 ========================================= */
@@ -179,41 +157,25 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 /* =========================================
-   ▼▼ 追加：自分のUID（from 用）
+   UID
 ========================================= */
 const myUid = localStorage.getItem("myUid");
-
-/* =========================================
-   URL から相手 UID を取得
-========================================= */
 const params = new URLSearchParams(window.location.search);
 const targetUid = params.get("target");
 
+alert("video.html 読み込まれた / myUid=" + myUid + " / target=" + targetUid);
+
 /* =========================================
-   WebRTC PeerConnection
+   WebRTC
 ========================================= */
 let pc = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
 
-/* =========================================
-   相手のモザイク強度を受信
-========================================= */
-db.collection("calls").doc(targetUid).onSnapshot(doc => {
-  const data = doc.data();
-  if (data?.mosaic) {
-    remoteMosaicLevel = data.mosaic;
-  }
-});
-
-/* =========================================
-   状態
-========================================= */
 let localStream = null;
 let currentCamera = "user";
 let myMosaicLevel = 5;
 let remoteMosaicLevel = 5;
-
 const mosaicSizes = [0,1,4,8,12,16,20,28,36,48];
 
 /* =========================================
@@ -224,12 +186,6 @@ const mainVideo = document.getElementById("mainVideo");
 const mainCanvas = document.getElementById("mainCanvas");
 const mainCtx = mainCanvas.getContext("2d");
 const meterBar = document.getElementById("meterBar");
-
-/* =========================================
-   Offscreen
-========================================= */
-const offCanvas = document.createElement("canvas");
-const offCtx = offCanvas.getContext("2d");
 
 /* =========================================
    カメラ開始
@@ -255,14 +211,14 @@ async function startCamera() {
 }
 
 /* =========================================
-   相手映像を受信
+   相手映像
 ========================================= */
 pc.ontrack = (event) => {
   mainVideo.srcObject = event.streams[0];
 };
 
 /* =========================================
-   ICE candidate を Firestore に保存
+   Firestore
 ========================================= */
 const callDoc = db.collection("calls").doc(targetUid);
 const offerCandidates = callDoc.collection("offerCandidates");
@@ -275,24 +231,27 @@ pc.onicecandidate = (event) => {
 };
 
 /* =========================================
-   ▼▼ Offer を作成して Firestore に送信（from 対応）
+   startCall（グローバル）
 ========================================= */
-   alert("video.html 読み込まれた");
-   async function startCall() {
-   alert("startCallが読み込まれた");
+async function startCall() {
+  alert("startCall が呼ばれた");
+
+  await startCamera();
+
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  // 🔧 修正：from を確実に書き込む
-   alert("Firestore に書き込むよ target=" + targetUid);
+  alert("Firestore に書き込むよ target=" + targetUid);
+
   await callDoc.set({
     offer: offer,
     from: myUid
   });
-       alert("Firestore に書き込んだよ");
 
-  callDoc.onSnapshot(async (snapshot) => {
-    const data = snapshot.data();
+  alert("Firestore に書き込んだよ");
+
+  callDoc.onSnapshot(async (snap) => {
+    const data = snap.data();
     if (!pc.currentRemoteDescription && data?.answer) {
       await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     }
@@ -309,151 +268,12 @@ pc.onicecandidate = (event) => {
 }
 
 /* =========================================
-   カメラ停止
+   ページ読み込み後に自動で startCall 実行
 ========================================= */
-function stopCamera() {
-  if (!localStream) return;
-  localStream.getTracks().forEach(track => track.stop());
-  localStream = null;
-}
-
-/* =========================================
-   カメラ切替
-========================================= */
-document.getElementById("switchCamera").addEventListener("click", async () => {
-  stopCamera();
-  currentCamera = currentCamera === "user" ? "environment" : "user";
-  await startCamera();
+window.addEventListener("load", () => {
+  startCall();
 });
-
-/* =========================================
-   終了
-========================================= */
-document.getElementById("endBtn").addEventListener("click", () => {
-  stopCamera();
-  mainCtx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
-  selfVideo.srcObject = null;
-  mainVideo.srcObject = null;
-});
-
-/* =========================================
-   Canvasサイズ
-========================================= */
-function resizeCanvas() {
-  const dpr = window.devicePixelRatio || 1;
-  mainCanvas.width = window.innerWidth * dpr;
-  mainCanvas.height = window.innerHeight * dpr;
-  mainCanvas.style.width = window.innerWidth + "px";
-  mainCanvas.style.height = window.innerHeight + "px";
-  mainCtx.setTransform(dpr,0,0,dpr,0,0);
-}
-window.addEventListener("resize", resizeCanvas);
-
-/* =========================================
-   相手映像モザイク
-========================================= */
-function drawRemoteMosaic() {
-  if (mainVideo.readyState < 2) return;
-
-  const w = mainCanvas.clientWidth;
-  const h = mainCanvas.clientHeight;
-  const size = mosaicSizes[Math.max(0, Math.min(9, remoteMosaicLevel - 1))];
-
-  offCanvas.width = size;
-  offCanvas.height = Math.max(1, Math.round(size * (h / w)));
-
-  offCtx.imageSmoothingEnabled = false;
-  offCtx.clearRect(0,0,offCanvas.width,offCanvas.height);
-  offCtx.drawImage(mainVideo,0,0,offCanvas.width,offCanvas.height);
-
-  mainCtx.imageSmoothingEnabled = false;
-  mainCtx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
-  mainCtx.drawImage(offCanvas,0,0,offCanvas.width,offCanvas.height,0,0,mainCanvas.width,mainCanvas.height);
-}
-
-setInterval(drawRemoteMosaic, 120);
-setInterval(drawSelfMosaic, 120);
-
-/* =========================================
-   自分映像モザイク
-========================================= */
-const selfCanvas = document.getElementById("selfCanvas");
-const selfCtx = selfCanvas.getContext("2d");
-
-function drawSelfMosaic() {
-  if (!selfVideo.srcObject) return;
-
-  const w = selfCanvas.clientWidth;
-  const h = selfCanvas.clientHeight;
-  const size = mosaicSizes[myMosaicLevel - 1];
-
-  offCanvas.width = size;
-  offCanvas.height = Math.max(1, Math.round(size * (h / w)));
-
-  offCtx.imageSmoothingEnabled = false;
-  offCtx.clearRect(0,0,offCanvas.width,offCanvas.height);
-  offCtx.drawImage(selfVideo,0,0,offCanvas.width,offCanvas.height);
-
-  selfCanvas.width = w;
-  selfCanvas.height = h;
-
-  selfCtx.imageSmoothingEnabled = false;
-  selfCtx.clearRect(0,0,w,h);
-  selfCtx.drawImage(offCanvas,0,0,offCanvas.width,offCanvas.height,0,0,w,h);
-}
-
-/* =========================================
-   メーター初期化
-========================================= */
-function initMeter() {
-  meterBar.innerHTML = "";
-  for (let i = 0; i < 10; i++) {
-    const block = document.createElement("div");
-    block.className = "meter-block";
-    meterBar.appendChild(block);
-  }
-  updateMeter();
-}
-
-/* =========================================
-   メーター更新
-========================================= */
-function updateMeter() {
-  const blocks = document.querySelectorAll(".meter-block");
-  blocks.forEach((block, index) => {
-    block.classList.toggle("active", index < myMosaicLevel);
-  });
-}
-
-/* =========================================
-   モザイク変更
-========================================= */
-function changeMosaic(delta) {
-  myMosaicLevel += delta;
-  if (myMosaicLevel < 1) myMosaicLevel = 1;
-  if (myMosaicLevel > 10) myMosaicLevel = 10;
-
-  updateMeter();
-
-  db.collection("calls").doc(myUid).update({
-    mosaic: myMosaicLevel
-  });
-}
-
-/* =========================================
-   メーター操作
-========================================= */
-document.getElementById("meterUp").addEventListener("click", () => changeMosaic(-1));
-document.getElementById("meterDown").addEventListener("click", () => changeMosaic(1));
-
-/* =========================================
-   初期化
-========================================= */
-initMeter();
-resizeCanvas();
-startCamera();
-startCall();
-
 </script>
+
 </body>
 </html>
