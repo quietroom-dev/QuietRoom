@@ -317,7 +317,10 @@ pc.onicecandidate = (event) => {
 async function startCall() {
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-  await callDoc.set({ offer });
+  await callDoc.set({
+  offer,
+  from: myUid
+});
   callDoc.onSnapshot(async (snapshot) => {
     const data = snapshot.data();
     if (!pc.currentRemoteDescription && data?.answer) {
