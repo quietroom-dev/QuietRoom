@@ -356,15 +356,24 @@ async function runCalleeFlow(callDoc, offerCandidates, answerCandidates) {
       answerCandidates.add(event.candidate.toJSON());
     }
   };
-}
-
-/* =========================================
+  /* =========================================
    ページ読み込み後に役割判定して開始
 ========================================= */
-window.addEventListener("load", () => {
-  detectRoleAndStart();
-});
+window.addEventListener("load", async () => {
 
+  const myDoc = await db.collection("calls").doc(myUid).get();
+
+  // 🔹 受信側（callee）
+  if (myDoc.exists && myDoc.data().offer) {
+    alert("役割: 受信側 (callee)");
+    runCalleeFlow();
+    return;
+  }
+
+  // 🔹 発信側（caller）
+  alert("役割: 発信側 (caller)");
+  runCallerFlow();
+});
 
 /* =========================================
    （モザイクや resizeCanvas の処理は
