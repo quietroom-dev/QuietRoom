@@ -8,7 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
-v2.1.0
+v2.1.1
 /* =========================
    全体
 ========================= */
@@ -333,6 +333,24 @@ async function startCall() {
     });
   });
 }
+   /* =========================================
+   ▼▼ 相手からの着信を受信（重要） ▼▼
+========================================= */
+const myUid = localStorage.getItem("myUid");
+
+db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
+  const data = snap.data();
+  if (!data) return;
+
+  if (data.offer && !pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await db.collection("calls").doc(myUid).update({ answer });
+  }
+});
 /* =========================================
    カメラ停止
 ========================================= */
