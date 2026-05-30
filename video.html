@@ -9,132 +9,37 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: #000;
-  font-family: sans-serif;
-}
-
-/* 相手映像 */
-#mainVideo {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  object-fit: contain;
-  background: #000;
-  z-index: 1;
-}
-
-/* モザイク */
-#mainCanvas {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 2;
-  pointer-events: none;
-}
-
-/* 自分映像 */
-#selfVideo {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  width: 24vw;
-  height: 24vh;
-  min-width: 180px;
-  min-height: 130px;
-  object-fit: contain;
-  background: #000;
-  border-radius: 12px;
-  z-index: 10;
-  box-shadow: 0 0 12px rgba(0,0,0,0.5);
-}
-
-/* UI */
-.top-ui {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  display: flex;
-  gap: 10px;
-  z-index: 30;
-}
-.icon-btn {
-  width: 52px;
-  height: 52px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.55);
-  color: #fff;
-  font-size: 22px;
-  backdrop-filter: blur(6px);
-  cursor: pointer;
-}
-
-/* モザイクメーター */
-.mosaic-meter {
-  position: fixed;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 40;
-  color: #fff;
-}
-.meter-bar {
-  width: 42px;
-  height: 34vh;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 4px;
-}
-.meter-block {
-  flex: 1;
-  width: 100%;
-  border-radius: 8px;
-  border: 2px solid rgba(255,255,255,0.7);
-  background: rgba(255,255,255,0.2);
-  transition: 0.15s;
-}
-.meter-block.active {
-  background: rgba(255,255,255,1);
-}
-.meter-top,
-.meter-bottom {
-  margin: 8px 0;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(0,0,0,0.55);
-  cursor: pointer;
-  user-select: none;
-}
+/* ====== UI はあなたの元コードそのまま ====== */
+html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:sans-serif; }
+#mainVideo { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:#000; z-index:1; }
+#mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:2; pointer-events:none; }
+#selfVideo { position:fixed; top:16px; right:16px; width:24vw; height:24vh; min-width:180px; min-height:130px;
+  object-fit:contain; background:#000; border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); }
+.top-ui { position:fixed; top:16px; left:16px; display:flex; gap:10px; z-index:30; }
+.icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
+  font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
+.mosaic-meter { position:fixed; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column;
+  align-items:center; z-index:40; color:#fff; }
+.meter-bar { width:42px; height:34vh; display:flex; flex-direction:column-reverse; gap:4px; }
+.meter-block { flex:1; width:100%; border-radius:8px; border:2px solid rgba(255,255,255,0.7);
+  background:rgba(255,255,255,0.2); transition:0.15s; }
+.meter-block.active { background:rgba(255,255,255,1); }
+.meter-top, .meter-bottom { margin:8px 0; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.55);
+  cursor:pointer; user-select:none; }
 </style>
 </head>
 
 <body>
 
-<!-- 相手映像 -->
 <video id="mainVideo" autoplay playsinline></video>
-
-<!-- モザイク -->
 <canvas id="mainCanvas"></canvas>
-
-<!-- 自分映像 -->
 <video id="selfVideo" autoplay muted playsinline></video>
 
-<!-- 左上UI -->
 <div class="top-ui">
   <button class="icon-btn" id="switchCamera">🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
-<!-- メーター -->
 <div class="mosaic-meter">
   <div class="meter-top" id="meterUp">▲モザイク</div>
   <div class="meter-bar" id="meterBar"></div>
@@ -143,27 +48,25 @@ html, body {
 
 <script>
 /* =========================================
-   Firebase 初期化
+   Firebase
 ========================================= */
-const firebaseConfig = {
+firebase.initializeApp({
   apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
   projectId: "roomvideo",
   storageBucket: "roomvideo.firebasestorage.app",
   messagingSenderId: "1030429439546",
   appId: "1:1030429439546:web:1481670cb78deb35e2a703"
-};
-firebase.initializeApp(firebaseConfig);
+});
 const db = firebase.firestore();
 
 /* =========================================
    UID / パラメータ
 ========================================= */
 const myUid = localStorage.getItem("myUid");
-const params = new URLSearchParams(window.location.search);
-const targetUid = params.get("target");
+const targetUid = new URLSearchParams(location.search).get("target");
 
-alert("video.html 読み込まれた / myUid=" + myUid + " / target=" + targetUid);
+alert("video.html 読み込み: myUid=" + myUid + " / target=" + targetUid);
 
 /* =========================================
    WebRTC
@@ -173,214 +76,118 @@ let pc = new RTCPeerConnection({
 });
 
 let localStream = null;
-let currentCamera = "user";
-let myMosaicLevel = 5;
-let remoteMosaicLevel = 5;
-const mosaicSizes = [0,1,4,8,12,16,20,28,36,48];
-
-/* =========================================
-   要素
-========================================= */
-const selfVideo = document.getElementById("selfVideo");
-const mainVideo = document.getElementById("mainVideo");
-const mainCanvas = document.getElementById("mainCanvas");
-const mainCtx = mainCanvas.getContext("2d");
-const meterBar = document.getElementById("meterBar");
 
 /* =========================================
    カメラ開始
 ========================================= */
 async function startCamera() {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: currentCamera },
-      audio: true
-    });
-
-    selfVideo.srcObject = localStream;
-
-    localStream.getTracks().forEach(track => {
-      pc.addTrack(track, localStream);
-    });
-
-    setTimeout(resizeCanvas, 200);
-  } catch (err) {
-    console.error(err);
-  }
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true
+  });
+  document.getElementById("selfVideo").srcObject = localStream;
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 }
 
 /* =========================================
    相手映像
 ========================================= */
-pc.ontrack = (event) => {
-  mainVideo.srcObject = event.streams[0];
+pc.ontrack = e => {
+  document.getElementById("mainVideo").srcObject = e.streams[0];
 };
 
 /* =========================================
-   役割判定（caller / callee）
-   - caller: 自分が発信した側
-   - callee: 着信して「出る」を押した側
+   発信側フロー
 ========================================= */
-async function detectRoleAndStart() {
-  const callsRef = db.collection("calls");
-  const myDocRef = callsRef.doc(myUid);
-  const targetDocRef = callsRef.doc(targetUid);
-
-  const [mySnap, targetSnap] = await Promise.all([
-    myDocRef.get(),
-    targetDocRef.get()
-  ]);
-
-  let isCaller = false;
-  let callDoc = null;
-  let offerCandidates = null;
-  let answerCandidates = null;
-
-  // 🔹 パターン1：自分が発信した直後 → targetUid 側に自分からの offer がある
-  if (targetSnap.exists && targetSnap.data().from === myUid) {
-    isCaller = true;
-    callDoc = targetDocRef;
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    alert("役割: 発信側 (caller)");
-  }
-  // 🔹 パターン2：相手からの着信に出た → myUid 側に相手からの offer がある
-  else if (mySnap.exists && mySnap.data().from === targetUid) {
-    isCaller = false;
-    callDoc = myDocRef;
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    alert("役割: 受信側 (callee)");
-  } else {
-    alert("エラー：通話情報が見つかりません。");
-    return;
-  }
-
-  // 役割ごとの処理に分岐
-  if (isCaller) {
-    await runCallerFlow(callDoc, offerCandidates, answerCandidates);
-  } else {
-    await runCalleeFlow(callDoc, offerCandidates, answerCandidates);
-  }
-}
-
-/* =========================================
-   発信側フロー（caller）
-========================================= */
-async function runCallerFlow(callDoc, offerCandidates, answerCandidates) {
+async function runCaller() {
   alert("caller: start");
+
+  const callDoc = db.collection("calls").doc(targetUid);
+  const offerCandidates = callDoc.collection("offerCandidates");
+  const answerCandidates = callDoc.collection("answerCandidates");
 
   await startCamera();
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  alert("caller: Firestore に offer 書き込むよ");
-
-  await callDoc.set({
-    offer: offer,
-    from: myUid
-  });
-
-  alert("caller: offer 書き込み完了");
+  alert("caller: offer 書き込み");
+  await callDoc.set({ offer, from: myUid });
 
   // answer を待つ
-  callDoc.onSnapshot(async (snap) => {
+  callDoc.onSnapshot(async snap => {
     const data = snap.data();
-    if (!pc.currentRemoteDescription && data?.answer) {
-      alert("caller: answer を受信したよ");
+    if (data?.answer && !pc.currentRemoteDescription) {
+      alert("caller: answer 受信");
       await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     }
   });
 
-  // 相手からの ICE
-  answerCandidates.onSnapshot(snapshot => {
-    snapshot.docChanges().forEach(change => {
-      if (change.type === "added") {
-        const candidate = new RTCIceCandidate(change.doc.data());
-        pc.addIceCandidate(candidate);
-      }
+  // 相手の ICE
+  answerCandidates.onSnapshot(snap => {
+    snap.docChanges().forEach(c => {
+      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
     });
   });
 
-  // 自分の ICE を offerCandidates に書く
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      offerCandidates.add(event.candidate.toJSON());
-    }
+  // 自分の ICE
+  pc.onicecandidate = e => {
+    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
   };
 }
 
 /* =========================================
-   受信側フロー（callee）
+   受信側フロー
 ========================================= */
-async function runCalleeFlow(callDoc, offerCandidates, answerCandidates) {
+async function runCallee() {
   alert("callee: start");
+
+  const callDoc = db.collection("calls").doc(myUid);
+  const offerCandidates = callDoc.collection("offerCandidates");
+  const answerCandidates = callDoc.collection("answerCandidates");
 
   await startCamera();
 
-  const callDataSnap = await callDoc.get();
-  const callData = callDataSnap.data();
-
-  if (!callData?.offer) {
-    alert("callee: offer がありません");
-    return;
-  }
-
-  alert("callee: offer を受信したよ");
+  const callData = (await callDoc.get()).data();
+  alert("callee: offer 受信");
 
   await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
 
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
 
-  alert("callee: answer を Firestore に書き込むよ");
+  alert("callee: answer 書き込み");
+  await callDoc.update({ answer });
 
-  await callDoc.update({ answer: answer });
-
-  alert("callee: answer 書き込み完了");
-
-  // 相手（caller）からの ICE
-  offerCandidates.onSnapshot(snapshot => {
-    snapshot.docChanges().forEach(change => {
-      if (change.type === "added") {
-        const candidate = new RTCIceCandidate(change.doc.data());
-        pc.addIceCandidate(candidate);
-      }
+  // 相手の ICE
+  offerCandidates.onSnapshot(snap => {
+    snap.docChanges().forEach(c => {
+      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
     });
   });
 
-  // 自分（callee）の ICE を answerCandidates に書く
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      answerCandidates.add(event.candidate.toJSON());
-    }
+  // 自分の ICE
+  pc.onicecandidate = e => {
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
   };
-  /* =========================================
-   ページ読み込み後に役割判定して開始
+}
+
+/* =========================================
+   役割判定 → 自動開始
 ========================================= */
 window.addEventListener("load", async () => {
 
   const myDoc = await db.collection("calls").doc(myUid).get();
 
-  // 🔹 受信側（callee）
   if (myDoc.exists && myDoc.data().offer) {
-    alert("役割: 受信側 (callee)");
-    runCalleeFlow();
-    return;
+    alert("役割: 受信側");
+    runCallee();
+  } else {
+    alert("役割: 発信側");
+    runCaller();
   }
-
-  // 🔹 発信側（caller）
-  alert("役割: 発信側 (caller)");
-  runCallerFlow();
 });
-
-/* =========================================
-   （モザイクや resizeCanvas の処理は
-    ここに元のまま残して OK）
-========================================= */
 </script>
-
 
 </body>
 </html>
