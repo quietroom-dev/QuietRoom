@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v.1.0.2
+  v.1.0.3
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuietRoom プロフィール一覧</title>
@@ -92,11 +92,12 @@ window.addEventListener("beforeunload", () => {
 setInterval(() => {
   location.reload();
 }, 60000); // 60000ms = 1分 
-
-  </script>
-  function startCall(targetUid) {
+     function startCall(targetUid) {
   window.location.href = `video.html?target=${targetUid}`;
 }
 
+
+  </script>
+ 
 </body>
 </html>
