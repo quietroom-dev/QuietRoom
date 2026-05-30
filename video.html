@@ -8,7 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
-v2.0.0
+v2.1.0
 /* =========================
    全体
 ========================= */
@@ -33,6 +33,18 @@ body {
   z-index: 1;
 }
 /* モザイク表示 */
+#selfCanvas {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 24vw;
+  height: 24vh;
+  min-width: 180px;
+  min-height: 130px;
+  z-index: 11;
+  pointer-events: none;
+}
+
 #mainCanvas {
   position: fixed;
   inset: 0;
@@ -58,6 +70,7 @@ body {
   z-index: 10;
   box-shadow: 0 0 12px rgba(0,0,0,0.5);
 }
+<canvas id="selfCanvas"></canvas>
 /* =========================
    右上ボタン群
 ========================= */
@@ -205,15 +218,23 @@ let pc = new RTCPeerConnection({
     { urls: "stun:stun.l.google.com:19302" }
   ]
 });
+   /* =========================================
+   相手のモザイク強度を受信（STEP6）
+========================================= */
+
+db.collection("calls").doc(targetUid).onSnapshot(doc => {
+  const data = doc.data();
+  if (data?.mosaic) {
+    remoteMosaicLevel = data.mosaic;
+  }
+});
 /* =========================================
    状態
 ========================================= */
 let localStream = null;
 let currentCamera = "user";
-/*
-  相手が選んだモザイク強度
-*/
-let remoteMosaicLevel = 5;
+let myMosaicLevel = 5;        // 自分のモザイク
+let remoteMosaicLevel = 5;    // 相手のモザイク
 /* モザイク粒度 */
 const mosaicSizes = [
   0,
@@ -449,10 +470,30 @@ function drawRemoteMosaic() {
   );
 }
 /* 描画ループ */
-setInterval(
-  drawRemoteMosaic,
-  120
-);
+setInterval(drawRemoteMosaic, 120);
+setInterval(drawSelfMosaic, 120);
+/* =========================================
+   自分映像モザイク（追加）
+========================================= */
+const selfCanvas = document.getElementById("selfCanvas");
+const selfCtx = selfCanvas.getContext("2d");
+function drawSelfMosaic() {
+  if (!selfVideo.srcObject) return;
+  const w = selfCanvas.clientWidth;
+  const h = selfCanvas.clientHeight;
+  const size = mosaicSizes[myMosaicLevel - 1];
+  offCanvas.width = size;
+  offCanvas.height = Math.max(1, Math.round(size * (h / w)));
+  offCtx.imageSmoothingEnabled = false;
+  offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+  offCtx.drawImage(selfVideo, 0, 0, offCanvas.width, offCanvas.height);
+  selfCanvas.width = w;
+  selfCanvas.height = h;
+  selfCtx.imageSmoothingEnabled = false;
+  selfCtx.clearRect(0, 0, w, h);
+  selfCtx.drawImage(offCanvas, 0, 0, offCanvas.width, offCanvas.height, 0, 0, w, h);
+}
+
 /* =========================================
    メーター初期化
 ========================================= */
@@ -478,7 +519,7 @@ function updateMeter() {
   blocks.forEach((block, index) => {
     block.classList.toggle(
       "active",
-      index < remoteMosaicLevel
+       index < myMosaicLevel
     );
   });
 }
@@ -486,14 +527,16 @@ function updateMeter() {
    モザイク変更
 ========================================= */
 function changeMosaic(delta) {
-  remoteMosaicLevel += delta;
-  if (remoteMosaicLevel < 1) {
-    remoteMosaicLevel = 1;
-  }
-  if (remoteMosaicLevel > 10) {
-    remoteMosaicLevel = 10;
-  }
+  myMosaicLevel += delta;
+  if (myMosaicLevel < 1) myMosaicLevel = 1;
+  if (myMosaicLevel > 10) myMosaicLevel = 10;
   updateMeter();
+   db.collection("calls").doc(myUid).update({
+  mosaic: myMosaicLevel
+});
+   db.collection("calls").doc(myUid).update({
+  mosaic: myMosaicLevel
+});
 }
 /* =========================================
    メーター操作
