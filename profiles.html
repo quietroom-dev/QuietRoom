@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v.1.0.4
+  v.1.1.0
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuietRoom プロフィール一覧</title>
@@ -26,6 +26,30 @@
     .user-card h3 {
       margin: 0 0 5px 0;
     }
+
+    /* ▼ 着信UI ▼ */
+    #incomingCall {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 999;
+      text-align: center;
+      padding: 20px;
+    }
+    #incomingCall button {
+      margin-top: 12px;
+      padding: 10px 20px;
+      background: #333;
+      border: 1px solid #666;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+    }
   </style>
 </head>
 
@@ -34,6 +58,14 @@
   <h2>プロフィール一覧</h2>
 
   <div id="userList"></div>
+
+  <!-- ▼ 着信UI（相手のプロフィール表示） ▼ -->
+  <div id="incomingCall">
+    <h2>📞 着信があります</h2>
+    <div id="callerProfile"></div>
+    <button onclick="acceptCall()">出る</button>
+    <button onclick="declineCall()">出ない</button>
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -50,118 +82,106 @@
     const db = firebase.firestore();
 
     const userList = document.getElementById("userList");
-    
-     // 自分をオンラインにする
+
+    // 自分のUID
     const myUid = localStorage.getItem("myUid");
+
+    // 自分をオンラインにする
     if (myUid) {
       db.collection("user").doc(myUid).update({ online: true });
     }
-    
+
     // user コレクションを読み込む
     db.collection("user")
-  .orderBy("online", "desc")
-  .get()
-  .then(snapshot => {
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const statusIcon = data.online ? "💡" : "💤";
+      .orderBy("online", "desc")
+      .get()
+      .then(snapshot => {
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const statusIcon = data.online ? "💡" : "💤";
 
-        const card = document.createElement("div");
-        card.className = "user-card";
+          const card = document.createElement("div");
+          card.className = "user-card";
 
-card.innerHTML = `
-  <h3>${statusIcon} ${data.nickname}</h3>
-  <p>性別：${data.gender}</p>
-  <p>年齢：${data.age}</p>
-  <p>都道府県：${data.prefecture}</p>
-  <p>ひとこと：${data.comment}</p>
-  <button onclick="startCall('${doc.id}')">📞 通話する</button>
-`;
+          card.innerHTML = `
+            <h3>${statusIcon} ${data.nickname}</h3>
+            <p>性別：${data.gender}</p>
+            <p>年齢：${data.age}</p>
+            <p>都道府県：${data.prefecture}</p>
+            <p>ひとこと：${data.comment}</p>
+            <button onclick="startCall('${doc.id}')">📞 通話する</button>
+          `;
 
-
-        userList.appendChild(card);
+          userList.appendChild(card);
+        });
       });
+
+    // ページ離脱でオフライン
+    window.addEventListener("beforeunload", () => {
+      if (myUid) {
+        db.collection("user").doc(myUid).update({ online: false });
+      }
     });
-window.addEventListener("beforeunload", () => {
-  const myUid = localStorage.getItem("myUid");
-  if (myUid) {
-    db.collection("user").doc(myUid).update({ online: false });
-  }
-});
-  // 1分ごとにページを自動更新
-setInterval(() => {
-  location.reload();
-}, 60000); // 60000ms = 1分 
-     function startCall(targetUid) {
-  window.location.href = `video.html?target=${targetUid}`;
-}
-/* =========================================
-   ▼▼ 着信リスナー（profiles.html 専用） ▼▼
-========================================= */
-const myUid2 = localStorage.getItem("myUid");
 
-db.collection("calls").doc(myUid2).onSnapshot(async (snap) => {
-  const data = snap.data();
-  if (!data) return;
+    // 1分ごとにページを自動更新
+    setInterval(() => {
+      location.reload();
+    }, 60000);
 
-  // 着信（offer）
-  if (data.offer && data.from) {
-    showIncomingCall(data.from);
-  }
-});
+    // 通話開始
+    function startCall(targetUid) {
+      window.location.href = `video.html?target=${targetUid}`;
+    }
 
-/* =========================================
-   ▼▼ 着信UIを表示 ▼▼
-========================================= */
-async function showIncomingCall(fromUid) {
-  const prof = await db.collection("user").doc(fromUid).get();
-  const data = prof.data();
+    /* =========================================
+       ▼▼ 着信リスナー（profiles.html 専用） ▼▼
+    ========================================= */
+    if (myUid) {
+      db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
+        const data = snap.data();
+        if (!data) return;
 
-  document.getElementById("callerProfile").innerHTML = `
-    <p>名前：${data.nickname}</p>
-    <p>性別：${data.gender}</p>
-    <p>都道府県：${data.prefecture}</p>
-    <p>ひとこと：${data.comment}</p>
-  `;
+        // 着信（offer）
+        if (data.offer && data.from) {
+          showIncomingCall(data.from);
+        }
+      });
+    }
 
-  window._incomingFrom = fromUid;
-  document.getElementById("incomingCall").style.display = "flex";
-}
+    /* =========================================
+       ▼▼ 着信UIを表示 ▼▼
+    ========================================= */
+    async function showIncomingCall(fromUid) {
+      const prof = await db.collection("user").doc(fromUid).get();
+      const data = prof.data();
 
-/* =========================================
-   ▼▼ 出る ▼▼
-========================================= */
-function acceptCall() {
-  const from = window._incomingFrom;
-  window.location.href = `video.html?target=${from}`;
-}
+      document.getElementById("callerProfile").innerHTML = `
+        <p>名前：${data.nickname}</p>
+        <p>性別：${data.gender}</p>
+        <p>都道府県：${data.prefecture}</p>
+        <p>ひとこと：${data.comment}</p>
+      `;
 
-/* =========================================
-   ▼▼ 出ない ▼▼
-========================================= */
-function declineCall() {
-  const myUid = localStorage.getItem("myUid");
-  db.collection("calls").doc(myUid).delete();
-  document.getElementById("incomingCall").style.display = "none";
-}
+      window._incomingFrom = fromUid;
+      document.getElementById("incomingCall").style.display = "flex";
+    }
+
+    /* =========================================
+       ▼▼ 出る ▼▼
+    ========================================= */
+    function acceptCall() {
+      const from = window._incomingFrom;
+      window.location.href = `video.html?target=${from}`;
+    }
+
+    /* =========================================
+       ▼▼ 出ない ▼▼
+    ========================================= */
+    function declineCall() {
+      db.collection("calls").doc(myUid).delete();
+      document.getElementById("incomingCall").style.display = "none";
+    }
 
   </script>
- <div id="incomingCall" style="
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  color: #fff;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  z-index: 999;
-">
-  <h2>📞 着信があります</h2>
-  <div id="callerProfile"></div>
-  <button onclick="acceptCall()">出る</button>
-  <button onclick="declineCall()">出ない</button>
-</div>
-
 </body>
 </html>
