@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  v1.0.0
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>QuietRoom Admin</title>
+<title>QuietRoom Monitor</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -15,15 +15,24 @@ body {
   background: #000;
   color: #fff;
   font-family: sans-serif;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 50vh 50vh;
-  gap: 4px;
 }
 
-.box {
+.section {
+  padding: 12px;
+  border-bottom: 1px solid #333;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.small-box {
+  width: 50%;
   position: relative;
   background: #111;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 video, canvas {
@@ -32,29 +41,92 @@ video, canvas {
   object-fit: contain;
   background: #000;
 }
+
+.btn-row {
+  margin-top: 8px;
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#bigViewWrapper {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+#bigView {
+  width: 90vw;
+  height: 90vh;
+  object-fit: contain;
+  background: #000;
+}
+
+#closeBig {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  font-size: 32px;
+  cursor: pointer;
+}
 </style>
 </head>
 
 <body>
 
-<!-- A 生映像 -->
-<div class="box">
-  <video id="aRaw" autoplay playsinline></video>
+<!-- 大画面表示 -->
+<div id="bigViewWrapper">
+  <div id="closeBig">✖️</div>
+  <canvas id="bigView"></canvas>
 </div>
 
-<!-- A モザイク -->
-<div class="box">
-  <canvas id="aMosaic"></canvas>
+<!-- A -->
+<div class="section">
+  <h3>A さん</h3>
+
+  <div class="row">
+    <div class="small-box">
+      <video id="aRaw" autoplay playsinline></video>
+    </div>
+    <div class="small-box">
+      <canvas id="aMosaic"></canvas>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" id="aAudio">音声 ON/OFF</button>
+    <button class="btn" id="aBan">BAN</button>
+  </div>
 </div>
 
-<!-- B 生映像 -->
-<div class="box">
-  <video id="bRaw" autoplay playsinline></video>
-</div>
+<!-- B -->
+<div class="section">
+  <h3>B さん</h3>
 
-<!-- B モザイク -->
-<div class="box">
-  <canvas id="bMosaic"></canvas>
+  <div class="row">
+    <div class="small-box">
+      <video id="bRaw" autoplay playsinline></video>
+    </div>
+    <div class="small-box">
+      <canvas id="bMosaic"></canvas>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" id="bAudio">音声 ON/OFF</button>
+    <button class="btn" id="bBan">BAN</button>
+  </div>
 </div>
 
 <script>
@@ -79,7 +151,7 @@ const db = firebase.firestore();
 const mosaicSizes = [1,4,8,12,16,20,28,36,48,64];
 
 /* ============================
-   A / B のモザイク強度を取得
+   A / B のモザイク強度
 ============================ */
 let aLevel = 5;
 let bLevel = 5;
@@ -93,7 +165,7 @@ db.collection("calls").doc("B").onSnapshot(doc=>{
 });
 
 /* ============================
-   A / B の映像ストリーム取得
+   映像要素
 ============================ */
 const aRaw = document.getElementById("aRaw");
 const bRaw = document.getElementById("bRaw");
@@ -108,7 +180,7 @@ const off = document.createElement("canvas");
 const offCtx = off.getContext("2d");
 
 /* ============================
-   モザイク描画関数
+   モザイク描画
 ============================ */
 function drawMosaic(video, canvas, ctx, level) {
   if (video.readyState < 2) return;
@@ -142,7 +214,7 @@ setInterval(()=>{
 },120);
 
 /* ============================
-   WebRTC で A / B の映像を受信
+   WebRTC 受信
 ============================ */
 function connectToUser(uid, videoElement) {
   const pc = new RTCPeerConnection({
@@ -174,11 +246,55 @@ function connectToUser(uid, videoElement) {
   });
 }
 
-/* ============================
-   A と B に接続開始
-============================ */
 connectToUser("A", aRaw);
 connectToUser("B", bRaw);
+
+/* ============================
+   大画面表示
+============================ */
+const bigWrap = document.getElementById("bigViewWrapper");
+const bigCanvas = document.getElementById("bigView");
+const bigCtx = bigCanvas.getContext("2d");
+
+function showBig(video, level) {
+  bigWrap.style.display = "flex";
+
+  function draw() {
+    if (video.readyState >= 2) {
+      const w = bigCanvas.clientWidth;
+      const h = bigCanvas.clientHeight;
+
+      const size = mosaicSizes[level - 1];
+
+      off.width = size;
+      off.height = Math.max(1, Math.round(size * (h / w)));
+
+      offCtx.imageSmoothingEnabled = false;
+      offCtx.clearRect(0,0,off.width,off.height);
+      offCtx.drawImage(video,0,0,off.width,off.height);
+
+      bigCanvas.width = w;
+      bigCanvas.height = h;
+
+      bigCtx.imageSmoothingEnabled = false;
+      bigCtx.clearRect(0,0,w,h);
+      bigCtx.drawImage(off,0,0,off.width,off.height,0,0,w,h);
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+document.getElementById("closeBig").onclick = ()=>{
+  bigWrap.style.display = "none";
+};
+
+/* タップで大画面 */
+aRaw.onclick = ()=> showBig(aRaw, 1);
+aMosaic.onclick = ()=> showBig(aRaw, aLevel);
+
+bRaw.onclick = ()=> showBig(bRaw, 1);
+bMosaic.onclick = ()=> showBig(bRaw, bLevel);
 
 </script>
 </body>
