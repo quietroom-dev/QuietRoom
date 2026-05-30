@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuietRoom プロフィール編集</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -101,7 +100,7 @@ button {
 
 <script>
 /* =========================================
-   Firebase 初期化
+   Firebase
 ========================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
@@ -115,9 +114,13 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 /* =========================================
-   自分のUID
+   UID チェック
 ========================================= */
 const myUid = localStorage.getItem("myUid");
+if (!myUid) {
+  alert("エラー：UID がありません。再ログインしてください。");
+  location.href = "index.html";
+}
 
 /* =========================================
    プロフィール読み込み
@@ -132,7 +135,7 @@ db.collection("user").doc(myUid).get().then(doc => {
 });
 
 /* =========================================
-   プロフィール保存
+   保存
 ========================================= */
 function saveProfile() {
   db.collection("user").doc(myUid).update({
@@ -147,7 +150,7 @@ function saveProfile() {
 }
 
 /* =========================================
-   ▼▼ 着信リスナー（profile-edit.html 専用） ▼▼
+   ▼▼ 着信リスナー ▼▼
 ========================================= */
 db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
   const data = snap.data();
@@ -159,7 +162,7 @@ db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
 });
 
 /* =========================================
-   ▼▼ 着信UIを表示 ▼▼
+   着信UI
 ========================================= */
 async function showIncomingCall(fromUid) {
   const prof = await db.collection("user").doc(fromUid).get();
@@ -176,17 +179,10 @@ async function showIncomingCall(fromUid) {
   incomingCall.style.display = "flex";
 }
 
-/* =========================================
-   ▼▼ 出る ▼▼
-========================================= */
 function acceptCall() {
-  const from = window._incomingFrom;
-  window.location.href = `video.html?target=${from}`;
+  window.location.href = `video.html?target=${window._incomingFrom}`;
 }
 
-/* =========================================
-   ▼▼ 出ない ▼▼
-========================================= */
 function declineCall() {
   db.collection("calls").doc(myUid).delete();
   incomingCall.style.display = "none";
