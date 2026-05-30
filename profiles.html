@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.0.1
+  v1.0.2
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuietRoom プロフィール一覧</title>
@@ -131,6 +131,7 @@ db.collection("user")
    通話開始
 ========================================= */
 function startCall(targetUid) {
+  alert("profiles.html の startCall が呼ばれた target=" + targetUid);
   window.location.href = `video.html?target=${targetUid}`;
 }
 
