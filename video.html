@@ -281,9 +281,6 @@ async function startCall() {
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  // 🔧 追加：古いデータ削除（安全）
-  await callDoc.delete().catch(()=>{});
-
   // 🔧 修正：from を確実に書き込む
   await callDoc.set({
     offer: offer,
