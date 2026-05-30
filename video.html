@@ -157,7 +157,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 /* =========================================
-   UID
+   UID / パラメータ
 ========================================= */
 const myUid = localStorage.getItem("myUid");
 const params = new URLSearchParams(window.location.search);
@@ -194,7 +194,7 @@ async function startCamera() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: currentCamera },
-      audio: false
+      audio: true
     });
 
     selfVideo.srcObject = localStream;
@@ -204,7 +204,6 @@ async function startCamera() {
     });
 
     setTimeout(resizeCanvas, 200);
-
   } catch (err) {
     console.error(err);
   }
@@ -218,45 +217,83 @@ pc.ontrack = (event) => {
 };
 
 /* =========================================
-   Firestore
+   役割判定（caller / callee）
+   - caller: 自分が発信した側
+   - callee: 着信して「出る」を押した側
 ========================================= */
-const callDoc = db.collection("calls").doc(targetUid);
-const offerCandidates = callDoc.collection("offerCandidates");
-const answerCandidates = callDoc.collection("answerCandidates");
+async function detectRoleAndStart() {
+  const callsRef = db.collection("calls");
+  const myDocRef = callsRef.doc(myUid);
+  const targetDocRef = callsRef.doc(targetUid);
 
-pc.onicecandidate = (event) => {
-  if (event.candidate) {
-    offerCandidates.add(event.candidate.toJSON());
+  const [mySnap, targetSnap] = await Promise.all([
+    myDocRef.get(),
+    targetDocRef.get()
+  ]);
+
+  let isCaller = false;
+  let callDoc = null;
+  let offerCandidates = null;
+  let answerCandidates = null;
+
+  // 🔹 パターン1：自分が発信した直後 → targetUid 側に自分からの offer がある
+  if (targetSnap.exists && targetSnap.data().from === myUid) {
+    isCaller = true;
+    callDoc = targetDocRef;
+    offerCandidates = callDoc.collection("offerCandidates");
+    answerCandidates = callDoc.collection("answerCandidates");
+    alert("役割: 発信側 (caller)");
   }
-};
+  // 🔹 パターン2：相手からの着信に出た → myUid 側に相手からの offer がある
+  else if (mySnap.exists && mySnap.data().from === targetUid) {
+    isCaller = false;
+    callDoc = myDocRef;
+    offerCandidates = callDoc.collection("offerCandidates");
+    answerCandidates = callDoc.collection("answerCandidates");
+    alert("役割: 受信側 (callee)");
+  } else {
+    alert("エラー：通話情報が見つかりません。");
+    return;
+  }
+
+  // 役割ごとの処理に分岐
+  if (isCaller) {
+    await runCallerFlow(callDoc, offerCandidates, answerCandidates);
+  } else {
+    await runCalleeFlow(callDoc, offerCandidates, answerCandidates);
+  }
+}
 
 /* =========================================
-   startCall（グローバル）
+   発信側フロー（caller）
 ========================================= */
-async function startCall() {
-  alert("startCall が呼ばれた");
+async function runCallerFlow(callDoc, offerCandidates, answerCandidates) {
+  alert("caller: start");
 
   await startCamera();
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  alert("Firestore に書き込むよ target=" + targetUid);
+  alert("caller: Firestore に offer 書き込むよ");
 
   await callDoc.set({
     offer: offer,
     from: myUid
   });
 
-  alert("Firestore に書き込んだよ");
+  alert("caller: offer 書き込み完了");
 
+  // answer を待つ
   callDoc.onSnapshot(async (snap) => {
     const data = snap.data();
     if (!pc.currentRemoteDescription && data?.answer) {
+      alert("caller: answer を受信したよ");
       await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     }
   });
 
+  // 相手からの ICE
   answerCandidates.onSnapshot(snapshot => {
     snapshot.docChanges().forEach(change => {
       if (change.type === "added") {
@@ -265,15 +302,75 @@ async function startCall() {
       }
     });
   });
+
+  // 自分の ICE を offerCandidates に書く
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      offerCandidates.add(event.candidate.toJSON());
+    }
+  };
 }
 
 /* =========================================
-   ページ読み込み後に自動で startCall 実行
+   受信側フロー（callee）
+========================================= */
+async function runCalleeFlow(callDoc, offerCandidates, answerCandidates) {
+  alert("callee: start");
+
+  await startCamera();
+
+  const callDataSnap = await callDoc.get();
+  const callData = callDataSnap.data();
+
+  if (!callData?.offer) {
+    alert("callee: offer がありません");
+    return;
+  }
+
+  alert("callee: offer を受信したよ");
+
+  await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+
+  alert("callee: answer を Firestore に書き込むよ");
+
+  await callDoc.update({ answer: answer });
+
+  alert("callee: answer 書き込み完了");
+
+  // 相手（caller）からの ICE
+  offerCandidates.onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(change => {
+      if (change.type === "added") {
+        const candidate = new RTCIceCandidate(change.doc.data());
+        pc.addIceCandidate(candidate);
+      }
+    });
+  });
+
+  // 自分（callee）の ICE を answerCandidates に書く
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      answerCandidates.add(event.candidate.toJSON());
+    }
+  };
+}
+
+/* =========================================
+   ページ読み込み後に役割判定して開始
 ========================================= */
 window.addEventListener("load", () => {
-  startCall();
+  detectRoleAndStart();
 });
+
+/* =========================================
+   （モザイクや resizeCanvas の処理は
+    ここに元のまま残して OK）
+========================================= */
 </script>
+
 
 </body>
 </html>
