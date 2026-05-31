@@ -114,6 +114,7 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   callDoc.onSnapshot(async snap => {
     const data = snap.data();
     if (data?.answer && !pc.currentRemoteDescription) {
+      alert("caller側 ANSWER内容: " + JSON.stringify(data.answer));
       alert("caller: answer 受信");
       await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     }
@@ -151,7 +152,7 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
 
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
-
+  alert("ANSWER内容: " + JSON.stringify(answer));
   alert("callee: answer 書き込み");
   await callDoc.update({ answer });
 
