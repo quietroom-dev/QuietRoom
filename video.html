@@ -100,16 +100,16 @@ pc.ontrack = e => {
 ========================================= */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
   pc.onicegatheringstatechange = () => {
-    alert("caller ICE state: " + pc.iceGatheringState);
+    console.log("caller ICE state:", pc.iceGatheringState);
   };
-  alert("v1.5caller: start");
+  console.log("v1.4caller: start");
 
   await startCamera();
 
-  // 自分の ICE（★位置はこのままでOK）
+  // 自分の ICE
   pc.onicecandidate = e => {
     if (e.candidate) {
-      alert("caller ICE 送信: " + JSON.stringify(e.candidate));
+      console.log("caller ICE 送信:", e.candidate);
       offerCandidates.add(e.candidate.toJSON());
     }
   };
@@ -117,7 +117,7 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  alert("caller: offer 書き込み");
+  console.log("caller: offer 書き込み");
   await callDoc.set({ offer, from: myUid });
 
   // answer を待つ
@@ -125,13 +125,13 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
     const data = snap.data();
     if (data?.answer && !pc.currentRemoteDescription) {
 
-      alert("caller側 ANSWER内容: " + JSON.stringify(data.answer));
+      console.log("caller側 ANSWER内容:", data.answer);
 
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        alert("caller: setRemoteDescription 成功");
+        console.log("caller: setRemoteDescription 成功");
       } catch (e) {
-        alert("caller: setRemoteDescription 失敗 → " + e.message);
+        console.log("caller: setRemoteDescription 失敗 →", e.message);
       }
     }
   });
@@ -140,7 +140,7 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") {
-        alert("caller ICE 受信: " + JSON.stringify(c.doc.data()));
+        console.log("caller ICE 受信:", c.doc.data());
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -152,42 +152,41 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
 ========================================= */
 async function runCallee(callDoc, offerCandidates, answerCandidates) {
   pc.onicegatheringstatechange = () => {
-    alert("callee ICE state: " + pc.iceGatheringState);
+    console.log("callee ICE state:", pc.iceGatheringState);
   };
-  alert("callee: start");
+  console.log("callee: start");
 
   await startCamera();
 
-  // ★ここに先に置く：自分の ICE
+  // 自分の ICE（createAnswer より前）
   pc.onicecandidate = e => {
     if (e.candidate) {
-      alert("callee ICE 送信: " + JSON.stringify(e.candidate));
+      console.log("callee ICE 送信:", e.candidate);
       answerCandidates.add(e.candidate.toJSON());
     }
   };
 
   const callData = (await callDoc.get()).data();
-  alert("callee: offer 受信");
+  console.log("callee: offer 受信");
 
   await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
 
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
-  alert("ANSWER内容: " + JSON.stringify(answer));
-  alert("callee: answer 書き込み");
+  console.log("ANSWER内容:", answer);
+  console.log("callee: answer 書き込み");
   await callDoc.update({ answer });
 
   // 相手の ICE
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") {
-        alert("callee ICE 受信: " + JSON.stringify(c.doc.data()));
+        console.log("callee ICE 受信:", c.doc.data());
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
   });
 }
-
 
   /* =========================================
    ページ読み込み後に役割判定して開始
