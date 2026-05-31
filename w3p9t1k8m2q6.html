@@ -36,6 +36,9 @@ video {
 <div id="calls"></div>
 
 <script>
+/* =========================================
+   Firebase
+========================================= */
 firebase.initializeApp({
   apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
@@ -46,9 +49,9 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* ============================
+/* =========================================
    管理者が通話を受信する処理
-============================ */
+========================================= */
 function connectToCall(callerUid, box) {
 
   const pc = new RTCPeerConnection({
@@ -64,32 +67,34 @@ function connectToCall(callerUid, box) {
   };
 
   const callDoc = db.collection("calls").doc(callerUid);
+  const offerCandidates = callDoc.collection("offerCandidates");
+  const answerCandidates = callDoc.collection("answerCandidates");
 
-  // offer を受信したら answer を返す
+  /* ---- offer を受信したら answer を返す ---- */
   callDoc.onSnapshot(async snap => {
     const d = snap.data();
     if (!d) return;
 
-    // 通話終了 → ボックスを削除
+    // 通話終了 → UI から消す
     if (d.ended) {
       box.remove();
       return;
     }
 
-    // offer が来たら受信
-    if (d.offer && !pc.remoteDescription) {
+    // offer を受信したら answer を返す
+    if (d.offer && !pc.currentRemoteDescription) {
       await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      // ★answer 統一版（adminAnswer は廃止）
+      // ★answer 統一（adminAnswer は使わない）
       await callDoc.update({ answer });
     }
   });
 
-  // ICE candidate を受信
-  callDoc.collection("offerCandidates").onSnapshot(snap => {
+  /* ---- ICE candidate（caller → admin） ---- */
+  offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") {
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
@@ -98,17 +103,21 @@ function connectToCall(callerUid, box) {
   });
 }
 
-/* ============================
+/* =========================================
    通話一覧を監視
-============================ */
+========================================= */
 db.collection("calls").onSnapshot(snap => {
   const wrap = document.getElementById("calls");
   wrap.innerHTML = "";
 
   snap.forEach(doc => {
     const d = doc.data();
-    if (!d.offer) return;     // offer がない → 通話ではない
-    if (d.ended) return;      // 終了済みは表示しない
+
+    // offer が無い → 通話ではない
+    if (!d.offer) return;
+
+    // 終了済みは表示しない
+    if (d.ended) return;
 
     const box = document.createElement("div");
     box.className = "call-box";
@@ -118,7 +127,7 @@ db.collection("calls").onSnapshot(snap => {
     `;
     wrap.appendChild(box);
 
-    // ★doc.id = callerUid
+    // ★doc.id = callerUid（旧コードベースと完全一致）
     connectToCall(doc.id, box);
   });
 });
