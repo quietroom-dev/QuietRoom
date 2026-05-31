@@ -95,7 +95,6 @@ async function startCamera() {
 pc.ontrack = e => {
   document.getElementById("mainVideo").srcObject = e.streams[0];
 };
-
 /* =========================================
    発信側フロー
 ========================================= */
@@ -103,9 +102,17 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   pc.onicegatheringstatechange = () => {
     alert("caller ICE state: " + pc.iceGatheringState);
   };
-  alert("v1.4caller: start");
+  alert("v1.5caller: start");
 
   await startCamera();
+
+  // 自分の ICE（★位置はこのままでOK）
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      alert("caller ICE 送信: " + JSON.stringify(e.candidate));
+      offerCandidates.add(e.candidate.toJSON());
+    }
+  };
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
@@ -115,20 +122,20 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
 
   // answer を待つ
   callDoc.onSnapshot(async snap => {
-  const data = snap.data();
-  if (data?.answer && !pc.currentRemoteDescription) {
+    const data = snap.data();
+    if (data?.answer && !pc.currentRemoteDescription) {
 
-    alert("caller側 ANSWER内容: " + JSON.stringify(data.answer));
+      alert("caller側 ANSWER内容: " + JSON.stringify(data.answer));
 
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-      alert("caller: setRemoteDescription 成功");
-    } catch (e) {
-      alert("caller: setRemoteDescription 失敗 → " + e.message);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        alert("caller: setRemoteDescription 成功");
+      } catch (e) {
+        alert("caller: setRemoteDescription 失敗 → " + e.message);
+      }
     }
-  }
-});
- 
+  });
+
   // 相手の ICE
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
@@ -138,14 +145,6 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
       }
     });
   });
-
-  // 自分の ICE
-  pc.onicecandidate = e => {
-    if (e.candidate) {
-      alert("caller ICE 送信: " + JSON.stringify(e.candidate));
-      offerCandidates.add(e.candidate.toJSON());
-    }
-  };
 }
 
 /* =========================================
@@ -158,6 +157,14 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   alert("callee: start");
 
   await startCamera();
+
+  // ★ここに先に置く：自分の ICE
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      alert("callee ICE 送信: " + JSON.stringify(e.candidate));
+      answerCandidates.add(e.candidate.toJSON());
+    }
+  };
 
   const callData = (await callDoc.get()).data();
   alert("callee: offer 受信");
@@ -179,14 +186,6 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
       }
     });
   });
-
-  // 自分の ICE
-  pc.onicecandidate = e => {
-    if (e.candidate) {
-      alert("callee ICE 送信: " + JSON.stringify(e.candidate));
-      answerCandidates.add(e.candidate.toJSON());
-    }
-  };
 }
 
 
