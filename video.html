@@ -84,11 +84,14 @@ const targetUid = new URLSearchParams(location.search).get("target");
 let callerUid = null;
 
 /* ============================
-   モザイク（6段階）
+   モザイク（6段階）初期最大
 ============================ */
 const mosaicSizes = [1, 9, 13, 16, 19, 22];
-let myMosaicLevel = 1;
-let remoteMosaicLevel = 1;
+let myMosaicLevel = 6;        // ★初期最大
+let remoteMosaicLevel = 6;
+
+// ★初期値を Firestore にも即反映
+db.collection("mosaic").doc(myUid).set({ level: 6 });
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
@@ -102,119 +105,7 @@ remoteMosaicDoc.onSnapshot(snap => {
     remoteMosaicLevel = snap.data().level;
   }
 });
-
-/* ============================
-   WebRTC
-============================ */
-let pc = new RTCPeerConnection({
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-});
-
-let localStream = null;
-
-async function startCamera() {
-  localStream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user" },
-    audio: false
-  });
-  selfVideo.srcObject = localStream;
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-}
-
-/* ============================
-   カメラ切替
-============================ */
-document.getElementById("switchCamera").onclick = async () => {
-  const facing = selfVideo.srcObject.getVideoTracks()[0].getSettings().facingMode;
-  const newFacing = facing === "user" ? "environment" : "user";
-
-  localStream.getTracks().forEach(t => t.stop());
-  localStream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: newFacing },
-    audio: false
-  });
-
-  selfVideo.srcObject = localStream;
-  const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
-  if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
-};
-
-/* ============================
-   モザイク描画
-============================ */
-function drawMosaic() {
-  const mv = mainVideo;
-  const mc = mainCanvas;
-  const mctx = mc.getContext("2d");
-
-  const sv = selfVideo;
-  const sc = selfCanvas;
-  const sctx = sc.getContext("2d");
-
-  const w = mv.videoWidth;
-  const h = mv.videoHeight;
-
-  if (w && h) {
-    mc.width = w;
-    mc.height = h;
-
-    const size = mosaicSizes[remoteMosaicLevel - 1];
-    mctx.imageSmoothingEnabled = false;
-    mctx.drawImage(mv, 0, 0, w / size, h / size);
-    mctx.drawImage(mc, 0, 0, w / size, h / size, 0, 0, w, h);
-  }
-
-  const sw = sv.videoWidth;
-  const sh = sv.videoHeight;
-
-  if (sw && sh) {
-    sc.width = sw;
-    sc.height = sh;
-
-    const size2 = mosaicSizes[myMosaicLevel - 1];
-    sctx.imageSmoothingEnabled = false;
-    sctx.drawImage(sv, 0, 0, sw / size2, sh / size2);
-    sctx.drawImage(sc, 0, 0, sw / size2, sh / size2, 0, 0, sw, sh);
-  }
-
-  requestAnimationFrame(drawMosaic);
-}
-requestAnimationFrame(drawMosaic);
-
-/* ============================
-   モザイクUI（5個の箱）
-============================ */
-const meterBar = document.getElementById("meterBar");
-for (let i = 0; i < 5; i++) {
-  const div = document.createElement("div");
-  div.className = "meter-block";
-  meterBar.appendChild(div);
-}
-
-  function updateMeterUI() {
-  [...meterBar.children].forEach((b, i) => {
-    b.classList.toggle("active", i < (myMosaicLevel - 1));
-  });
-}
-updateMeterUI();
-
-document.getElementById("meterUp").onclick = () => {
-  if (myMosaicLevel < 6) {
-    myMosaicLevel++;
-    updateMeterUI();
-    saveMyMosaic();
-  }
-};
-
-document.getElementById("meterDown").onclick = () => {
-  if (myMosaicLevel > 1) {
-    myMosaicLevel--;
-    updateMeterUI();
-    saveMyMosaic();
-  }
-};
-
-/* ============================
+  /* ============================
    通報 / ブロック
 ============================ */
 document.getElementById("reportBtn").onclick = () => {
@@ -233,10 +124,10 @@ document.getElementById("blockBtn").onclick = () => {
 };
 
 /* ============================
-   発信側
+   発信側（caller）
 ============================ */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
-  callerUid = myUid;
+  callerUid = myUid;  // ★docID は caller の UID に統一
 
   await startCamera();
 
@@ -262,6 +153,7 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
       location.href = "profiles.html";
     }
 
+    // ★answer 統一版（adminAnswer は廃止）
     if (d?.answer && !pc.remoteDescription) {
       await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
     }
@@ -280,10 +172,10 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
 }
 
 /* ============================
-   受信側
+   受信側（callee）
 ============================ */
 async function runCallee(callDoc, offerCandidates, answerCandidates) {
-  callerUid = targetUid;
+  callerUid = callDoc.id;  // ★docID = callerUid をそのまま使う
 
   await startCamera();
 
@@ -296,7 +188,7 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
 
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
-  await callDoc.update({ answer });
+  await callDoc.update({ answer });  // ★answer 統一版
 
   callDoc.onSnapshot(async snap => {
     const d = snap.data();
@@ -329,16 +221,21 @@ document.getElementById("endBtn").onclick = async () => {
 ============================ */
 window.addEventListener("load", async () => {
 
+  // ★target がある → 自分は caller
   if (targetUid) {
     runCaller(
-      db.collection("calls").doc(myUid),
+      db.collection("calls").doc(myUid),  // ★docID = callerUid
       db.collection("calls").doc(myUid).collection("offerCandidates"),
       db.collection("calls").doc(myUid).collection("answerCandidates")
     );
-  } else {
+  }
+
+  // ★target がない → 自分は callee
+  else {
     const callerUid = new URLSearchParams(location.search).get("from");
+
     runCallee(
-      db.collection("calls").doc(callerUid),
+      db.collection("calls").doc(callerUid),  // ★docID = callerUid
       db.collection("calls").doc(callerUid).collection("offerCandidates"),
       db.collection("calls").doc(callerUid).collection("answerCandidates")
     );
@@ -348,3 +245,4 @@ window.addEventListener("load", async () => {
 
 </body>
 </html>
+
