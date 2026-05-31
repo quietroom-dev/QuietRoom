@@ -9,15 +9,22 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-/* ====== UI はあなたの元コードそのまま ====== */
 html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:sans-serif; }
+
 #mainVideo { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:#000; z-index:1; }
 #mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:2; pointer-events:none; }
-#selfVideo { position:fixed; top:16px; right:16px; width:24vw; height:24vh; min-width:180px; min-height:130px;
-  object-fit:contain; background:#000; border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); }
+
+#selfVideo { position:fixed; top:16px; right:16px; width:24vw; height:24vh;
+  min-width:180px; min-height:130px; object-fit:cover; background:#000;
+  border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); }
+
+#selfCanvas { position:fixed; top:16px; right:16px; width:24vw; height:24vh;
+  min-width:180px; min-height:130px; z-index:11; pointer-events:none; border-radius:12px; }
+
 .top-ui { position:fixed; top:16px; left:16px; display:flex; gap:10px; z-index:30; }
 .icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
   font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
+
 .mosaic-meter { position:fixed; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column;
   align-items:center; z-index:40; color:#fff; }
 .meter-bar { width:42px; height:34vh; display:flex; flex-direction:column-reverse; gap:4px; }
@@ -33,7 +40,9 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 
 <video id="mainVideo" autoplay playsinline></video>
 <canvas id="mainCanvas"></canvas>
+
 <video id="selfVideo" autoplay muted playsinline></video>
+<canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
   <button class="icon-btn" id="switchCamera">🔄</button>
@@ -66,7 +75,25 @@ const db = firebase.firestore();
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
-alert("video.html 読み込み: myUid=" + myUid + " / target=" + targetUid);
+/* =========================================
+   モザイク同期 Firestore
+========================================= */
+let myMosaicLevel = 0;
+let remoteMosaicLevel = 0;
+
+const mosaicDoc = db.collection("mosaic").doc(myUid);
+const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
+
+function saveMyMosaic() {
+  mosaicDoc.set({ level: myMosaicLevel });
+}
+
+remoteMosaicDoc.onSnapshot(snap => {
+  const d = snap.data();
+  if (d && typeof d.level === "number") {
+    remoteMosaicLevel = d.level;
+  }
+});
 
 /* =========================================
    WebRTC
@@ -95,129 +122,165 @@ async function startCamera() {
 pc.ontrack = e => {
   document.getElementById("mainVideo").srcObject = e.streams[0];
 };
+
 /* =========================================
-   発信側フロー
+   モザイク描画ループ
+========================================= */
+const mainVideo = document.getElementById("mainVideo");
+const mainCanvas = document.getElementById("mainCanvas");
+const mainCtx = mainCanvas.getContext("2d");
+
+const selfVideo = document.getElementById("selfVideo");
+const selfCanvas = document.getElementById("selfCanvas");
+const selfCtx = selfCanvas.getContext("2d");
+
+function drawMosaic() {
+  /* ---- 相手映像 ---- */
+  const w = mainVideo.videoWidth;
+  const h = mainVideo.videoHeight;
+
+  if (w && h) {
+    mainCanvas.width = w;
+    mainCanvas.height = h;
+
+    const size = Math.max(1, 50 - remoteMosaicLevel * 4);
+    mainCtx.imageSmoothingEnabled = false;
+
+    mainCtx.drawImage(mainVideo, 0, 0, w / size, h / size);
+    mainCtx.drawImage(mainCanvas, 0, 0, w / size, h / size, 0, 0, w, h);
+  }
+
+  /* ---- 自分映像 ---- */
+  const vw = selfVideo.videoWidth;
+  const vh = selfVideo.videoHeight;
+
+  if (vw && vh) {
+    selfCanvas.width = vw;
+    selfCanvas.height = vh;
+
+    const size2 = Math.max(1, 50 - myMosaicLevel * 4);
+    selfCtx.imageSmoothingEnabled = false;
+
+    selfCtx.drawImage(selfVideo, 0, 0, vw / size2, vh / size2);
+    selfCtx.drawImage(selfCanvas, 0, 0, vw / size2, vh / size2, 0, 0, vw, vh);
+  }
+
+  requestAnimationFrame(drawMosaic);
+}
+requestAnimationFrame(drawMosaic);
+
+/* =========================================
+   発信側
 ========================================= */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
-  pc.onicegatheringstatechange = () => {
-    console.log("caller ICE state:", pc.iceGatheringState);
-  };
-  console.log("v1.4caller: start");
-
   await startCamera();
 
-  // 自分の ICE
   pc.onicecandidate = e => {
-    if (e.candidate) {
-      console.log("caller ICE 送信:", e.candidate);
-      offerCandidates.add(e.candidate.toJSON());
-    }
+    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
   };
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-
-  console.log("caller: offer 書き込み");
   await callDoc.set({ offer, from: myUid });
 
-  // answer を待つ
   callDoc.onSnapshot(async snap => {
     const data = snap.data();
     if (data?.answer && !pc.currentRemoteDescription) {
-
-      console.log("caller側 ANSWER内容:", data.answer);
-
-      try {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        console.log("caller: setRemoteDescription 成功");
-      } catch (e) {
-        console.log("caller: setRemoteDescription 失敗 →", e.message);
-      }
+      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     }
   });
 
-  // 相手の ICE
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
-        console.log("caller ICE 受信:", c.doc.data());
-        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-      }
+      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
     });
   });
 }
 
 /* =========================================
-   受信側フロー
+   受信側
 ========================================= */
 async function runCallee(callDoc, offerCandidates, answerCandidates) {
-  pc.onicegatheringstatechange = () => {
-    console.log("callee ICE state:", pc.iceGatheringState);
-  };
-  console.log("callee: start");
-
   await startCamera();
 
-  // 自分の ICE（createAnswer より前）
   pc.onicecandidate = e => {
-    if (e.candidate) {
-      console.log("callee ICE 送信:", e.candidate);
-      answerCandidates.add(e.candidate.toJSON());
-    }
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
   };
 
   const callData = (await callDoc.get()).data();
-  console.log("callee: offer 受信");
-
   await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
 
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
-  console.log("ANSWER内容:", answer);
-  console.log("callee: answer 書き込み");
   await callDoc.update({ answer });
 
-  // 相手の ICE
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
-        console.log("callee ICE 受信:", c.doc.data());
-        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-      }
+      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
     });
   });
 }
 
-  /* =========================================
-   ページ読み込み後に役割判定して開始
+/* =========================================
+   ページ読み込み後
 ========================================= */
 window.addEventListener("load", async () => {
 
+  /* ---- モザイク UI ---- */
+  const meterBar = document.getElementById("meterBar");
+  const meterUp = document.getElementById("meterUp");
+  const meterDown = document.getElementById("meterDown");
+
+  for (let i = 0; i <= 10; i++) {
+    const div = document.createElement("div");
+    div.className = "meter-block";
+    meterBar.appendChild(div);
+  }
+
+  function updateMeterUI() {
+    [...meterBar.children].forEach((b, i) => {
+      b.classList.toggle("active", i <= myMosaicLevel);
+    });
+  }
+
+  meterUp.onclick = () => {
+    if (myMosaicLevel < 10) {
+      myMosaicLevel++;
+      updateMeterUI();
+      saveMyMosaic();
+    }
+  };
+
+  meterDown.onclick = () => {
+    if (myMosaicLevel > 0) {
+      myMosaicLevel--;
+      updateMeterUI();
+      saveMyMosaic();
+    }
+  };
+
+  updateMeterUI();
+
+  /* ---- 役割判定 ---- */
   let callDoc;
   let offerCandidates;
   let answerCandidates;
 
   const myCallSnap = await db.collection("calls").doc(myUid).get();
 
-  // 受信側（callee）
   if (myCallSnap.exists && myCallSnap.data().offer) {
     callDoc = db.collection("calls").doc(myUid);
     offerCandidates = callDoc.collection("offerCandidates");
     answerCandidates = callDoc.collection("answerCandidates");
-    alert("役割: 受信側 (callee)");
     runCallee(callDoc, offerCandidates, answerCandidates);
     return;
   }
 
-  // 発信側（caller）
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
-  alert("役割: 発信側 (caller)");
   runCaller(callDoc, offerCandidates, answerCandidates);
 });
-
-
 </script>
 
 </body>
