@@ -193,9 +193,10 @@ for (let i = 0; i < 5; i++) {
 
 function updateMeterUI() {
   [...meterBar.children].forEach((b, i) => {
-    b.classList.toggle("active", i < myMosaicLevel);
+    b.classList.toggle("active", i < (myMosaicLevel - 1));
   });
 }
+
 updateMeterUI();
 
 document.getElementById("meterUp").onclick = () => {
