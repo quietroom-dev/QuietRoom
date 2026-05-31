@@ -61,7 +61,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">v1.4管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg">v1.5管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
 /* =========================================
@@ -88,14 +88,16 @@ const targetUid = new URLSearchParams(location.search).get("target");
 ========================================= */
 const mosaicSizes = [1, 9, 13, 16, 19, 22];
 
-let myMosaicLevel = 5;        // 初期最大
-let remoteMosaicLevel = 5;
+// ★レベルは 1〜6（0 は使わない）
+let myMosaicLevel = 6;        
+let remoteMosaicLevel = 6;
 
-// Firestore に初期値を即反映
-db.collection("mosaic").doc(myUid).set({ level: 5 });
+// ★初期値を Firestore に即反映（必須）
+db.collection("mosaic").doc(myUid).set({ level: 6 });
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 
+// ★相手UIDを正しく参照（caller/callee どちらでも正しく動く）
 const remoteUid = targetUid || fromUid;
 const remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
 
@@ -183,9 +185,8 @@ function drawMosaic() {
     mainCanvas.width = w;
     mainCanvas.height = h;
 
-    const block = mosaicSizes[remoteMosaicLevel];
-const block2 = mosaicSizes[myMosaicLevel];
-
+    // ★レベル1〜6 → index 0〜5
+    const block = mosaicSizes[remoteMosaicLevel - 1];
 
     mainCtx.imageSmoothingEnabled = false;
     mainCtx.drawImage(mainVideo, 0, 0, w / block, h / block);
@@ -287,11 +288,14 @@ window.addEventListener("load", async () => {
     meterBar.appendChild(div);
   }
 
-  function updateMeterUI() {
-    [...meterBar.children].forEach((b, i) => {
-      b.classList.toggle("active", i <= myMosaicLevel);
-    });
-  }
+function updateMeterUI() {
+  [...meterBar.children].forEach((b, i) => {
+    // レベル1〜5 → ブロック1〜5
+    // レベル6 → 全部点灯
+    b.classList.toggle("active", i < myMosaicLevel - 1);
+  });
+}
+
 
   meterUp.onclick = () => {
     if (myMosaicLevel < 4) {
