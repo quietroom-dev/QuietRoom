@@ -61,7 +61,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">v1.0管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg">管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
 /* =========================================
@@ -84,17 +84,12 @@ const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
 /* =========================================
-   QuietRoom モザイク同期（6段階）
+   モザイク同期 Firestore（5段階）
 ========================================= */
-const mosaicSizes = [1, 9, 13, 16, 19, 22];
-
-// 0〜5（0=クリア, 5=最大）
-let myMosaicLevel = 5;
-let remoteMosaicLevel = 5;
+let myMosaicLevel = 4;          // 初期最大
+let remoteMosaicLevel = 4;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
-mosaicDoc.set({ level: myMosaicLevel });
-
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
 function saveMyMosaic() {
@@ -125,7 +120,7 @@ let currentFacing = "user";
 async function startCamera() {
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
-    audio: false
+    audio: false   // ← 音無し
   });
   selfVideo.srcObject = localStream;
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
@@ -160,7 +155,7 @@ pc.ontrack = e => {
 };
 
 /* =========================================
-   モザイク描画ループ（QuietRoom 6段階）
+   モザイク描画ループ（5段階）
 ========================================= */
 const mainVideo = document.getElementById("mainVideo");
 const mainCanvas = document.getElementById("mainCanvas");
@@ -179,11 +174,11 @@ function drawMosaic() {
     mainCanvas.width = w;
     mainCanvas.height = h;
 
-    const block = mosaicSizes[remoteMosaicLevel];
+    const size = 1 + remoteMosaicLevel * 4;  // 5段階
     mainCtx.imageSmoothingEnabled = false;
 
-    mainCtx.drawImage(mainVideo, 0, 0, w / block, h / block);
-    mainCtx.drawImage(mainCanvas, 0, 0, w / block, h / block, 0, 0, w, h);
+    mainCtx.drawImage(mainVideo, 0, 0, w / size, h / size);
+    mainCtx.drawImage(mainCanvas, 0, 0, w / size, h / size, 0, 0, w, h);
   }
 
   /* ---- 自分映像 ---- */
@@ -194,11 +189,11 @@ function drawMosaic() {
     selfCanvas.width = vw;
     selfCanvas.height = vh;
 
-    const block2 = mosaicSizes[myMosaicLevel];
+    const size2 = 1 + myMosaicLevel * 4;
     selfCtx.imageSmoothingEnabled = false;
 
-    selfCtx.drawImage(selfVideo, 0, 0, vw / block2, vh / block2);
-    selfCtx.drawImage(selfCanvas, 0, 0, vw / block2, vh / block2, 0, 0, vw, vh);
+    selfCtx.drawImage(selfVideo, 0, 0, vw / size2, vh / size2);
+    selfCtx.drawImage(selfCanvas, 0, 0, vw / size2, vh / size2, 0, 0, vw, vh);
   }
 
   requestAnimationFrame(drawMosaic);
@@ -271,12 +266,12 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
 ========================================= */
 window.addEventListener("load", async () => {
 
-  /* ---- モザイク UI（QuietRoom 6段階） ---- */
+  /* ---- モザイク UI（5段階） ---- */
   const meterBar = document.getElementById("meterBar");
   const meterUp = document.getElementById("meterUp");
   const meterDown = document.getElementById("meterDown");
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i <= 4; i++) {
     const div = document.createElement("div");
     div.className = "meter-block";
     meterBar.appendChild(div);
@@ -284,12 +279,12 @@ window.addEventListener("load", async () => {
 
   function updateMeterUI() {
     [...meterBar.children].forEach((b, i) => {
-      b.classList.toggle("active", i < myMosaicLevel);
+      b.classList.toggle("active", i <= myMosaicLevel);
     });
   }
 
   meterUp.onclick = () => {
-    if (myMosaicLevel < 5) {
+    if (myMosaicLevel < 4) {
       myMosaicLevel++;
       updateMeterUI();
       saveMyMosaic();
@@ -348,7 +343,7 @@ window.addEventListener("load", async () => {
 
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
-  answerCandidates = callDoc.collection("answerCandidates");
+    answerCandidates = callDoc.collection("answerCandidates");
   runCaller(callDoc, offerCandidates, answerCandidates);
 });
 </script>
