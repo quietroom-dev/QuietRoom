@@ -129,7 +129,7 @@ db.collection("calls").onSnapshot(snap => {
     `;
     wrap.appendChild(box);
 
-    // ★ doc.id = calleeUid（旧コードと完全一致）
+    // ★ doc.id = calleeUid（旧 QuietRoom と完全一致）
     connectToCall(doc.id, box);
   });
 });
