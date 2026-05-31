@@ -100,7 +100,10 @@ pc.ontrack = e => {
    発信側フロー
 ========================================= */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
-  alert("v1.3caller: start");
+  pc.onicegatheringstatechange = () => {
+    alert("caller ICE state: " + pc.iceGatheringState);
+  };
+  alert("v1.4caller: start");
 
   await startCamera();
 
@@ -149,6 +152,9 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
    受信側フロー
 ========================================= */
 async function runCallee(callDoc, offerCandidates, answerCandidates) {
+  pc.onicegatheringstatechange = () => {
+    alert("callee ICE state: " + pc.iceGatheringState);
+  };
   alert("callee: start");
 
   await startCamera();
