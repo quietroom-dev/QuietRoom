@@ -158,7 +158,7 @@ function drawMosaic() {
     mc.width = w;
     mc.height = h;
 
-    const size = mosaicSizes[remoteMosaicLevel];
+    const size = mosaicSizes[remoteMosaicLevel - 1];
     mctx.imageSmoothingEnabled = false;
     mctx.drawImage(mv, 0, 0, w / size, h / size);
     mctx.drawImage(mc, 0, 0, w / size, h / size, 0, 0, w, h);
@@ -171,7 +171,7 @@ function drawMosaic() {
     sc.width = sw;
     sc.height = sh;
 
-    const size2 = mosaicSizes[myMosaicLevel];
+    const size2 = mosaicSizes[myMosaicLevel - 1];
     sctx.imageSmoothingEnabled = false;
     sctx.drawImage(sv, 0, 0, sw / size2, sh / size2);
     sctx.drawImage(sc, 0, 0, sw / size2, sh / size2, 0, 0, sw, sh);
