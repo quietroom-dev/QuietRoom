@@ -170,35 +170,39 @@ function drawMosaic() {
   const w = mainVideo.videoWidth;
   const h = mainVideo.videoHeight;
 
-  if (w && h) {
+  if (w > 0 && h > 0) {
     mainCanvas.width = w;
     mainCanvas.height = h;
 
-    const size = 1 + remoteMosaicLevel * 4;  // 5段階
+    // あなたの正式仕様（0〜5）
+    const mosaicSizes = [1, 7, 10, 13, 16, 19];
+    const block = mosaicSizes[remoteMosaicLevel];
+
     mainCtx.imageSmoothingEnabled = false;
 
-    mainCtx.drawImage(mainVideo, 0, 0, w / size, h / size);
-    mainCtx.drawImage(mainCanvas, 0, 0, w / size, h / size, 0, 0, w, h);
+    mainCtx.drawImage(mainVideo, 0, 0, w / block, h / block);
+    mainCtx.drawImage(mainCanvas, 0, 0, w / block, h / block, 0, 0, w, h);
   }
 
   /* ---- 自分映像 ---- */
   const vw = selfVideo.videoWidth;
   const vh = selfVideo.videoHeight;
 
-  if (vw && vh) {
+  if (vw > 0 && vh > 0) {
     selfCanvas.width = vw;
     selfCanvas.height = vh;
 
-    const size2 = 1 + myMosaicLevel * 4;
+    const mosaicSizes = [1, 9, 13, 16, 19, 22];
+    const block2 = mosaicSizes[myMosaicLevel];
+
     selfCtx.imageSmoothingEnabled = false;
 
-    selfCtx.drawImage(selfVideo, 0, 0, vw / size2, vh / size2);
-    selfCtx.drawImage(selfCanvas, 0, 0, vw / size2, vh / size2, 0, 0, vw, vh);
+    selfCtx.drawImage(selfVideo, 0, 0, vw / block2, vh / block2);
+    selfCtx.drawImage(selfCanvas, 0, 0, vw / block2, vh / block2, 0, 0, vw, vh);
   }
 
   requestAnimationFrame(drawMosaic);
 }
-requestAnimationFrame(drawMosaic);
 
 /* =========================================
    発信側
