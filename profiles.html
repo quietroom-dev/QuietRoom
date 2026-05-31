@@ -69,7 +69,8 @@ body {
 </div>
 
 <script>
-  alert("受信側 myUid = " + localStorage.getItem("myUid"));
+/* alert("受信側 myUid = " + localStorage.getItem("myUid"));
+*/
 /* =========================================
    Firebase
 ========================================= */
@@ -131,7 +132,8 @@ db.collection("user")
    通話開始
 ========================================= */
 function startCall(targetUid) {
-  alert("profiles.html の startCall が呼ばれた target=" + targetUid);
+/*  alert("profiles.html の startCall が呼ばれた target=" + targetUid);
+*/
   window.location.href = `video.html?target=${targetUid}`;
 }
 
@@ -150,9 +152,11 @@ setInterval(() => location.reload(), 60000);
 /* =========================================
    ▼▼ 着信リスナー ▼▼
 ========================================= */
-  alert("着信リスナーを設定したよ myUid=" + myUid);
+/*  alert("着信リスナーを設定したよ myUid=" + myUid);
+  */
 db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
-  alert("onSnapshot 発火！ data=" + JSON.stringify(snap.data()));
+/*  alert("onSnapshot 発火！ data=" + JSON.stringify(snap.data()));
+*/
   const data = snap.data();
   if (!data) return;
 
