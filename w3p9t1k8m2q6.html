@@ -1,109 +1,27 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v2.0.0
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>QuietRoom Monitor</title>
+  v1.0.0
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuietRoom 管理者</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-body {
-  margin: 0;
-  background: #000;
-  color: #fff;
-  font-family: sans-serif;
-}
-
-.call-section {
-  padding: 16px;
-  border-bottom: 1px solid #333;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-}
-
-.small-box {
-  width: 50%;
-  position: relative;
-  background: #111;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-video, canvas {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: #000;
-}
-
-.profile {
-  margin-top: 10px;
-  font-size: 14px;
-  line-height: 1.4;
-  color: #ccc;
-}
-
-.btn-row {
-  margin-top: 8px;
-  display: flex;
-  gap: 12px;
-}
-
-.btn {
-  padding: 10px 16px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-#bigViewWrapper {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.9);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-}
-
-#bigView {
-  width: 90vw;
-  height: 90vh;
-  object-fit: contain;
-  background: #000;
-}
-
-#closeBig {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  font-size: 32px;
-  cursor: pointer;
-}
+body { margin:0; padding:20px; background:#111; color:#fff; font-family:sans-serif; }
+.call-box { border:1px solid #444; padding:10px; margin-bottom:20px; border-radius:8px; }
+video { width:100%; max-height:240px; background:#000; }
 </style>
 </head>
 
 <body>
 
-<!-- 大画面表示 -->
-<div id="bigViewWrapper">
-  <div id="closeBig">✖️</div>
-  <canvas id="bigView"></canvas>
-</div>
-
-<div id="callsContainer"></div>
+<h2>QuietRoom 管理者ページ</h2>
+<div id="calls"></div>
 
 <script>
-/* ============================
-   Firebase 初期化
-============================ */
 firebase.initializeApp({
   apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
@@ -114,281 +32,58 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* ============================
-   モザイク 5段階
-============================ */
-function mosaicSize(level) {
-  return 1 + level * 4; // video.html v3 と同じ
-}
-
-/* ============================
-   大画面表示
-============================ */
-const bigWrap = document.getElementById("bigViewWrapper");
-const bigCanvas = document.getElementById("bigView");
-const bigCtx = bigCanvas.getContext("2d");
-const off = document.createElement("canvas");
-const offCtx = off.getContext("2d");
-
-function showBig(video, level) {
-  bigWrap.style.display = "flex";
-
-  function draw() {
-    if (video.readyState >= 2) {
-      const w = bigCanvas.clientWidth;
-      const h = bigCanvas.clientHeight;
-
-      const size = mosaicSize(level);
-
-      off.width = size;
-      off.height = Math.max(1, Math.round(size * (h / w)));
-
-      offCtx.imageSmoothingEnabled = false;
-      offCtx.drawImage(video, 0, 0, off.width, off.height);
-
-      bigCanvas.width = w;
-      bigCanvas.height = h;
-
-      bigCtx.imageSmoothingEnabled = false;
-      bigCtx.drawImage(off, 0, 0, off.width, off.height, 0, 0, w, h);
-    }
-    requestAnimationFrame(draw);
-  }
-  draw();
-}
-
-document.getElementById("closeBig").onclick = () => {
-  bigWrap.style.display = "none";
-};
-
-/* ============================
-   プロフィール読み込み
-============================ */
-async function loadProfile(uid, elements) {
-  const doc = await db.collection("profiles").doc(uid).get();
-  if (!doc.exists) return;
-
-  const d = doc.data();
-  elements.name.textContent = d.nickname || "名無し";
-  elements.gender.textContent = d.gender || "-";
-  elements.pref.textContent = d.prefecture || "-";
-  elements.comment.textContent = d.comment || "";
-  elements.report.textContent = d.reportCount || 0;
-}
-
-/* ============================
-   通話ペア UI 生成
-============================ */
-function createCallSection(callId, uidA, uidB) {
-  const container = document.getElementById("callsContainer");
-
-  const section = document.createElement("div");
-  section.className = "call-section";
-  section.id = "call-" + callId;
-
-  section.innerHTML = `
-    <h3>通話：${uidA} ＋ ${uidB}</h3>
-
-    <div class="row">
-      <div class="small-box"><video id="${uidA}-raw" autoplay playsinline></video></div>
-      <div class="small-box"><canvas id="${uidA}-mosaic"></canvas></div>
-    </div>
-
-    <div class="profile">
-      <div>名前：<span id="${uidA}-name"></span></div>
-      <div>性別：<span id="${uidA}-gender"></span></div>
-      <div>地域：<span id="${uidA}-pref"></span></div>
-      <div>コメント：<span id="${uidA}-comment"></span></div>
-      <div>通報：<span id="${uidA}-report"></span> 回</div>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn" id="${uidA}-audio">音声 ON/OFF</button>
-      <button class="btn" id="${uidA}-ban">BAN</button>
-    </div>
-
-    <hr style="margin:16px 0; border-color:#333;">
-
-    <div class="row">
-      <div class="small-box"><video id="${uidB}-raw" autoplay playsinline></video></div>
-      <div class="small-box"><canvas id="${uidB}-mosaic"></canvas></div>
-    </div>
-
-    <div class="profile">
-      <div>名前：<span id="${uidB}-name"></span></div>
-      <div>性別：<span id="${uidB}-gender"></span></div>
-      <div>地域：<span id="${uidB}-pref"></span></div>
-      <div>コメント：<span id="${uidB}-comment"></span></div>
-      <div>通報：<span id="${uidB}-report"></span> 回</div>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn" id="${uidB}-audio">音声 ON/OFF</button>
-      <button class="btn" id="${uidB}-ban">BAN</button>
-    </div>
-  `;
-
-  container.appendChild(section);
-
-  return section;
-}
-
-/* ============================
-   WebRTC 受信
-============================ */
-function connectToUser(uid, videoElement) {
+function connectToCall(callerUid, box) {
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
   });
 
+  pc.addTransceiver("video", { direction: "recvonly" });
+
+  const video = box.querySelector("video");
   pc.ontrack = e => {
-    videoElement.srcObject = e.streams[0];
+    video.srcObject = e.streams[0];
   };
 
-  const callDoc = db.collection("calls").doc(uid);
+  const callDoc = db.collection("calls").doc(callerUid);
 
   callDoc.onSnapshot(async snap => {
-    const data = snap.data();
-    if (data?.offer) {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const d = snap.data();
+    if (!d) return;
+
+    if (d.offer && !pc.remoteDescription) {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await callDoc.update({ adminAnswer: answer });
+      await callDoc.update({ answer });
     }
   });
 
   callDoc.collection("offerCandidates").onSnapshot(snap => {
-    snap.docChanges().forEach(change => {
-      if (change.type === "added") {
-        pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+    snap.docChanges().forEach(c => {
+      if (c.type === "added") {
+        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
   });
 }
 
-/* ============================
-   モザイク描画
-============================ */
-function startMosaicLoop(uid, video, canvas, levelRef) {
-  const ctx = canvas.getContext("2d");
+db.collection("calls").onSnapshot(snap => {
+  const wrap = document.getElementById("calls");
+  wrap.innerHTML = "";
 
-  function draw() {
-    if (video.readyState >= 2) {
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
+  snap.forEach(doc => {
+    const d = doc.data();
+    if (!d.offer || d.ended) return;
 
-      const size = mosaicSize(levelRef.value);
+    const box = document.createElement("div");
+    box.className = "call-box";
+    box.innerHTML = `
+      <div>通話：${d.from} → ${d.target}</div>
+      <video autoplay playsinline></video>
+    `;
+    wrap.appendChild(box);
 
-      off.width = size;
-      off.height = Math.max(1, Math.round(size * (h / w)));
-
-      offCtx.imageSmoothingEnabled = false;
-      offCtx.drawImage(video, 0, 0, off.width, off.height);
-
-      canvas.width = w;
-      canvas.height = h;
-
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, w, h);
-    }
-    requestAnimationFrame(draw);
-  }
-  draw();
-}
-
-/* ============================
-   通話一覧を監視
-============================ */
-db.collection("calls").onSnapshot(snapshot => {
-  snapshot.docChanges().forEach(change => {
-    const doc = change.doc;
-    const data = doc.data();
-    const callId = doc.id;
-
-    // 通話中判定
-    const active = data.offer && data.answer && !data.ended;
-
-    if (change.type === "added" && active) {
-      const uidA = data.from;
-      const uidB = data.target;
-
-      const section = createCallSection(callId, uidA, uidB);
-
-      // raw 映像
-      const aRaw = document.getElementById(uidA + "-raw");
-      const bRaw = document.getElementById(uidB + "-raw");
-
-      connectToUser(uidA, aRaw);
-      connectToUser(uidB, bRaw);
-
-      // mosaic 映像
-      const aMosaic = document.getElementById(uidA + "-mosaic");
-      const bMosaic = document.getElementById(uidB + "-mosaic");
-
-      const aLevel = { value: 4 };
-      const bLevel = { value: 4 };
-
-      db.collection("mosaic").doc(uidA).onSnapshot(s => {
-        if (s.data()?.level !== undefined) aLevel.value = s.data().level;
-      });
-
-      db.collection("mosaic").doc(uidB).onSnapshot(s => {
-        if (s.data()?.level !== undefined) bLevel.value = s.data().level;
-      });
-
-      startMosaicLoop(uidA, aRaw, aMosaic, aLevel);
-      startMosaicLoop(uidB, bRaw, bMosaic, bLevel);
-
-      // プロフィール
-      loadProfile(uidA, {
-        name: document.getElementById(uidA + "-name"),
-        gender: document.getElementById(uidA + "-gender"),
-        pref: document.getElementById(uidA + "-pref"),
-        comment: document.getElementById(uidA + "-comment"),
-        report: document.getElementById(uidA + "-report")
-      });
-
-      loadProfile(uidB, {
-        name: document.getElementById(uidB + "-name"),
-        gender: document.getElementById(uidB + "-gender"),
-        pref: document.getElementById(uidB + "-pref"),
-        comment: document.getElementById(uidB + "-comment"),
-        report: document.getElementById(uidB + "-report")
-      });
-
-      // 音声 ON/OFF
-      document.getElementById(uidA + "-audio").onclick = () => {
-        const track = aRaw.srcObject?.getAudioTracks()[0];
-        if (track) track.enabled = !track.enabled;
-      };
-
-      document.getElementById(uidB + "-audio").onclick = () => {
-        const track = bRaw.srcObject?.getAudioTracks()[0];
-        if (track) track.enabled = !track.enabled;
-      };
-
-      // BAN
-      document.getElementById(uidA + "-ban").onclick = () => {
-        db.collection("calls").doc(uidA).update({ ended: true, banned: true });
-      };
-
-      document.getElementById(uidB + "-ban").onclick = () => {
-        db.collection("calls").doc(uidB).update({ ended: true, banned: true });
-      };
-
-      // 大画面
-      aRaw.onclick = () => showBig(aRaw, 0);
-      aMosaic.onclick = () => showBig(aRaw, aLevel.value);
-
-      bRaw.onclick = () => showBig(bRaw, 0);
-      bMosaic.onclick = () => showBig(bRaw, bLevel.value);
-    }
-
-    // 通話終了 → UI 削除
-    if (change.type === "modified" && !active) {
-      const section = document.getElementById("call-" + callId);
-      if (section) section.remove();
-    }
+    connectToCall(doc.id, box);
   });
 });
 </script>
