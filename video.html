@@ -100,7 +100,7 @@ pc.ontrack = e => {
    発信側フロー
 ========================================= */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
-  alert("v1.1caller: start");
+  alert("v1.2caller: start");
 
   await startCamera();
 
@@ -124,6 +124,7 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") {
+        alert("caller ICE 受信: " + JSON.stringify(c.doc.data()));
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -132,6 +133,7 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   // 自分の ICE
   pc.onicecandidate = e => {
     if (e.candidate) {
+      alert("caller ICE 送信: " + JSON.stringify(e.candidate));
       offerCandidates.add(e.candidate.toJSON());
     }
   };
@@ -160,6 +162,7 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") {
+        alert("callee ICE 受信: " + JSON.stringify(c.doc.data()));
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -168,6 +171,7 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   // 自分の ICE
   pc.onicecandidate = e => {
     if (e.candidate) {
+      alert("callee ICE 送信: " + JSON.stringify(e.candidate));
       answerCandidates.add(e.candidate.toJSON());
     }
   };
