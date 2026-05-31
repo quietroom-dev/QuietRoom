@@ -86,11 +86,19 @@ const targetUid = new URLSearchParams(location.search).get("target");
 /* =========================================
    モザイク同期 Firestore（5段階）
 ========================================= */
-let myMosaicLevel = 4;          // 初期最大
-let remoteMosaicLevel = 4;
+const mosaicSizes = [1, 9, 13, 16, 19, 22];
+
+let myMosaicLevel = 6;        // 初期最大
+let remoteMosaicLevel = 6;
+
+// Firestore に初期値を即反映（必須）
+db.collection("mosaic").doc(myUid).set({ level: 6 });
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
-const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
+
+// ★ここが最重要：相手UIDを正しく参照
+const remoteUid = targetUid || fromUid;
+const remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
 
 function saveMyMosaic() {
   mosaicDoc.set({ level: myMosaicLevel });
