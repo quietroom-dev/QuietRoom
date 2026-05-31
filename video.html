@@ -229,6 +229,13 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
       await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     }
   });
+callDoc.onSnapshot(async snap => {
+  const data = snap.data();
+  if (data?.adminAnswer && !pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.adminAnswer));
+  }
+});
+
 
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
@@ -253,6 +260,14 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
   await callDoc.update({ answer });
+  // 管理者ページからの受信処理
+callDoc.onSnapshot(async snap => {
+  const data = snap.data();
+  if (data?.adminAnswer && !pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.adminAnswer));
+  }
+});
+
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
