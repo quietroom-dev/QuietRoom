@@ -27,18 +27,21 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 
 .mosaic-meter { position:fixed; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column;
   align-items:center; z-index:40; color:#fff; }
-.meter-bar { width:42px; height:28vh; display:flex; flex-direction:column-reverse; gap:4px; }
+.meter-bar { width:42px; height:32vh; display:flex; flex-direction:column-reverse; gap:4px; }
 .meter-block { flex:1; width:100%; border-radius:8px; border:2px solid rgba(255,255,255,0.7);
-  background:rgba(255,255,255,0.2); transition:0.15s; }
+  background:rgba(255,255,255,0.0); transition:0.15s; }
 .meter-block.active { background:rgba(255,255,255,1); }
+
 .meter-top, .meter-bottom { margin:8px 0; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.55);
   cursor:pointer; user-select:none; }
 
-#patrolMsg {
-  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
-  background:rgba(0,0,0,0.6); color:#fff; padding:10px 16px;
-  border-radius:8px; font-size:14px; display:none; z-index:50;
+#reportBtn, #blockBtn {
+  position:fixed; bottom:20px; left:20px;
+  padding:10px 16px; background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.3); border-radius:6px; color:#fff;
+  z-index:50; margin-right:10px;
 }
+#blockBtn { left:140px; }
 </style>
 </head>
 
@@ -61,12 +64,10 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">管理人がパトロールすることがあります。安全に使ってね。</div>
+<button id="reportBtn">通報</button>
+<button id="blockBtn">ブロック</button>
 
 <script>
-/* =========================================
-   Firebase
-========================================= */
 firebase.initializeApp({
   apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
@@ -77,17 +78,17 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* =========================================
-   UID / パラメータ
-========================================= */
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
-/* =========================================
-   モザイク同期 Firestore（5段階）
-========================================= */
-let myMosaicLevel = 4;          // 初期最大
-let remoteMosaicLevel = 4;
+let callerUid = null;  // 発信者のUIDを後で判定
+
+/* ============================
+   モザイク（0〜5段階）
+============================ */
+const mosaicSizes = [1, 7, 10, 13, 16, 19];
+let myMosaicLevel = 5;
+let remoteMosaicLevel = 5;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
@@ -97,113 +98,146 @@ function saveMyMosaic() {
 }
 
 remoteMosaicDoc.onSnapshot(snap => {
-  const d = snap.data();
-  if (d && typeof d.level === "number") {
-    remoteMosaicLevel = d.level;
+  if (snap.data()?.level !== undefined) {
+    remoteMosaicLevel = snap.data().level;
   }
 });
 
-/* =========================================
+/* ============================
    WebRTC
-========================================= */
+============================ */
 let pc = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
 
 let localStream = null;
 
-/* =========================================
-   カメラ開始（音無し）
-========================================= */
-let currentFacing = "user";
-
 async function startCamera() {
   localStream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: currentFacing },
-    audio: false   // ← 音無し
+    video: { facingMode: "user" },
+    audio: false
   });
   selfVideo.srcObject = localStream;
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 }
 
-/* =========================================
+/* ============================
    カメラ切替
-========================================= */
-async function switchCameraFunc() {
-  currentFacing = currentFacing === "user" ? "environment" : "user";
+============================ */
+document.getElementById("switchCamera").onclick = async () => {
+  const facing = selfVideo.srcObject.getVideoTracks()[0].getSettings().facingMode;
+  const newFacing = facing === "user" ? "environment" : "user";
 
-  if (localStream) localStream.getTracks().forEach(t => t.stop());
-
+  localStream.getTracks().forEach(t => t.stop());
   localStream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: currentFacing },
+    video: { facingMode: newFacing },
     audio: false
   });
 
   selfVideo.srcObject = localStream;
-
   const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
   if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
-}
-
-document.getElementById("switchCamera").onclick = switchCameraFunc;
-
-/* =========================================
-   相手映像
-========================================= */
-pc.ontrack = e => {
-  mainVideo.srcObject = e.streams[0];
 };
 
-/* =========================================
-   モザイク描画ループ（5段階）
-========================================= */
-const mainVideo = document.getElementById("mainVideo");
-const mainCanvas = document.getElementById("mainCanvas");
-const mainCtx = mainCanvas.getContext("2d");
-
-const selfVideo = document.getElementById("selfVideo");
-const selfCanvas = document.getElementById("selfCanvas");
-const selfCtx = selfCanvas.getContext("2d");
-
+/* ============================
+   モザイク描画
+============================ */
 function drawMosaic() {
-  /* ---- 相手映像 ---- */
-  const w = mainVideo.videoWidth;
-  const h = mainVideo.videoHeight;
+  const mv = mainVideo;
+  const mc = mainCanvas;
+  const mctx = mc.getContext("2d");
+
+  const sv = selfVideo;
+  const sc = selfCanvas;
+  const sctx = sc.getContext("2d");
+
+  const w = mv.videoWidth;
+  const h = mv.videoHeight;
 
   if (w && h) {
-    mainCanvas.width = w;
-    mainCanvas.height = h;
+    mc.width = w;
+    mc.height = h;
 
-    const size = 1 + remoteMosaicLevel * 4;  // 5段階
-    mainCtx.imageSmoothingEnabled = false;
-
-    mainCtx.drawImage(mainVideo, 0, 0, w / size, h / size);
-    mainCtx.drawImage(mainCanvas, 0, 0, w / size, h / size, 0, 0, w, h);
+    const size = mosaicSizes[remoteMosaicLevel];
+    mctx.imageSmoothingEnabled = false;
+    mctx.drawImage(mv, 0, 0, w / size, h / size);
+    mctx.drawImage(mc, 0, 0, w / size, h / size, 0, 0, w, h);
   }
 
-  /* ---- 自分映像 ---- */
-  const vw = selfVideo.videoWidth;
-  const vh = selfVideo.videoHeight;
+  const sw = sv.videoWidth;
+  const sh = sv.videoHeight;
 
-  if (vw && vh) {
-    selfCanvas.width = vw;
-    selfCanvas.height = vh;
+  if (sw && sh) {
+    sc.width = sw;
+    sc.height = sh;
 
-    const size2 = 1 + myMosaicLevel * 4;
-    selfCtx.imageSmoothingEnabled = false;
-
-    selfCtx.drawImage(selfVideo, 0, 0, vw / size2, vh / size2);
-    selfCtx.drawImage(selfCanvas, 0, 0, vw / size2, vh / size2, 0, 0, vw, vh);
+    const size2 = mosaicSizes[myMosaicLevel];
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(sv, 0, 0, sw / size2, sh / size2);
+    sctx.drawImage(sc, 0, 0, sw / size2, sh / size2, 0, 0, sw, sh);
   }
 
   requestAnimationFrame(drawMosaic);
 }
 requestAnimationFrame(drawMosaic);
 
-/* =========================================
+/* ============================
+   モザイクUI（0〜5）
+============================ */
+const meterBar = document.getElementById("meterBar");
+for (let i = 0; i < 6; i++) {
+  const div = document.createElement("div");
+  div.className = "meter-block";
+  meterBar.appendChild(div);
+}
+
+function updateMeterUI() {
+  [...meterBar.children].forEach((b, i) => {
+    b.classList.toggle("active", i <= myMosaicLevel);
+  });
+}
+updateMeterUI();
+
+document.getElementById("meterUp").onclick = () => {
+  if (myMosaicLevel < 5) {
+    myMosaicLevel++;
+    updateMeterUI();
+    saveMyMosaic();
+  }
+};
+
+document.getElementById("meterDown").onclick = () => {
+  if (myMosaicLevel > 0) {
+    myMosaicLevel--;
+    updateMeterUI();
+    saveMyMosaic();
+  }
+};
+
+/* ============================
+   通報 / ブロック
+============================ */
+document.getElementById("reportBtn").onclick = () => {
+  db.collection("profiles").doc(targetUid).update({
+    reportCount: firebase.firestore.FieldValue.increment(1)
+  });
+  alert("通報しました。");
+};
+
+document.getElementById("blockBtn").onclick = () => {
+  db.collection("blocks").doc(myUid).set({
+    [targetUid]: true
+  }, { merge: true });
+  alert("ブロックしました。");
+  location.href = "profiles.html";
+};
+
+/* ============================
    発信側
-========================================= */
+============================ */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
+  callerUid = myUid;
+
   await startCamera();
 
   pc.onicecandidate = e => {
@@ -212,30 +246,31 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-  await callDoc.set({ offer, from: myUid });
 
-  /* 相手が拒否したら終了 */
-  callDoc.onSnapshot(snap => {
+  await callDoc.set({
+    offer,
+    from: myUid,
+    target: targetUid,
+    ended: false
+  });
+
+  callDoc.onSnapshot(async snap => {
     const d = snap.data();
     if (d?.declined) {
       alert("相手が出ませんでした。");
       location.href = "profiles.html";
     }
-  });
-
-  callDoc.onSnapshot(async snap => {
-    const data = snap.data();
-    if (data?.answer && !pc.currentRemoteDescription) {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    if (d?.answer && pc.signalingState === "have-local-offer") {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+    }
+    if (d?.adminAnswer && pc.signalingState === "have-local-offer") {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
+    }
+    if (d?.ended) {
+      alert("相手が通話を終了しました。");
+      location.href = "profiles.html";
     }
   });
-callDoc.onSnapshot(async snap => {
-  const data = snap.data();
-  if (data?.adminAnswer && !pc.currentRemoteDescription) {
-    await pc.setRemoteDescription(new RTCSessionDescription(data.adminAnswer));
-  }
-});
-
 
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
@@ -244,10 +279,12 @@ callDoc.onSnapshot(async snap => {
   });
 }
 
-/* =========================================
+/* ============================
    受信側
-========================================= */
+============================ */
 async function runCallee(callDoc, offerCandidates, answerCandidates) {
+  callerUid = targetUid;
+
   await startCamera();
 
   pc.onicecandidate = e => {
@@ -260,14 +297,17 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
   await callDoc.update({ answer });
-  // 管理者ページからの受信処理
-callDoc.onSnapshot(async snap => {
-  const data = snap.data();
-  if (data?.adminAnswer && !pc.currentRemoteDescription) {
-    await pc.setRemoteDescription(new RTCSessionDescription(data.adminAnswer));
-  }
-});
 
+  callDoc.onSnapshot(async snap => {
+    const d = snap.data();
+    if (d?.adminAnswer && pc.signalingState === "have-local-offer") {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
+    }
+    if (d?.ended) {
+      alert("相手が通話を終了しました。");
+      location.href = "profiles.html";
+    }
+  });
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
@@ -276,90 +316,35 @@ callDoc.onSnapshot(async snap => {
   });
 }
 
-/* =========================================
+/* ============================
+   終了ボタン
+============================ */
+document.getElementById("endBtn").onclick = async () => {
+  if (!callerUid) return;
+  await db.collection("calls").doc(callerUid).update({ ended: true });
+  alert("通話を終了しました。");
+  location.href = "profiles.html";
+};
+
+/* ============================
    ページ読み込み後
-========================================= */
+============================ */
 window.addEventListener("load", async () => {
-
-  /* ---- モザイク UI（5段階） ---- */
-  const meterBar = document.getElementById("meterBar");
-  const meterUp = document.getElementById("meterUp");
-  const meterDown = document.getElementById("meterDown");
-
-  for (let i = 0; i <= 4; i++) {
-    const div = document.createElement("div");
-    div.className = "meter-block";
-    meterBar.appendChild(div);
-  }
-
-  function updateMeterUI() {
-    [...meterBar.children].forEach((b, i) => {
-      b.classList.toggle("active", i <= myMosaicLevel);
-    });
-  }
-
-  meterUp.onclick = () => {
-    if (myMosaicLevel < 4) {
-      myMosaicLevel++;
-      updateMeterUI();
-      saveMyMosaic();
-    }
-  };
-
-  meterDown.onclick = () => {
-    if (myMosaicLevel > 0) {
-      myMosaicLevel--;
-      updateMeterUI();
-      saveMyMosaic();
-    }
-  };
-
-  updateMeterUI();
-
-  /* ---- パトロール通知 ---- */
-  function showPatrolMessage() {
-    const el = document.getElementById("patrolMsg");
-    el.style.display = "block";
-    setTimeout(() => { el.style.display = "none"; }, 3000);
-  }
-  setInterval(showPatrolMessage, 60000);
-  setTimeout(showPatrolMessage, 10000);
-
-  /* ---- 閉じるボタン（相手も終了） ---- */
-  document.getElementById("endBtn").onclick = async () => {
-    await db.collection("calls").doc(myUid).update({ ended: true });
-    alert("通話が終了しました。");
-    location.href = "profiles.html";
-  };
-
-  /* ---- 相手が終了したら自分も終了 ---- */
-  db.collection("calls").doc(targetUid).onSnapshot(snap => {
-    const d = snap.data();
-    if (d?.ended) {
-      alert("相手が通話を終了しました。");
-      location.href = "profiles.html";
-    }
-  });
-
-  /* ---- 役割判定 ---- */
-  let callDoc;
-  let offerCandidates;
-  let answerCandidates;
-
   const myCallSnap = await db.collection("calls").doc(myUid).get();
 
   if (myCallSnap.exists && myCallSnap.data().offer) {
-    callDoc = db.collection("calls").doc(myUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    runCallee(callDoc, offerCandidates, answerCandidates);
-    return;
+    runCallee(
+      db.collection("calls").doc(myUid),
+      db.collection("calls").doc(myUid).collection("offerCandidates"),
+      db.collection("calls").doc(myUid).collection("answerCandidates")
+    );
+  } else {
+    runCaller(
+      db.collection("calls").doc(targetUid),
+      db.collection("calls").doc(targetUid).collection("offerCandidates"),
+      db.collection("calls").doc(targetUid).collection("answerCandidates")
+    );
   }
-
-  callDoc = db.collection("calls").doc(targetUid);
-  offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-  runCaller(callDoc, offerCandidates, answerCandidates);
 });
 </script>
 
