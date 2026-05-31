@@ -99,27 +99,8 @@ pc.ontrack = e => {
 /* =========================================
    発信側フロー
 ========================================= */
-async function runCaller() {
-  alert("v1.0caller: start");
-
-  let callDoc;
-let offerCandidates;
-let answerCandidates;
-
-// 受信側（callee）: calls/{myUid} に offer が来ている
-if (myDoc.exists && myDoc.data().offer) {
-  callDoc = db.collection("calls").doc(myUid);
-  offerCandidates = callDoc.collection("offerCandidates");
-  answerCandidates = callDoc.collection("answerCandidates");
-}
-
-// 発信側（caller）: calls/{targetUid} に offer を書く
-else {
-  callDoc = db.collection("calls").doc(targetUid);
-  offerCandidates = callDoc.collection("offerCandidates");
-  answerCandidates = callDoc.collection("answerCandidates");
-}
-
+async function runCaller(callDoc, offerCandidates, answerCandidates) {
+  alert("v1.1caller: start");
 
   await startCamera();
 
@@ -141,25 +122,25 @@ else {
   // 相手の ICE
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      if (c.type === "added") {
+        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
     });
   });
 
   // 自分の ICE
   pc.onicecandidate = e => {
-    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
+    if (e.candidate) {
+      offerCandidates.add(e.candidate.toJSON());
+    }
   };
 }
 
 /* =========================================
    受信側フロー
 ========================================= */
-async function runCallee() {
+async function runCallee(callDoc, offerCandidates, answerCandidates) {
   alert("callee: start");
-
-  const callDoc = db.collection("calls").doc(myUid);
-  const offerCandidates = callDoc.collection("offerCandidates");
-  const answerCandidates = callDoc.collection("answerCandidates");
 
   await startCamera();
 
@@ -177,31 +158,51 @@ async function runCallee() {
   // 相手の ICE
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      if (c.type === "added") {
+        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
     });
   });
 
   // 自分の ICE
   pc.onicecandidate = e => {
-    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+    if (e.candidate) {
+      answerCandidates.add(e.candidate.toJSON());
+    }
   };
 }
 
-/* =========================================
-   役割判定 → 自動開始
+
+  /* =========================================
+   ページ読み込み後に役割判定して開始
 ========================================= */
 window.addEventListener("load", async () => {
 
-  const myDoc = await db.collection("calls").doc(myUid).get();
+  let callDoc;
+  let offerCandidates;
+  let answerCandidates;
 
-  if (myDoc.exists && myDoc.data().offer) {
-    alert("役割: 受信側");
-    runCallee();
-  } else {
-    alert("役割: 発信側");
-    runCaller();
+  const myCallSnap = await db.collection("calls").doc(myUid).get();
+
+  // 受信側（callee）
+  if (myCallSnap.exists && myCallSnap.data().offer) {
+    callDoc = db.collection("calls").doc(myUid);
+    offerCandidates = callDoc.collection("offerCandidates");
+    answerCandidates = callDoc.collection("answerCandidates");
+    alert("役割: 受信側 (callee)");
+    runCallee(callDoc, offerCandidates, answerCandidates);
+    return;
   }
+
+  // 発信側（caller）
+  callDoc = db.collection("calls").doc(targetUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  alert("役割: 発信側 (caller)");
+  runCaller(callDoc, offerCandidates, answerCandidates);
 });
+
+
 </script>
 
 </body>
