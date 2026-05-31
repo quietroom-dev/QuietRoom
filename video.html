@@ -87,7 +87,7 @@ let callerUid = null;
    モザイク（6段階）
 ============================ */
 const mosaicSizes = [1, 9, 13, 16, 19, 22];
-let myMosaicLevel = 1;        // 初期値は「全部空」＝レベル1
+let myMosaicLevel = 1;
 let remoteMosaicLevel = 1;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
@@ -196,11 +196,10 @@ function updateMeterUI() {
     b.classList.toggle("active", i < (myMosaicLevel - 1));
   });
 }
-
 updateMeterUI();
 
 document.getElementById("meterUp").onclick = () => {
-  if (myMosaicLevel < 5) {
+  if (myMosaicLevel < 6) {
     myMosaicLevel++;
     updateMeterUI();
     saveMyMosaic();
@@ -267,10 +266,6 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
       await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
     }
 
-    if (d?.adminAnswer && !pc.remoteDescription) {
-      await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
-    }
-
     if (d?.ended) {
       alert("相手が通話を終了しました。");
       location.href = "profiles.html";
@@ -306,10 +301,6 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   callDoc.onSnapshot(async snap => {
     const d = snap.data();
 
-    if (d?.adminAnswer && !pc.remoteDescription) {
-      await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
-    }
-
     if (d?.ended) {
       alert("相手が通話を終了しました。");
       location.href = "profiles.html";
@@ -337,19 +328,19 @@ document.getElementById("endBtn").onclick = async () => {
    ページ読み込み後
 ============================ */
 window.addEventListener("load", async () => {
-  const myCallSnap = await db.collection("calls").doc(myUid).get();
 
-  if (myCallSnap.exists && myCallSnap.data().offer) {
-    runCallee(
+  if (targetUid) {
+    runCaller(
       db.collection("calls").doc(myUid),
       db.collection("calls").doc(myUid).collection("offerCandidates"),
       db.collection("calls").doc(myUid).collection("answerCandidates")
     );
   } else {
-    runCaller(
-      db.collection("calls").doc(targetUid),
-      db.collection("calls").doc(targetUid).collection("offerCandidates"),
-      db.collection("calls").doc(targetUid).collection("answerCandidates")
+    const callerUid = new URLSearchParams(location.search).get("from");
+    runCallee(
+      db.collection("calls").doc(callerUid),
+      db.collection("calls").doc(callerUid).collection("offerCandidates"),
+      db.collection("calls").doc(callerUid).collection("answerCandidates")
     );
   }
 });
