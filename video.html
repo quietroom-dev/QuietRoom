@@ -100,11 +100,26 @@ pc.ontrack = e => {
    発信側フロー
 ========================================= */
 async function runCaller() {
-  alert("caller: start");
+  alert("v1.0caller: start");
 
-  const callDoc = db.collection("calls").doc(targetUid);
-  const offerCandidates = callDoc.collection("offerCandidates");
-  const answerCandidates = callDoc.collection("answerCandidates");
+  let callDoc;
+let offerCandidates;
+let answerCandidates;
+
+// 受信側（callee）: calls/{myUid} に offer が来ている
+if (myDoc.exists && myDoc.data().offer) {
+  callDoc = db.collection("calls").doc(myUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+}
+
+// 発信側（caller）: calls/{targetUid} に offer を書く
+else {
+  callDoc = db.collection("calls").doc(targetUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+}
+
 
   await startCamera();
 
