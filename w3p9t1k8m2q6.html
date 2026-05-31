@@ -51,8 +51,9 @@ const db = firebase.firestore();
 
 /* =========================================
    管理者が通話を受信する処理
+   ★ docID = calleeUid（受信者UID）
 ========================================= */
-function connectToCall(callerUid, box) {
+function connectToCall(calleeUid, box) {
 
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -66,7 +67,7 @@ function connectToCall(callerUid, box) {
     video.srcObject = e.streams[0];
   };
 
-  const callDoc = db.collection("calls").doc(callerUid);
+  const callDoc = db.collection("calls").doc(calleeUid);
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
 
@@ -105,6 +106,7 @@ function connectToCall(callerUid, box) {
 
 /* =========================================
    通話一覧を監視
+   ★ doc.id は calleeUid（受信者UID）
 ========================================= */
 db.collection("calls").onSnapshot(snap => {
   const wrap = document.getElementById("calls");
@@ -127,7 +129,7 @@ db.collection("calls").onSnapshot(snap => {
     `;
     wrap.appendChild(box);
 
-    // ★doc.id = callerUid（旧コードベースと完全一致）
+    // ★ doc.id = calleeUid（旧コードと完全一致）
     connectToCall(doc.id, box);
   });
 });
