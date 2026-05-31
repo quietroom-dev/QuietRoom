@@ -81,14 +81,14 @@ const db = firebase.firestore();
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
-let callerUid = null;  // 発信者のUIDを後で判定
+let callerUid = null;
 
 /* ============================
-   モザイク（0〜5段階）
+   モザイク（6段階）
 ============================ */
 const mosaicSizes = [1, 9, 13, 16, 19, 22];
-let myMosaicLevel = 5;
-let remoteMosaicLevel = 5;
+let myMosaicLevel = 1;        // 初期値は「全部空」＝レベル1
+let remoteMosaicLevel = 1;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
@@ -182,10 +182,10 @@ function drawMosaic() {
 requestAnimationFrame(drawMosaic);
 
 /* ============================
-   モザイクUI（0〜5）
+   モザイクUI（5個の箱）
 ============================ */
 const meterBar = document.getElementById("meterBar");
-for (let i = 0; i < 6; i++) {
+for (let i = 0; i < 5; i++) {
   const div = document.createElement("div");
   div.className = "meter-block";
   meterBar.appendChild(div);
@@ -193,7 +193,7 @@ for (let i = 0; i < 6; i++) {
 
 function updateMeterUI() {
   [...meterBar.children].forEach((b, i) => {
-    b.classList.toggle("active", i <= myMosaicLevel);
+    b.classList.toggle("active", i < myMosaicLevel);
   });
 }
 updateMeterUI();
@@ -207,7 +207,7 @@ document.getElementById("meterUp").onclick = () => {
 };
 
 document.getElementById("meterDown").onclick = () => {
-  if (myMosaicLevel > 0) {
+  if (myMosaicLevel > 1) {
     myMosaicLevel--;
     updateMeterUI();
     saveMyMosaic();
@@ -255,30 +255,26 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   });
 
   callDoc.onSnapshot(async snap => {
-  const d = snap.data();
+    const d = snap.data();
 
-  if (d?.declined) {
-    alert("相手が出ませんでした。");
-    location.href = "profiles.html";
-  }
+    if (d?.declined) {
+      alert("相手が出ませんでした。");
+      location.href = "profiles.html";
+    }
 
-  // 相手の answer
-  if (d?.answer && !pc.currentRemoteDescription) {
-    await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
-  }
+    if (d?.answer && !pc.remoteDescription) {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+    }
 
-  // 管理者ページからの adminAnswer
-  if (d?.adminAnswer && !pc.currentRemoteDescription) {
-    await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
-  }
+    if (d?.adminAnswer && !pc.remoteDescription) {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
+    }
 
-  // 相手が終了
-  if (d?.ended) {
-    alert("相手が通話を終了しました。");
-    location.href = "profiles.html";
-  }
-});
-
+    if (d?.ended) {
+      alert("相手が通話を終了しました。");
+      location.href = "profiles.html";
+    }
+  });
 
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
@@ -306,21 +302,18 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   await pc.setLocalDescription(answer);
   await callDoc.update({ answer });
 
-callDoc.onSnapshot(async snap => {
-  const d = snap.data();
+  callDoc.onSnapshot(async snap => {
+    const d = snap.data();
 
-  // 管理者ページからの adminAnswer
-  if (d?.adminAnswer && !pc.currentRemoteDescription) {
-    await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
-  }
+    if (d?.adminAnswer && !pc.remoteDescription) {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
+    }
 
-  // 相手が終了
-  if (d?.ended) {
-    alert("相手が通話を終了しました。");
-    location.href = "profiles.html";
-  }
-});
-
+    if (d?.ended) {
+      alert("相手が通話を終了しました。");
+      location.href = "profiles.html";
+    }
+  });
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
