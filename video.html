@@ -191,7 +191,7 @@ for (let i = 0; i < 5; i++) {
   meterBar.appendChild(div);
 }
 
-function updateMeterUI() {
+  function updateMeterUI() {
   [...meterBar.children].forEach((b, i) => {
     b.classList.toggle("active", i < (myMosaicLevel - 1));
   });
