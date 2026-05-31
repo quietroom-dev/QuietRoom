@@ -318,23 +318,26 @@ window.addEventListener("load", async () => {
   let offerCandidates;
   let answerCandidates;
 
-  if (targetUid) {
-    // caller
-    callDoc = db.collection("calls").doc(myUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    runCaller(callDoc, offerCandidates, answerCandidates);
-    return;
-  }
+  // caller（発信者）
+if (targetUid) {
+  // ★ docID は相手（受信者）の UID
+  callDoc = db.collection("calls").doc(targetUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  runCaller(callDoc, offerCandidates, answerCandidates);
+  return;
+}
 
-  if (fromUid) {
-    // callee
-    callDoc = db.collection("calls").doc(fromUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    runCallee(callDoc, offerCandidates, answerCandidates);
-    return;
-  }
+// callee（受信者）
+if (fromUid) {
+  // ★ 自分の UID の doc を見る
+  callDoc = db.collection("calls").doc(myUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  runCallee(callDoc, offerCandidates, answerCandidates);
+  return;
+}
+
 
   alert("通話情報がありません。");
   location.href = "profiles.html";
