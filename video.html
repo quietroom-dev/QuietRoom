@@ -86,7 +86,7 @@ let callerUid = null;  // 発信者のUIDを後で判定
 /* ============================
    モザイク（0〜5段階）
 ============================ */
-const mosaicSizes = [1, 7, 10, 13, 16, 19];
+const mosaicSizes = [1, 9, 13, 16, 19, 22];
 let myMosaicLevel = 5;
 let remoteMosaicLevel = 5;
 
@@ -255,22 +255,30 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   });
 
   callDoc.onSnapshot(async snap => {
-    const d = snap.data();
-    if (d?.declined) {
-      alert("相手が出ませんでした。");
-      location.href = "profiles.html";
-    }
-    if (d?.answer && pc.signalingState === "have-local-offer") {
-      await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
-    }
-    if (d?.adminAnswer && pc.signalingState === "have-local-offer") {
-      await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
-    }
-    if (d?.ended) {
-      alert("相手が通話を終了しました。");
-      location.href = "profiles.html";
-    }
-  });
+  const d = snap.data();
+
+  if (d?.declined) {
+    alert("相手が出ませんでした。");
+    location.href = "profiles.html";
+  }
+
+  // 相手の answer
+  if (d?.answer && !pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+  }
+
+  // 管理者ページからの adminAnswer
+  if (d?.adminAnswer && !pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
+  }
+
+  // 相手が終了
+  if (d?.ended) {
+    alert("相手が通話を終了しました。");
+    location.href = "profiles.html";
+  }
+});
+
 
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
@@ -298,16 +306,21 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   await pc.setLocalDescription(answer);
   await callDoc.update({ answer });
 
-  callDoc.onSnapshot(async snap => {
-    const d = snap.data();
-    if (d?.adminAnswer && pc.signalingState === "have-local-offer") {
-      await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
-    }
-    if (d?.ended) {
-      alert("相手が通話を終了しました。");
-      location.href = "profiles.html";
-    }
-  });
+callDoc.onSnapshot(async snap => {
+  const d = snap.data();
+
+  // 管理者ページからの adminAnswer
+  if (d?.adminAnswer && !pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(d.adminAnswer));
+  }
+
+  // 相手が終了
+  if (d?.ended) {
+    alert("相手が通話を終了しました。");
+    location.href = "profiles.html";
+  }
+});
+
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
