@@ -61,7 +61,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">v1.2管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg">v1.3管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
 /* =========================================
@@ -88,15 +88,14 @@ const targetUid = new URLSearchParams(location.search).get("target");
 ========================================= */
 const mosaicSizes = [1, 9, 13, 16, 19, 22];
 
-let myMosaicLevel = 6;        // 初期最大
-let remoteMosaicLevel = 6;
+let myMosaicLevel = 5;        // 初期最大
+let remoteMosaicLevel = 5;
 
-// Firestore に初期値を即反映（必須）
-db.collection("mosaic").doc(myUid).set({ level: 6 });
+// Firestore に初期値を即反映
+db.collection("mosaic").doc(myUid).set({ level: 5 });
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 
-// ★ここが最重要：相手UIDを正しく参照
 const remoteUid = targetUid || fromUid;
 const remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
 
