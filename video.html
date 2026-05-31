@@ -61,7 +61,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">v1.3管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg">v1.4管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
 /* =========================================
@@ -183,7 +183,9 @@ function drawMosaic() {
     mainCanvas.width = w;
     mainCanvas.height = h;
 
-    const block = mosaicSizes[remoteMosaicLevel - 1];
+    const block = mosaicSizes[remoteMosaicLevel];
+const block2 = mosaicSizes[myMosaicLevel];
+
 
     mainCtx.imageSmoothingEnabled = false;
     mainCtx.drawImage(mainVideo, 0, 0, w / block, h / block);
