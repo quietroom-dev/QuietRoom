@@ -61,7 +61,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">v1.6管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg">v1.0管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
 /* =========================================
@@ -84,22 +84,18 @@ const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
 /* =========================================
-   モザイク同期 Firestore（5段階）
+   QuietRoom モザイク同期（6段階）
 ========================================= */
 const mosaicSizes = [1, 9, 13, 16, 19, 22];
 
-// ★レベルは 1〜6（0 は使わない）
-let myMosaicLevel = 6;        
-let remoteMosaicLevel = 6;
-
-// ★初期値を Firestore に即反映（必須）
-db.collection("mosaic").doc(myUid).set({ level: 6 });
+// 0〜5（0=クリア, 5=最大）
+let myMosaicLevel = 5;
+let remoteMosaicLevel = 5;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
+mosaicDoc.set({ level: myMosaicLevel });
 
-// ★相手UIDを正しく参照（caller/callee どちらでも正しく動く）
-const remoteUid = targetUid || fromUid;
-const remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
+const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
 function saveMyMosaic() {
   mosaicDoc.set({ level: myMosaicLevel });
@@ -129,7 +125,7 @@ let currentFacing = "user";
 async function startCamera() {
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
-    audio: false   // ← 音無し
+    audio: false
   });
   selfVideo.srcObject = localStream;
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
@@ -164,7 +160,7 @@ pc.ontrack = e => {
 };
 
 /* =========================================
-   モザイク描画ループ（5段階）
+   モザイク描画ループ（QuietRoom 6段階）
 ========================================= */
 const mainVideo = document.getElementById("mainVideo");
 const mainCanvas = document.getElementById("mainCanvas");
@@ -175,20 +171,17 @@ const selfCanvas = document.getElementById("selfCanvas");
 const selfCtx = selfCanvas.getContext("2d");
 
 function drawMosaic() {
-  const mosaicSizes = [1, 9, 13, 16, 19, 22];
-
   /* ---- 相手映像 ---- */
   const w = mainVideo.videoWidth;
   const h = mainVideo.videoHeight;
 
-  if (w > 0 && h > 0) {
+  if (w && h) {
     mainCanvas.width = w;
     mainCanvas.height = h;
 
-    // ★レベル1〜6 → index 0〜5
-    const block = mosaicSizes[remoteMosaicLevel - 1];
-
+    const block = mosaicSizes[remoteMosaicLevel];
     mainCtx.imageSmoothingEnabled = false;
+
     mainCtx.drawImage(mainVideo, 0, 0, w / block, h / block);
     mainCtx.drawImage(mainCanvas, 0, 0, w / block, h / block, 0, 0, w, h);
   }
@@ -197,19 +190,20 @@ function drawMosaic() {
   const vw = selfVideo.videoWidth;
   const vh = selfVideo.videoHeight;
 
-  if (vw > 0 && vh > 0) {
+  if (vw && vh) {
     selfCanvas.width = vw;
     selfCanvas.height = vh;
 
-    const block2 = mosaicSizes[myMosaicLevel - 1];
-
+    const block2 = mosaicSizes[myMosaicLevel];
     selfCtx.imageSmoothingEnabled = false;
+
     selfCtx.drawImage(selfVideo, 0, 0, vw / block2, vh / block2);
     selfCtx.drawImage(selfCanvas, 0, 0, vw / block2, vh / block2, 0, 0, vw, vh);
   }
 
   requestAnimationFrame(drawMosaic);
 }
+requestAnimationFrame(drawMosaic);
 
 /* =========================================
    発信側
@@ -277,28 +271,25 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
 ========================================= */
 window.addEventListener("load", async () => {
 
-  /* ---- モザイク UI（5段階） ---- */
+  /* ---- モザイク UI（QuietRoom 6段階） ---- */
   const meterBar = document.getElementById("meterBar");
   const meterUp = document.getElementById("meterUp");
   const meterDown = document.getElementById("meterDown");
 
-  for (let i = 0; i <= 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const div = document.createElement("div");
     div.className = "meter-block";
     meterBar.appendChild(div);
   }
 
-function updateMeterUI() {
-  [...meterBar.children].forEach((b, i) => {
-    // レベル1〜5 → ブロック1〜5
-    // レベル6 → 全部点灯
-    b.classList.toggle("active", i < myMosaicLevel - 1);
-  });
-}
-
+  function updateMeterUI() {
+    [...meterBar.children].forEach((b, i) => {
+      b.classList.toggle("active", i < myMosaicLevel);
+    });
+  }
 
   meterUp.onclick = () => {
-    if (myMosaicLevel < 4) {
+    if (myMosaicLevel < 5) {
       myMosaicLevel++;
       updateMeterUI();
       saveMyMosaic();
@@ -357,7 +348,7 @@ function updateMeterUI() {
 
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
   runCaller(callDoc, offerCandidates, answerCandidates);
 });
 </script>
