@@ -100,7 +100,7 @@ pc.ontrack = e => {
    発信側フロー
 ========================================= */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
-  alert("v1.2caller: start");
+  alert("v1.3caller: start");
 
   await startCamera();
 
@@ -112,14 +112,20 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
 
   // answer を待つ
   callDoc.onSnapshot(async snap => {
-    const data = snap.data();
-    if (data?.answer && !pc.currentRemoteDescription) {
-      alert("caller側 ANSWER内容: " + JSON.stringify(data.answer));
-      alert("caller: answer 受信");
-      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    }
-  });
+  const data = snap.data();
+  if (data?.answer && !pc.currentRemoteDescription) {
 
+    alert("caller側 ANSWER内容: " + JSON.stringify(data.answer));
+
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+      alert("caller: setRemoteDescription 成功");
+    } catch (e) {
+      alert("caller: setRemoteDescription 失敗 → " + e.message);
+    }
+  }
+});
+ 
   // 相手の ICE
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
