@@ -61,7 +61,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">v1.0管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg"v2.0管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
 /* =========================================
@@ -86,14 +86,14 @@ const targetUid = new URLSearchParams(location.search).get("target");
 /* =========================================
    モザイク同期 Firestore（6段階）
 ========================================= */
-let myMosaicLevel = 6;          // 初期最大
-let remoteMosaicLevel = 6;
+let myMosaicLevel = 5;          // 初期最大
+let remoteMosaiSize = 22;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
 function saveMyMosaic() {
-  mosaicDoc.set({ size: myMosaicsize });
+  mosaicDoc.set({ size: myMosaicSize });
 }
 
 remoteMosaicDoc.onSnapshot(snap => {
@@ -329,6 +329,7 @@ window.addEventListener("load", async () => {
   let callDoc;
   let offerCandidates;
   let answerCandidates;
+  let callerUid;
 
   const myCallSnap = await db.collection("calls").doc(myUid).get();
 
@@ -336,13 +337,15 @@ window.addEventListener("load", async () => {
     callDoc = db.collection("calls").doc(myUid);
     offerCandidates = callDoc.collection("offerCandidates");
     answerCandidates = callDoc.collection("answerCandidates");
+    callerUid = callDoc.id;
     runCallee(callDoc, offerCandidates, answerCandidates);
     return;
   }
 
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  callerUid = callDoc.id;
   runCaller(callDoc, offerCandidates, answerCandidates);
 });
 </script>
