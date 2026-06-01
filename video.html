@@ -61,7 +61,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg">v1.0管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
 /* =========================================
@@ -84,22 +84,22 @@ const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
 /* =========================================
-   モザイク同期 Firestore（5段階）
+   モザイク同期 Firestore（6段階）
 ========================================= */
-let myMosaicLevel = 4;          // 初期最大
-let remoteMosaicLevel = 4;
+let myMosaicLevel = 6;          // 初期最大
+let remoteMosaicLevel = 6;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
 function saveMyMosaic() {
-  mosaicDoc.set({ level: myMosaicLevel });
+  mosaicDoc.set({ size: myMosaicsize });
 }
 
 remoteMosaicDoc.onSnapshot(snap => {
   const d = snap.data();
-  if (d && typeof d.level === "number") {
-    remoteMosaicLevel = d.level;
+  if (d && typeof d.size === "number") {
+    remoteMosaicSize = d.size;
   }
 });
 
@@ -173,12 +173,9 @@ function drawMosaic() {
   if (w && h) {
     mainCanvas.width = w;
     mainCanvas.height = h;
-
-    const size = 1 + remoteMosaicLevel * 4;  // 5段階
     mainCtx.imageSmoothingEnabled = false;
-
-    mainCtx.drawImage(mainVideo, 0, 0, w / size, h / size);
-    mainCtx.drawImage(mainCanvas, 0, 0, w / size, h / size, 0, 0, w, h);
+    mainCtx.drawImage(mainVideo, 0, 0, w / remoteMosaicSize, h / remoteMosaicSize);
+    mainCtx.drawImage(mainCanvas, 0, 0, w / remoteMosaicSize, h / remoteMosaicSize, 0, 0, w, h);
   }
 
   /* ---- 自分映像 ---- */
@@ -189,11 +186,13 @@ function drawMosaic() {
     selfCanvas.width = vw;
     selfCanvas.height = vh;
 
-    const size2 = 1 + myMosaicLevel * 4;
+    const mosaicSizes = [1, 9, 13, 16, 19, 22];  // ← 任意の値をここに並べる
+    const myMosaicSize = mosaicSizes[myMosaicLevel];
+
     selfCtx.imageSmoothingEnabled = false;
 
-    selfCtx.drawImage(selfVideo, 0, 0, vw / size2, vh / size2);
-    selfCtx.drawImage(selfCanvas, 0, 0, vw / size2, vh / size2, 0, 0, vw, vh);
+    selfCtx.drawImage(selfVideo, 0, 0, vw / myMosaicSize, vh / myMosaicSize);
+    selfCtx.drawImage(selfCanvas, 0, 0, vw / myMosaicSize, vh / myMosaicSize, 0, 0, vw, vh);
   }
 
   requestAnimationFrame(drawMosaic);
@@ -266,12 +265,12 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
 ========================================= */
 window.addEventListener("load", async () => {
 
-  /* ---- モザイク UI（5段階） ---- */
+  /* ---- モザイク UI（6段階） ---- */
   const meterBar = document.getElementById("meterBar");
   const meterUp = document.getElementById("meterUp");
   const meterDown = document.getElementById("meterDown");
 
-  for (let i = 0; i <= 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const div = document.createElement("div");
     div.className = "meter-block";
     meterBar.appendChild(div);
@@ -284,7 +283,7 @@ window.addEventListener("load", async () => {
   }
 
   meterUp.onclick = () => {
-    if (myMosaicLevel < 4) {
+    if (myMosaicLevel < 5) {
       myMosaicLevel++;
       updateMeterUI();
       saveMyMosaic();
