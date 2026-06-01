@@ -336,21 +336,20 @@ let offerCandidates;
 let answerCandidates;
 
 if (isCaller) {
-  // 発信側
-  alert（"isCaller");
+  alert("isCaller");
   callDoc = db.collection("calls").doc(myUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
   runCaller(callDoc, offerCandidates, answerCandidates);
   localStorage.removeItem("isCaller");
 } else {
-  // 受信側
-  alert（"isCallee");
+  alert("isCallee");
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
   runCallee(callDoc, offerCandidates, answerCandidates);
 }
+
 </script>
 
 </body>
