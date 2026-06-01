@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  alert("myUid=" + myUid + "\ntargetUid=" + targetUid);
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Quiet Room</title>
@@ -52,7 +51,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄</button>
+  <button class="icon-btn" id="switchCamera">📷🔄2</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -83,6 +82,7 @@ const db = firebase.firestore();
 ========================================= */
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
+    alert("myUid=" + myUid + "\ntargetUid=" + targetUid);
 
 /* =========================================
    モザイク同期 Firestore（6段階）
