@@ -51,7 +51,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">👀</button>
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -61,7 +61,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg"v2.0管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg">v2.0管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
 /* =========================================
@@ -87,7 +87,8 @@ const targetUid = new URLSearchParams(location.search).get("target");
    モザイク同期 Firestore（6段階）
 ========================================= */
 let myMosaicLevel = 5;          // 初期最大
-let remoteMosaiSize = 22;
+let myMosaicSize = 22;
+let remoteMosaicSize = 22;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
@@ -187,7 +188,7 @@ function drawMosaic() {
     selfCanvas.height = vh;
 
     const mosaicSizes = [1, 9, 13, 16, 19, 22];  // ← 任意の値をここに並べる
-    const myMosaicSize = mosaicSizes[myMosaicLevel];
+    myMosaicSize = mosaicSizes[myMosaicLevel];
 
     selfCtx.imageSmoothingEnabled = false;
 
