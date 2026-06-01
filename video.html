@@ -279,7 +279,7 @@ window.addEventListener("load", async () => {
 
   function updateMeterUI() {
     [...meterBar.children].forEach((b, i) => {
-      b.classList.toggle("active", i <= myMosaicLevel);
+      b.classList.toggle("active", i < myMosaicLevel);
     });
   }
 
