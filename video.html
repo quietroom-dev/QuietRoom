@@ -328,28 +328,26 @@ window.addEventListener("load", async () => {
   });
 
   /* ---- 役割判定 ---- */
-  let callDoc;
-  let offerCandidates;
-  let answerCandidates;
-  let callerUid;
+const isCaller = localStorage.getItem("isCaller") === "1";
 
-  const myCallSnap = await db.collection("calls").doc(myUid).get();
+let callDoc;
+let offerCandidates;
+let answerCandidates;
 
-  if (myCallSnap.exists && myCallSnap.data().offer) {
-    callDoc = db.collection("calls").doc(myUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    callerUid = callDoc.id;
-    runCallee(callDoc, offerCandidates, answerCandidates);
-    return;
-  }
-
+if (isCaller) {
+  // 発信側
+  callDoc = db.collection("calls").doc(myUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  runCaller(callDoc, offerCandidates, answerCandidates);
+  localStorage.removeItem("isCaller");
+} else {
+  // 受信側
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
-  callerUid = callDoc.id;
-  runCaller(callDoc, offerCandidates, answerCandidates);
-});
+  runCallee(callDoc, offerCandidates, answerCandidates);
+}
 </script>
 
 </body>
