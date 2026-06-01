@@ -311,13 +311,13 @@ window.addEventListener("load", async () => {
 
   /* ---- 閉じるボタン（相手も終了） ---- */
   document.getElementById("endBtn").onclick = async () => {
-    await db.collection("calls").doc(myUid).update({ ended: true });
+    await db.collection("calls").doc(callerUid).update({ ended: true });
     alert("通話が終了しました。");
     location.href = "profiles.html";
   };
 
   /* ---- 相手が終了したら自分も終了 ---- */
-  db.collection("calls").doc(targetUid).onSnapshot(snap => {
+  db.collection("calls").doc(callerUid).onSnapshot(snap => {
     const d = snap.data();
     if (d?.ended) {
       alert("相手が通話を終了しました。");
