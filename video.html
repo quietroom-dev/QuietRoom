@@ -51,7 +51,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄</button>
+  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -319,21 +319,24 @@ window.addEventListener("load", async () => {
   setInterval(showPatrolMessage, 60000);
   setTimeout(showPatrolMessage, 10000);
 
-  /* ---- 相手が終了したら自分も終了 ---- */
-  db.collection("calls").doc(callerUid).onSnapshot(snap => {
-    const d = snap.data();
-    if (d?.ended) {
-      alert("相手が通話を終了しました。");
-      location.href = "profiles.html";
-    }
-  });
-    /* ---- 閉じるボタン ---- */
-  document.getElementById("endBtn").onclick = async () => {
-    await db.collection("calls").doc(callerUid).update({ ended: true });
-    alert("通話が終了しました。");
-    location.href = "profiles.html";
-  };
+  let isEndingMyself = false;
 
+document.getElementById("endBtn").onclick = async () => {
+  isEndingMyself = true;
+  await db.collection("calls").doc(callerUid).update({ ended: true });
+  alert("通話が終了しました。");
+  location.href = "profiles.html";
+};
+
+db.collection("calls").doc(callerUid).onSnapshot(snap => {
+  const d = snap.data();
+  if (d?.ended && !isEndingMyself) {
+    alert("相手が通話を終了しました。");
+    location.href = "profiles.html";
+  }
+});
+
+ 
   /* ---- 役割判定 ---- */
   let callDoc;
   let offerCandidates;
