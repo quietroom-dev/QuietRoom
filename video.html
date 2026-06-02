@@ -51,7 +51,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -153,6 +153,7 @@ async function switchCameraFunc() {
   });
 
   selfVideo.srcObject = localStream;
+  drawMosaicSelf();
 
   const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
   if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
@@ -323,20 +324,29 @@ window.addEventListener("load", async () => {
 
 document.getElementById("endBtn").onclick = async () => {
   isEndingMyself = true;
-  await db.collection("calls").doc(callerUid).update({ ended: true });
+
+  // ★ Firestore の通話データを完全削除
+  await db.collection("calls").doc(callerUid).delete();
+
+  // ★ localStorage を完全初期化
+  localStorage.removeItem("isCaller");
+  localStorage.removeItem("targetUid");
+
   alert("通話が終了しました。");
   location.href = "profiles.html";
 };
 
 db.collection("calls").doc(callerUid).onSnapshot(snap => {
   const d = snap.data();
-  if (d?.ended && !isEndingMyself) {
+  if (!d) return;
+
+  if (d.ended && !isEndingMyself) {
     alert("相手が通話を終了しました。");
     location.href = "profiles.html";
   }
 });
 
- 
+
   /* ---- 役割判定 ---- */
   let callDoc;
   let offerCandidates;
