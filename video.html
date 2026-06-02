@@ -51,7 +51,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -227,7 +227,7 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   callDoc.onSnapshot(snap => {
     const d = snap.data();
     if (d?.declined) {
-      alert("相手が出ませんでした。");
+      alert("相手が出ませんでした。\nめげずに頑張ってね");
       location.href = "profiles.html";
     }
   });
@@ -319,13 +319,6 @@ window.addEventListener("load", async () => {
   setInterval(showPatrolMessage, 60000);
   setTimeout(showPatrolMessage, 10000);
 
-  /* ---- 閉じるボタン ---- */
-  document.getElementById("endBtn").onclick = async () => {
-    await db.collection("calls").doc(callerUid).update({ ended: true });
-    alert("通話が終了しました。");
-    location.href = "profiles.html";
-  };
-
   /* ---- 相手が終了したら自分も終了 ---- */
   db.collection("calls").doc(callerUid).onSnapshot(snap => {
     const d = snap.data();
@@ -334,6 +327,12 @@ window.addEventListener("load", async () => {
       location.href = "profiles.html";
     }
   });
+    /* ---- 閉じるボタン ---- */
+  document.getElementById("endBtn").onclick = async () => {
+    await db.collection("calls").doc(callerUid).update({ ended: true });
+    alert("通話が終了しました。");
+    location.href = "profiles.html";
+  };
 
   /* ---- 役割判定 ---- */
   let callDoc;
