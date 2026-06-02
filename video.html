@@ -64,8 +64,12 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <div id="patrolMsg">v3.0管理人がパトロールすることがあります。安全に使ってね。</div>
 
 <script>
-  const isCaller = localStorage.getItem("isCaller") === "1";
-  alert("isCaller = " + isCaller);
+/* =========================================
+   役割フラグ（最初に実行される）
+========================================= */
+const isCaller = localStorage.getItem("isCaller") === "1";
+alert("isCaller = " + isCaller);
+
 /* =========================================
    Firebase
 ========================================= */
@@ -84,12 +88,17 @@ const db = firebase.firestore();
 ========================================= */
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
-    alert("myUid=" + myUid + "\ntargetUid=" + targetUid);
+alert("myUid=" + myUid + "\ntargetUid=" + targetUid);
 
 /* =========================================
-   モザイク同期 Firestore（6段階）
+   callerUid（未定義エラー対策）
 ========================================= */
-let myMosaicLevel = 5;          // 初期最大
+let callerUid = isCaller ? myUid : targetUid;
+
+/* =========================================
+   モザイク同期
+========================================= */
+let myMosaicLevel = 5;
 let myMosaicSize = 22;
 let remoteMosaicSize = 22;
 
@@ -117,14 +126,14 @@ let pc = new RTCPeerConnection({
 let localStream = null;
 
 /* =========================================
-   カメラ開始（音無し）
+   カメラ開始
 ========================================= */
 let currentFacing = "user";
 
 async function startCamera() {
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
-    audio: false   // ← 音無し
+    audio: false
   });
   selfVideo.srcObject = localStream;
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
@@ -159,7 +168,7 @@ pc.ontrack = e => {
 };
 
 /* =========================================
-   モザイク描画ループ（5段階）
+   モザイク描画
 ========================================= */
 const mainVideo = document.getElementById("mainVideo");
 const mainCanvas = document.getElementById("mainCanvas");
@@ -170,7 +179,6 @@ const selfCanvas = document.getElementById("selfCanvas");
 const selfCtx = selfCanvas.getContext("2d");
 
 function drawMosaic() {
-  /* ---- 相手映像 ---- */
   const w = mainVideo.videoWidth;
   const h = mainVideo.videoHeight;
 
@@ -182,7 +190,6 @@ function drawMosaic() {
     mainCtx.drawImage(mainCanvas, 0, 0, w / remoteMosaicSize, h / remoteMosaicSize, 0, 0, w, h);
   }
 
-  /* ---- 自分映像 ---- */
   const vw = selfVideo.videoWidth;
   const vh = selfVideo.videoHeight;
 
@@ -190,7 +197,7 @@ function drawMosaic() {
     selfCanvas.width = vw;
     selfCanvas.height = vh;
 
-    const mosaicSizes = [1, 9, 13, 16, 19, 22];  // ← 任意の値をここに並べる
+    const mosaicSizes = [1, 9, 13, 16, 19, 22];
     myMosaicSize = mosaicSizes[myMosaicLevel];
 
     selfCtx.imageSmoothingEnabled = false;
@@ -217,7 +224,6 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   await pc.setLocalDescription(offer);
   await callDoc.set({ offer, from: myUid });
 
-  /* 相手が拒否したら終了 */
   callDoc.onSnapshot(snap => {
     const d = snap.data();
     if (d?.declined) {
@@ -269,7 +275,7 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
 ========================================= */
 window.addEventListener("load", async () => {
 
-  /* ---- モザイク UI（6段階） ---- */
+  /* ---- モザイクUI ---- */
   const meterBar = document.getElementById("meterBar");
   const meterUp = document.getElementById("meterUp");
   const meterDown = document.getElementById("meterDown");
@@ -313,7 +319,7 @@ window.addEventListener("load", async () => {
   setInterval(showPatrolMessage, 60000);
   setTimeout(showPatrolMessage, 10000);
 
-  /* ---- 閉じるボタン（相手も終了） ---- */
+  /* ---- 閉じるボタン ---- */
   document.getElementById("endBtn").onclick = async () => {
     await db.collection("calls").doc(callerUid).update({ ended: true });
     alert("通話が終了しました。");
@@ -330,26 +336,25 @@ window.addEventListener("load", async () => {
   });
 
   /* ---- 役割判定 ---- */
-  let callerUid = isCaller ? myUid : targetUid;
-let callDoc;
-let offerCandidates;
-let answerCandidates;
+  let callDoc;
+  let offerCandidates;
+  let answerCandidates;
 
-if (isCaller) {
-  alert("isCaller");
-  callDoc = db.collection("calls").doc(myUid);
-  offerCandidates = callDoc.collection("offerCandidates");
-  answerCandidates = callDoc.collection("answerCandidates");
-  runCaller(callDoc, offerCandidates, answerCandidates);
-  localStorage.removeItem("isCaller");
-} else {
-  alert("isCallee");
-  callDoc = db.collection("calls").doc(targetUid);
-  offerCandidates = callDoc.collection("offerCandidates");
-  answerCandidates = callDoc.collection("answerCandidates");
-  runCallee(callDoc, offerCandidates, answerCandidates);
-}
-
+  if (isCaller) {
+    alert("isCaller");
+    callDoc = db.collection("calls").doc(myUid);
+    offerCandidates = callDoc.collection("offerCandidates");
+    answerCandidates = callDoc.collection("answerCandidates");
+    runCaller(callDoc, offerCandidates, answerCandidates);
+    localStorage.removeItem("isCaller");
+  } else {
+    alert("isCallee");
+    callDoc = db.collection("calls").doc(targetUid);
+    offerCandidates = callDoc.collection("offerCandidates");
+    answerCandidates = callDoc.collection("answerCandidates");
+    runCallee(callDoc, offerCandidates, answerCandidates);
+  }
+});
 </script>
 
 </body>
