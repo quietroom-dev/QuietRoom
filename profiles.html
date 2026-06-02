@@ -131,16 +131,12 @@ db.collection("user")
 /* =========================================
    通話開始
 ========================================= */
-function startCall(targetUid) {
   function startCall(targetUid) {
   // ★ 発信者フラグを立てる（必須）
   localStorage.setItem("isCaller", "1");
   // ★ 相手のUIDを保存（video.htmlで使う）
   localStorage.setItem("targetUid", targetUid);
   // ★ video.htmlへ遷移
-  window.location.href = `video.html?target=${targetUid}`;
-}
-
   window.location.href = `video.html?target=${targetUid}`;
 }
 
