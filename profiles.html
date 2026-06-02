@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.0.3
+  v1.0.4
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuietRoom プロフィール一覧</title>
@@ -62,10 +62,10 @@ body {
 
 <!-- ▼ 着信UI ▼ -->
 <div id="incomingCall">
-  <h2>📞 着信があります</h2>
+  <h2>↓が構って欲しそうにこちらを見ています</h2>
   <div id="callerProfile"></div>
-  <button onclick="acceptCall()">出る</button>
-  <button onclick="declineCall()">出ない</button>
+  <button onclick="acceptCall()">相手をする</button>
+  <button onclick="declineCall()">追い払う</button>
 </div>
 
 <script>
@@ -187,6 +187,7 @@ async function showIncomingCall(fromUid) {
 }
 
 function acceptCall() {
+  incomingCall.style.display = "none";
   window.location.href = `video.html?target=${window._incomingFrom}`;
 }
 
