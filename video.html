@@ -51,7 +51,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄</button>
+  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -99,8 +99,8 @@ let callerUid = isCaller ? myUid : targetUid;
    モザイク同期
 ========================================= */
 let myMosaicLevel = 5;
-let myMosaicSize = 22;
-let remoteMosaicSize = 22;
+let myMosaicSize = 25;
+let remoteMosaicSize = 25;
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
@@ -197,7 +197,7 @@ function drawMosaic() {
     selfCanvas.width = vw;
     selfCanvas.height = vh;
 
-    const mosaicSizes = [1, 9, 13, 16, 19, 22];
+    const mosaicSizes = [1, 10, 13, 16, 19, 25];
     myMosaicSize = mosaicSizes[myMosaicLevel];
 
     selfCtx.imageSmoothingEnabled = false;
