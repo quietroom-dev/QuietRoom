@@ -341,14 +341,12 @@ window.addEventListener("load", async () => {
   let answerCandidates;
 
   if (isCaller) {
-    alert("isCaller");
     callDoc = db.collection("calls").doc(myUid);
     offerCandidates = callDoc.collection("offerCandidates");
     answerCandidates = callDoc.collection("answerCandidates");
     runCaller(callDoc, offerCandidates, answerCandidates);
     localStorage.removeItem("isCaller");
   } else {
-    alert("isCallee");
     callDoc = db.collection("calls").doc(targetUid);
     offerCandidates = callDoc.collection("offerCandidates");
     answerCandidates = callDoc.collection("answerCandidates");
