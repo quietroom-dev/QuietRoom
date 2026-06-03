@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.0.8
+  v1.0.9
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuietRoom プロフィール一覧</title>
@@ -226,6 +226,8 @@ setInterval(() => location.reload(), 60000);
 db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
   const data = snap.data();
   if (!data) return;
+  alert("③ profiles listener\nmyUid=" + myUid);
+
   if (data.from === myUid) return;
 
   if (data.offer && data.from) {
