@@ -145,12 +145,12 @@ const db = firebase.firestore();
 ========================================= */
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
-alert("myUid=" + myUid + "\ntargetUid=" + targetUid);
 
 /* =========================================
    callerUid（未定義エラー対策）
 ========================================= */
 let callerUid = isCaller ? myUid : targetUid;
+alert("① video.html load\nmyUid=" + myUid + "\ntargetUid=" + targetUid + "\ncallerUid=" + callerUid);
 
 /* =========================================
    モザイク同期
@@ -450,6 +450,7 @@ let offerCandidates;
 let answerCandidates;
 
 if (isCaller) {
+  alert("② runCaller直前\nmyUid=" + myUid + "\ntargetUid=" + targetUid + "\ncallerUid=" + callerUid);
   callDoc = db.collection("calls").doc(myUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
@@ -459,6 +460,7 @@ if (isCaller) {
   localStorage.removeItem("isCaller");
 
 } else {
+  alert("③ profiles.html listener\nmyUid=" + myUid);
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
