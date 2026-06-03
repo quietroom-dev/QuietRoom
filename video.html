@@ -463,7 +463,7 @@ if (isCaller) {
   localStorage.removeItem("isCaller");
 
 } else {
-  callDoc = db.collection("calls").doc(targetUid);
+  callDoc = db.collection("calls").doc(myUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
   runCallee(callDoc, offerCandidates, answerCandidates);
