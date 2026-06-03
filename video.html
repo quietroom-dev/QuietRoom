@@ -369,16 +369,17 @@ window.addEventListener("load", async () => {
   updateMeterUI();
 
   /* ---- パトロール通知 ---- */
-  function showPatrolMessage() {
-    const el = document.getElementById("patrolMsg");
-    el.style.display = "block";
-    setTimeout(() => { el.style.display = "none"; }, 3000);
-  }
-  setInterval(showPatrolMessage, 60000);
-  setTimeout(showPatrolMessage, 10000);
+function showPatrolMessage() {
+  const el = document.getElementById("patrolMsg");
+  el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 3000);
+}
+setInterval(showPatrolMessage, 60000);
+setTimeout(showPatrolMessage, 10000);
 
-  let isEndingMyself = false;
+let isEndingMyself = false;
 
+/* ---- 自分が終了ボタンを押した時 ---- */
 document.getElementById("endBtn").onclick = async () => {
   isEndingMyself = true;
 
@@ -392,12 +393,13 @@ document.getElementById("endBtn").onclick = async () => {
   // ▼ ポップアップ表示
   document.getElementById("endPopupBg").style.display = "flex";
 };
-  // ▼ 一覧に戻る
+
+/* ---- 一覧に戻る ---- */
 document.getElementById("backBtn").onclick = () => {
   location.href = "profiles.html";
 };
 
-// ▼ ブロック
+/* ---- ブロック ---- */
 document.getElementById("blockBtn").onclick = async () => {
   await db.collection("users")
     .doc(myUid).collection("blocks")
@@ -408,7 +410,7 @@ document.getElementById("blockBtn").onclick = async () => {
   location.href = "profiles.html";
 };
 
-// ▼ 通報（通報 → 自動ブロック）
+/* ---- 通報（通報 → 自動ブロック） ---- */
 document.getElementById("reportBtn").onclick = async () => {
 
   const already = await db.collection("reports")
@@ -432,6 +434,7 @@ document.getElementById("reportBtn").onclick = async () => {
   location.href = "profiles.html";
 };
 
+/* ---- 相手が終了した時 ---- */
 db.collection("calls").doc(callerUid).onSnapshot(snap => {
   const d = snap.data();
   if (!d) return;
@@ -441,23 +444,27 @@ db.collection("calls").doc(callerUid).onSnapshot(snap => {
   }
 });
 
-  /* ---- 役割判定 ---- */
-  let callDoc;
-  let offerCandidates;
-  let answerCandidates;
+/* ---- 役割判定 ---- */
+let callDoc;
+let offerCandidates;
+let answerCandidates;
 
-  if (isCaller) {
-    callDoc = db.collection("calls").doc(myUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    runCaller(callDoc, offerCandidates, answerCandidates);
-    localStorage.removeItem("isCaller");
-  } else {
-    callDoc = db.collection("calls").doc(targetUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    runCallee(callDoc, offerCandidates, answerCandidates);
-  }
+if (isCaller) {
+  callDoc = db.collection("calls").doc(myUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  runCaller(callDoc, offerCandidates, answerCandidates);
+
+  // ★ callerUid はすでに確定しているのでここで消してOK
+  localStorage.removeItem("isCaller");
+
+} else {
+  callDoc = db.collection("calls").doc(targetUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  runCallee(callDoc, offerCandidates, answerCandidates);
+}
+
 });
 </script>
 <!-- ▼ 通話終了ポップアップ ▼ -->
