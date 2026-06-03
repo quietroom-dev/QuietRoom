@@ -272,6 +272,9 @@ requestAnimationFrame(drawMosaic);
    発信側
 ========================================= */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
+  // ★ 親ドキュメントを確実に作成
+  await db.collection("calls").doc(myUid).set({ createdAt: Date.now() }, { merge: true });
+
   await startCamera();
 
   pc.onicecandidate = e => {
