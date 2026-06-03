@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.0.7
+  v1.0.8
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuietRoom プロフィール一覧</title>
@@ -107,11 +107,30 @@ async function isBlocked(me, target) {
 }
 
 /* =========================================
+   ▼ ブロック処理（プロフィールブロック）
+========================================= */
+async function blockUser(targetUid) {
+
+  const already = await db.collection("users")
+    .doc(myUid).collection("blocks").doc(targetUid).get();
+
+  if (already.exists) {
+    alert("このユーザーはすでにブロック済みです。");
+    return;
+  }
+
+  await db.collection("users")
+    .doc(myUid).collection("blocks").doc(targetUid)
+    .set({ blockedAt: Date.now() });
+
+  alert("ブロックしました。");
+}
+
+/* =========================================
    ▼ 通報処理（プロフィール通報）
 ========================================= */
 async function reportUser(targetUid) {
 
-  // ① すでに通報済みか確認
   const already = await db.collection("reports")
     .doc(targetUid).collection("from").doc(myUid).get();
 
@@ -120,16 +139,13 @@ async function reportUser(targetUid) {
     return;
   }
 
-  // ② 通報記録（1人1回）
   await db.collection("reports")
     .doc(targetUid).collection("from").doc(myUid)
     .set({ reportedAt: Date.now() });
 
-  // ③ 通報カウント +1
   await db.collection("reports").doc(targetUid)
     .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
 
-  // ④ 自動ブロック
   await db.collection("users").doc(myUid)
     .collection("blocks").doc(targetUid)
     .set({ blockedAt: Date.now() });
@@ -140,15 +156,17 @@ async function reportUser(targetUid) {
 /* =========================================
    一覧表示
 ========================================= */
-const userList = document.getElementById("userList");
-
 db.collection("user")
   .orderBy("online", "desc")
   .get()
-  .then(snapshot => {
-    snapshot.forEach(doc => {
+  .then(async snapshot => {
+    for (const doc of snapshot.docs) {
       const d = doc.data();
       const statusIcon = d.online ? "💡" : "💤";
+
+      // ▼ 通報数の取得
+      const rep = await db.collection("reports").doc(doc.id).get();
+      const reportCount = rep.exists ? rep.data().count || 0 : 0;
 
       const card = document.createElement("div");
       card.className = "user-card";
@@ -159,12 +177,14 @@ db.collection("user")
         <p>年齢：${d.age}</p>
         <p>都道府県：${d.prefecture}</p>
         <p>ひとこと：${d.comment}</p>
+        <p>通報数：${reportCount}</p>
         <button onclick="startCall('${doc.id}')">📞 通話する</button>
         <button onclick="reportUser('${doc.id}')">🚨 通報</button>
+        <button onclick="blockUser('${doc.id}')">⛔ ブロック</button>
       `;
 
       userList.appendChild(card);
-    });
+    }
   });
 
 /* =========================================
@@ -172,19 +192,16 @@ db.collection("user")
 ========================================= */
 async function startCall(targetUid) {
 
-  // ① 自分 → 相手 ブロック？
   if (await isBlocked(myUid, targetUid)) {
     alert("このユーザーとは通話できません。（あなたがブロックしています）");
     return;
   }
 
-  // ② 相手 → 自分 ブロック？
   if (await isBlocked(targetUid, myUid)) {
     alert("このユーザーとは通話できません。（相手があなたをブロックしています）");
     return;
   }
 
-  // 発信者フラグ
   localStorage.setItem("isCaller", "1");
   localStorage.setItem("targetUid", targetUid);
 
@@ -210,8 +227,6 @@ db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
   const data = snap.data();
   if (!data) return;
   if (data.from === myUid) return;
-
-  // ★ 着信時のブロックチェックは不要（発信時に保証済み）
 
   if (data.offer && data.from) {
     showIncomingCall(data.from);
