@@ -454,7 +454,7 @@ let answerCandidates;
 
 if (isCaller) {
   alert("② runCaller直前\nmyUid=" + myUid + "\ntargetUid=" + targetUid + "\ncallerUid=" + callerUid);
-  callDoc = db.collection("calls").doc(myUid);
+  callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
   runCaller(callDoc, offerCandidates, answerCandidates);
