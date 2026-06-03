@@ -460,7 +460,6 @@ if (isCaller) {
   localStorage.removeItem("isCaller");
 
 } else {
-  alert("③ profiles.html listener\nmyUid=" + myUid);
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
