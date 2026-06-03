@@ -39,6 +39,63 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   background:rgba(0,0,0,0.6); color:#fff; padding:10px 16px;
   border-radius:8px; font-size:14px; display:none; z-index:50;
 }
+  /* ▼ 終了ポップアップ背景（薄暗く） ▼ */
+#endPopupBg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* ▼ ポップアップ本体 ▼ */
+#endPopupBox {
+  background: #222;
+  padding: 20px 26px;
+  border-radius: 12px;
+  text-align: center;
+  color: #fff;
+  width: 260px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.5);
+}
+
+#endPopupBox p {
+  margin-bottom: 18px;
+  font-size: 16px;
+}
+
+/* ▼ メインボタン（一覧に戻る） ▼ */
+.main-btn {
+  width: 100%;
+  padding: 12px 0;
+  background: #4a8cff;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+
+/* ▼ 補助ボタン（ブロック・通報） ▼ */
+.sub-btns {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sub-btn {
+  width: 48%;
+  padding: 8px 0;
+  background: #444;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 </style>
 </head>
 
@@ -325,14 +382,53 @@ window.addEventListener("load", async () => {
 document.getElementById("endBtn").onclick = async () => {
   isEndingMyself = true;
 
-  // ★ Firestore の通話データを完全削除
+  // Firestore の通話データ削除
   await db.collection("calls").doc(callerUid).delete();
 
-  // ★ localStorage を完全初期化
+  // localStorage 初期化
   localStorage.removeItem("isCaller");
   localStorage.removeItem("targetUid");
 
-  alert("通話が終了しました。");
+  // ▼ ポップアップ表示
+  document.getElementById("endPopupBg").style.display = "flex";
+};
+  // ▼ 一覧に戻る
+document.getElementById("backBtn").onclick = () => {
+  location.href = "profiles.html";
+};
+
+// ▼ ブロック
+document.getElementById("blockBtn").onclick = async () => {
+  await db.collection("users")
+    .doc(myUid).collection("blocks")
+    .doc(targetUid)
+    .set({ blockedAt: Date.now() });
+
+  alert("ブロックしました。");
+  location.href = "profiles.html";
+};
+
+// ▼ 通報（通報 → 自動ブロック）
+document.getElementById("reportBtn").onclick = async () => {
+
+  const already = await db.collection("reports")
+    .doc(targetUid).collection("from").doc(myUid).get();
+
+  if (!already.exists) {
+    await db.collection("reports")
+      .doc(targetUid).collection("from").doc(myUid)
+      .set({ reportedAt: Date.now() });
+
+    await db.collection("reports").doc(targetUid)
+      .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+  }
+
+  await db.collection("users")
+    .doc(myUid).collection("blocks")
+    .doc(targetUid)
+    .set({ blockedAt: Date.now() });
+
+  alert("通報しました。このユーザーは自動的にブロックされました。");
   location.href = "profiles.html";
 };
 
@@ -341,11 +437,9 @@ db.collection("calls").doc(callerUid).onSnapshot(snap => {
   if (!d) return;
 
   if (d.ended && !isEndingMyself) {
-    alert("相手が通話を終了しました。");
-    location.href = "profiles.html";
+    document.getElementById("endPopupBg").style.display = "flex";
   }
 });
-
 
   /* ---- 役割判定 ---- */
   let callDoc;
@@ -366,6 +460,19 @@ db.collection("calls").doc(callerUid).onSnapshot(snap => {
   }
 });
 </script>
+<!-- ▼ 通話終了ポップアップ ▼ -->
+<div id="endPopupBg">
+  <div id="endPopupBox">
+    <p>通話が終了しました。</p>
+
+    <button id="backBtn" class="main-btn">一覧に戻る</button>
+
+    <div class="sub-btns">
+      <button id="blockBtn" class="sub-btn">⛔ ブロック</button>
+      <button id="reportBtn" class="sub-btn">🚨 通報</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
