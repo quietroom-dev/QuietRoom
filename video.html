@@ -446,6 +446,15 @@ db.collection("calls").doc(callerUid).onSnapshot(snap => {
     document.getElementById("endPopupBg").style.display = "flex";
   }
 });
+  window.addEventListener("beforeunload", async (e) => {
+  try {
+    await db.collection("calls").doc(callerUid).delete();
+  } catch (err) {}
+
+  localStorage.removeItem("isCaller");
+  localStorage.removeItem("targetUid");
+});
+
 
 /* ---- 役割判定 ---- */
 let callDoc;
