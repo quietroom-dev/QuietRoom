@@ -10,35 +10,93 @@
 
 <style>
 body {
-  margin:0; padding:20px;
+  margin:0; padding:12px;
   background:#111; color:#fff;
   font-family:sans-serif;
 }
-.call-box {
-  border:1px solid #444;
-  padding:12px;
-  margin-bottom:20px;
-  border-radius:8px;
-  background:#1a1a1a;
+
+/* 一覧ビュー */
+#gridView {
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:8px;
 }
-video {
+.card {
+  background:#1a1a1a;
+  border-radius:8px;
+  padding:4px;
+  border:1px solid #333;
+  cursor:pointer;
+}
+.card video {
   width:100%;
-  max-height:240px;
+  aspect-ratio:4/3;
   background:#000;
-  border-radius:6px;
+  border-radius:4px;
+}
+.profile {
+  font-size:11px;
+  margin-top:4px;
+  color:#ccc;
+}
+
+/* 全画面ビュー */
+#fullscreenView {
+  position:fixed;
+  inset:0;
+  background:#000;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+#fullscreenVideo {
+  width:100%;
+  max-width:900px;
+  max-height:80vh;
+  background:#000;
+}
+#fsControls {
+  position:fixed;
+  bottom:16px;
+  left:0; right:0;
+  display:flex;
+  justify-content:center;
+  gap:16px;
+}
+.fs-btn {
+  padding:8px 16px;
+  border-radius:20px;
+  border:none;
+  background:#222;
+  color:#fff;
+  font-size:14px;
+}
+.fs-btn:active {
+  background:#444;
 }
 </style>
 </head>
 
 <body>
+<h2>QuietRoom 管理者</h2>
 
-<h2>QuietRoom 管理者ページ</h2>
-<div id="calls"></div>
+<!-- 一覧ビュー -->
+<div id="gridView"></div>
+
+<!-- 全画面ビュー -->
+<div id="fullscreenView">
+  <video id="fullscreenVideo" autoplay playsinline></video>
+  <div id="fsControls">
+    <button id="audioToggle" class="fs-btn">🔇</button>
+    <button id="backToList" class="fs-btn">一覧へ戻る</button>
+  </div>
+</div>
 
 <script>
-/* =========================================
+/* =========================
    Firebase
-========================================= */
+========================= */
 firebase.initializeApp({
   apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
@@ -49,52 +107,131 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* =========================================
-   管理者が通話を受信する処理
-   ★ docID = calleeUid（受信者UID）
-========================================= */
-function connectToCall(calleeUid, box) {
+/* =========================
+   管理者側の状態
+========================= */
+const listPCMap = new Map();   // docId -> { pc, videoEl, unsub }
+let fsPC = null;               // 全画面用 PeerConnection
+let fsDocId = null;
+
+/* =========================
+   一覧用：低画質・映像のみ
+========================= */
+function createListPC(docId, videoEl) {
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+
+  // 一覧は映像のみ・低レート・recvonly
+  pc.addTransceiver("video", {
+    direction: "recvonly"
+  });
+
+  pc.ontrack = e => {
+    videoEl.srcObject = e.streams[0];
+  };
+
+  const callDoc = db.collection("calls").doc(docId);
+  const offerCandidates = callDoc.collection("offerCandidates");
+  const answerCandidates = callDoc.collection("answerCandidates");
+
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      answerCandidates.add(e.candidate.toJSON());
+    }
+  };
+
+  const unsubCall = callDoc.onSnapshot(async snap => {
+    const d = snap.data();
+    if (!d) return;
+
+    if (d.ended) {
+      cleanupListPC(docId);
+      renderGrid();
+      return;
+    }
+
+    if (d.offer && !pc.currentRemoteDescription) {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await callDoc.update({ answer });
+    }
+  });
+
+  const unsubOffer = offerCandidates.onSnapshot(snap => {
+    snap.docChanges().forEach(c => {
+      if (c.type === "added") {
+        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
+    });
+  });
+
+  listPCMap.set(docId, {
+    pc,
+    videoEl,
+    unsub: () => {
+      unsubCall();
+      unsubOffer();
+    }
+  });
+}
+
+function cleanupListPC(docId) {
+  const item = listPCMap.get(docId);
+  if (!item) return;
+  item.unsub && item.unsub();
+  item.pc.close();
+  listPCMap.delete(docId);
+}
+
+/* =========================
+   全画面用：高画質＋音声あり
+========================= */
+async function openFullscreen(docId) {
+  if (fsPC) {
+    fsPC.close();
+    fsPC = null;
+    fsDocId = null;
+  }
+
+  const videoEl = document.getElementById("fullscreenVideo");
+  videoEl.srcObject = null;
 
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
   });
 
-  // 管理者は映像を受信するだけ
+  // 全画面は映像＋音声を recvonly
   pc.addTransceiver("video", { direction: "recvonly" });
+  pc.addTransceiver("audio", { direction: "recvonly" });
 
-  const video = box.querySelector("video");
   pc.ontrack = e => {
-    video.srcObject = e.streams[0];
+    videoEl.srcObject = e.streams[0];
   };
 
-  const callDoc = db.collection("calls").doc(calleeUid);
+  const callDoc = db.collection("calls").doc(docId);
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
 
-  /* ---- offer を受信したら answer を返す ---- */
-  callDoc.onSnapshot(async snap => {
-    const d = snap.data();
-    if (!d) return;
-
-    // 通話終了 → UI から消す
-    if (d.ended) {
-      box.remove();
-      return;
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      answerCandidates.add(e.candidate.toJSON());
     }
+  };
 
-    // offer を受信したら answer を返す
-    if (d.offer && !pc.currentRemoteDescription) {
-      await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+  const snap = await callDoc.get();
+  const d = snap.data();
+  if (!d || !d.offer || d.ended) {
+    pc.close();
+    return;
+  }
 
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+  await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await callDoc.update({ answer });
 
-      // ★answer 統一（adminAnswer は使わない）
-      await callDoc.update({ answer });
-    }
-  });
-
-  /* ---- ICE candidate（caller → admin） ---- */
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") {
@@ -102,38 +239,94 @@ function connectToCall(calleeUid, box) {
       }
     });
   });
+
+  fsPC = pc;
+  fsDocId = docId;
+
+  videoEl.muted = true;
+  document.getElementById("audioToggle").textContent = "🔇";
+
+  document.getElementById("gridView").style.display = "none";
+  document.getElementById("fullscreenView").style.display = "flex";
 }
 
-/* =========================================
-   通話一覧を監視
-   ★ doc.id は calleeUid（受信者UID）
-========================================= */
-db.collection("calls").onSnapshot(snap => {
-  const wrap = document.getElementById("calls");
+/* =========================
+   UI 操作
+========================= */
+document.getElementById("audioToggle").addEventListener("click", () => {
+  const v = document.getElementById("fullscreenVideo");
+  v.muted = !v.muted;
+  document.getElementById("audioToggle").textContent = v.muted ? "🔇" : "🔈";
+});
+
+document.getElementById("backToList").addEventListener("click", () => {
+  if (fsPC) {
+    fsPC.close();
+    fsPC = null;
+    fsDocId = null;
+  }
+  document.getElementById("fullscreenView").style.display = "none";
+  document.getElementById("gridView").style.display = "grid";
+});
+
+/* =========================
+   一覧 DOM 描画
+========================= */
+let latestCallDocs = [];
+
+function renderGrid() {
+  const wrap = document.getElementById("gridView");
   wrap.innerHTML = "";
 
+  latestCallDocs.forEach(doc => {
+    const d = doc.data();
+    const docId = doc.id;
+
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const v = document.createElement("video");
+    v.autoplay = true;
+    v.playsInline = true;
+    v.muted = true;
+
+    const prof = document.createElement("div");
+    prof.className = "profile";
+    prof.textContent = `${d.from} → ${docId}`;
+
+    card.appendChild(v);
+    card.appendChild(prof);
+    wrap.appendChild(card);
+
+    if (!listPCMap.has(docId)) {
+      createListPC(docId, v);
+    } else {
+      listPCMap.get(docId).videoEl = v;
+    }
+
+    card.addEventListener("click", () => {
+      openFullscreen(docId);
+    });
+  });
+}
+
+/* =========================
+   calls コレクション監視
+========================= */
+db.collection("calls").onSnapshot(snap => {
+  const docs = [];
   snap.forEach(doc => {
     const d = doc.data();
-
-    // offer が無い → 通話ではない
     if (!d.offer) return;
-
-    // 終了済みは表示しない
-    if (d.ended) return;
-
-    const box = document.createElement("div");
-    box.className = "call-box";
-    box.innerHTML = `
-      <div>通話：${d.from} → ${d.target}</div>
-      <video autoplay playsinline></video>
-    `;
-    wrap.appendChild(box);
-
-    // ★ doc.id = calleeUid（旧 QuietRoom と完全一致）
-    connectToCall(doc.id, box);
+    if (d.ended) {
+      cleanupListPC(doc.id);
+      return;
+    }
+    docs.push(doc);
   });
+  latestCallDocs = docs;
+  renderGrid();
 });
 </script>
-
 </body>
 </html>
