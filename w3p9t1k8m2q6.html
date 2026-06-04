@@ -9,82 +9,45 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-body {
-  margin:0; padding:12px;
-  background:#111; color:#fff;
-  font-family:sans-serif;
-}
+body { margin:0; padding:12px; background:#111; color:#fff; font-family:sans-serif; }
 
-/* 一覧ビュー */
-#gridView {
-  display:grid;
-  grid-template-columns:repeat(4, 1fr);
-  gap:8px;
-}
-.card {
-  background:#1a1a1a;
-  border-radius:8px;
-  padding:4px;
-  border:1px solid #333;
-  cursor:pointer;
-}
-.card video {
-  width:100%;
-  aspect-ratio:4/3;
-  background:#000;
-  border-radius:4px;
-}
-.profile {
-  font-size:11px;
-  margin-top:4px;
-  color:#ccc;
-}
+/* ログイン */
+#loginBox { text-align:center; margin-top:40px; }
+#loginBox input { padding:10px; width:200px; border-radius:6px; border:none; }
+#loginBox button { padding:10px 20px; margin-left:10px; border:none; border-radius:6px; }
 
-/* 全画面ビュー */
+/* 一覧 */
+#gridView { display:none; grid-template-columns:repeat(4, 1fr); gap:8px; }
+.card { background:#1a1a1a; border-radius:8px; padding:4px; border:1px solid #333; cursor:pointer; }
+.card video { width:100%; aspect-ratio:4/3; background:#000; border-radius:4px; }
+.profile { font-size:11px; margin-top:4px; color:#ccc; }
+
+/* 全画面 */
 #fullscreenView {
-  position:fixed;
-  inset:0;
-  background:#000;
-  display:none;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
+  position:fixed; inset:0; background:#000;
+  display:none; flex-direction:column; align-items:center; justify-content:center;
 }
-#fullscreenVideo {
-  width:100%;
-  max-width:900px;
-  max-height:80vh;
-  background:#000;
-}
-#fsControls {
-  position:fixed;
-  bottom:16px;
-  left:0; right:0;
-  display:flex;
-  justify-content:center;
-  gap:16px;
-}
-.fs-btn {
-  padding:8px 16px;
-  border-radius:20px;
-  border:none;
-  background:#222;
-  color:#fff;
-  font-size:14px;
-}
-.fs-btn:active {
-  background:#444;
-}
+#fullscreenVideo { width:100%; max-width:900px; max-height:80vh; background:#000; }
+#fsControls { position:fixed; bottom:16px; left:0; right:0; display:flex; justify-content:center; gap:16px; }
+.fs-btn { padding:8px 16px; border-radius:20px; border:none; background:#222; color:#fff; font-size:14px; }
+.fs-btn:active { background:#444; }
 </style>
 </head>
 
 <body>
 <h2>QuietRoom 管理者</h2>
 
-<!-- 一覧ビュー -->
+<!-- ログイン -->
+<div id="loginBox">
+  <input id="pass" type="password" placeholder="管理者パスワード">
+  <button onclick="login()">OK</button>
+  <p id="err" style="color:red; display:none;">違います</p>
+</div>
+
+<!-- 一覧 -->
 <div id="gridView"></div>
 
-<!-- 全画面ビュー -->
+<!-- 全画面 -->
 <div id="fullscreenView">
   <video id="fullscreenVideo" autoplay playsinline></video>
   <div id="fsControls">
@@ -108,37 +71,47 @@ firebase.initializeApp({
 const db = firebase.firestore();
 
 /* =========================
-   管理者側の状態
+   ログイン（UID を書かない最強方式）
 ========================= */
-const listPCMap = new Map();   // docId -> { pc, videoEl, unsub }
-let fsPC = null;               // 全画面用 PeerConnection
-let fsDocId = null;
+async function login() {
+  const input = document.getElementById("pass").value;
+
+  const snaps = await db.collection("admins").get();
+  let ok = false;
+
+  for (const doc of snaps.docs) {
+    if (input === doc.data().password) {
+      ok = true;
+      break;
+    }
+  }
+
+  if (ok) {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("gridView").style.display = "grid";
+  } else {
+    document.getElementById("err").style.display = "block";
+  }
+}
 
 /* =========================
-   一覧用：低画質・映像のみ
+   一覧用 PC
 ========================= */
+const listPCMap = new Map();
+
 function createListPC(docId, videoEl) {
-  const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-  });
+  const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
 
-  // 一覧は映像のみ・低レート・recvonly
-  pc.addTransceiver("video", {
-    direction: "recvonly"
-  });
+  pc.addTransceiver("video", { direction:"recvonly" });
 
-  pc.ontrack = e => {
-    videoEl.srcObject = e.streams[0];
-  };
+  pc.ontrack = e => videoEl.srcObject = e.streams[0];
 
   const callDoc = db.collection("calls").doc(docId);
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
 
   pc.onicecandidate = e => {
-    if (e.candidate) {
-      answerCandidates.add(e.candidate.toJSON());
-    }
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
   };
 
   const unsubCall = callDoc.onSnapshot(async snap => {
@@ -161,71 +134,50 @@ function createListPC(docId, videoEl) {
 
   const unsubOffer = offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
-        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-      }
+      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
     });
   });
 
-  listPCMap.set(docId, {
-    pc,
-    videoEl,
-    unsub: () => {
-      unsubCall();
-      unsubOffer();
-    }
-  });
+  listPCMap.set(docId, { pc, videoEl, unsub:()=>{unsubCall();unsubOffer();} });
 }
 
 function cleanupListPC(docId) {
   const item = listPCMap.get(docId);
   if (!item) return;
-  item.unsub && item.unsub();
+  item.unsub();
   item.pc.close();
   listPCMap.delete(docId);
 }
 
 /* =========================
-   全画面用：高画質＋音声あり
+   全画面 PC
 ========================= */
+let fsPC = null;
+
 async function openFullscreen(docId) {
-  if (fsPC) {
-    fsPC.close();
-    fsPC = null;
-    fsDocId = null;
-  }
+  if (fsPC) fsPC.close();
 
   const videoEl = document.getElementById("fullscreenVideo");
   videoEl.srcObject = null;
 
-  const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-  });
+  const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
 
-  // 全画面は映像＋音声を recvonly
-  pc.addTransceiver("video", { direction: "recvonly" });
-  pc.addTransceiver("audio", { direction: "recvonly" });
+  pc.addTransceiver("video", { direction:"recvonly" });
+  pc.addTransceiver("audio", { direction:"recvonly" });
 
-  pc.ontrack = e => {
-    videoEl.srcObject = e.streams[0];
-  };
+  pc.ontrack = e => videoEl.srcObject = e.streams[0];
 
   const callDoc = db.collection("calls").doc(docId);
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
 
   pc.onicecandidate = e => {
-    if (e.candidate) {
-      answerCandidates.add(e.candidate.toJSON());
-    }
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
   };
 
   const snap = await callDoc.get();
   const d = snap.data();
-  if (!d || !d.offer || d.ended) {
-    pc.close();
-    return;
-  }
+  if (!d || !d.offer || d.ended) return;
 
   await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
   const answer = await pc.createAnswer();
@@ -234,14 +186,11 @@ async function openFullscreen(docId) {
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
-        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-      }
+      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
     });
   });
 
   fsPC = pc;
-  fsDocId = docId;
 
   videoEl.muted = true;
   document.getElementById("audioToggle").textContent = "🔇";
@@ -251,26 +200,23 @@ async function openFullscreen(docId) {
 }
 
 /* =========================
-   UI 操作
+   UI
 ========================= */
-document.getElementById("audioToggle").addEventListener("click", () => {
+document.getElementById("audioToggle").onclick = () => {
   const v = document.getElementById("fullscreenVideo");
   v.muted = !v.muted;
   document.getElementById("audioToggle").textContent = v.muted ? "🔇" : "🔈";
-});
+};
 
-document.getElementById("backToList").addEventListener("click", () => {
-  if (fsPC) {
-    fsPC.close();
-    fsPC = null;
-    fsDocId = null;
-  }
+document.getElementById("backToList").onclick = () => {
+  if (fsPC) fsPC.close();
+  fsPC = null;
   document.getElementById("fullscreenView").style.display = "none";
   document.getElementById("gridView").style.display = "grid";
-});
+};
 
 /* =========================
-   一覧 DOM 描画
+   一覧描画
 ========================= */
 let latestCallDocs = [];
 
@@ -298,20 +244,15 @@ function renderGrid() {
     card.appendChild(prof);
     wrap.appendChild(card);
 
-    if (!listPCMap.has(docId)) {
-      createListPC(docId, v);
-    } else {
-      listPCMap.get(docId).videoEl = v;
-    }
+    if (!listPCMap.has(docId)) createListPC(docId, v);
+    else listPCMap.get(docId).videoEl = v;
 
-    card.addEventListener("click", () => {
-      openFullscreen(docId);
-    });
+    card.onclick = () => openFullscreen(docId);
   });
 }
 
 /* =========================
-   calls コレクション監視
+   calls 監視
 ========================= */
 db.collection("calls").onSnapshot(snap => {
   const docs = [];
