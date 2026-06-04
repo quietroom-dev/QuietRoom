@@ -353,21 +353,24 @@ window.addEventListener("load", async () => {
     });
   }
 
-  meterUp.onclick = () => {
-    if (myMosaicLevel < 5) {
-      myMosaicLevel++;
-      updateMeterUI();
-      saveMyMosaic();
-    }
-  };
+meterUp.onclick = () => {
+  if (myMosaicLevel < 5) {
+    myMosaicLevel++;
+    myMosaicSize = mosaicSizes[myMosaicLevel]; // ← 追加
+    updateMeterUI();
+    saveMyMosaic();
+  }
+};
 
-  meterDown.onclick = () => {
-    if (myMosaicLevel > 0) {
-      myMosaicLevel--;
-      updateMeterUI();
-      saveMyMosaic();
-    }
-  };
+meterDown.onclick = () => {
+  if (myMosaicLevel > 0) {
+    myMosaicLevel--;
+    myMosaicSize = mosaicSizes[myMosaicLevel]; // ← 追加
+    updateMeterUI();
+    saveMyMosaic();
+  }
+};
+
 
   updateMeterUI();
 
