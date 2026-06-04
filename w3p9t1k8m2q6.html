@@ -10,23 +10,14 @@
 
 <style>
 body { margin:0; padding:12px; background:#111; color:#fff; font-family:sans-serif; }
-
-/* ログイン */
 #loginBox { text-align:center; margin-top:40px; }
 #loginBox input { padding:10px; width:200px; border-radius:6px; border:none; }
 #loginBox button { padding:10px 20px; margin-left:10px; border:none; border-radius:6px; }
-
-/* 一覧 */
 #gridView { display:none; grid-template-columns:repeat(4, 1fr); gap:8px; }
 .card { background:#1a1a1a; border-radius:8px; padding:4px; border:1px solid #333; cursor:pointer; }
 .card video { width:100%; aspect-ratio:4/3; background:#000; border-radius:4px; }
 .profile { font-size:11px; margin-top:4px; color:#ccc; }
-
-/* 全画面 */
-#fullscreenView {
-  position:fixed; inset:0; background:#000;
-  display:none; flex-direction:column; align-items:center; justify-content:center;
-}
+#fullscreenView { position:fixed; inset:0; background:#000; display:none; flex-direction:column; align-items:center; justify-content:center; }
 #fullscreenVideo { width:100%; max-width:900px; max-height:80vh; background:#000; }
 #fsControls { position:fixed; bottom:16px; left:0; right:0; display:flex; justify-content:center; gap:16px; }
 .fs-btn { padding:8px 16px; border-radius:20px; border:none; background:#222; color:#fff; font-size:14px; }
@@ -37,17 +28,14 @@ body { margin:0; padding:12px; background:#111; color:#fff; font-family:sans-ser
 <body>
 <h2>QuietRoom 管理者</h2>
 
-<!-- ログイン -->
 <div id="loginBox">
   <input id="pass" type="password" placeholder="管理者パスワード">
   <button onclick="login()">OK</button>
   <p id="err" style="color:red; display:none;">違います</p>
 </div>
 
-<!-- 一覧 -->
 <div id="gridView"></div>
 
-<!-- 全画面 -->
 <div id="fullscreenView">
   <video id="fullscreenVideo" autoplay playsinline></video>
   <div id="fsControls">
@@ -57,9 +45,6 @@ body { margin:0; padding:12px; background:#111; color:#fff; font-family:sans-ser
 </div>
 
 <script>
-/* =========================
-   Firebase
-========================= */
 firebase.initializeApp({
   apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
@@ -70,22 +55,14 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* =========================
-   ログイン（UID を書かない最強方式）
-========================= */
+/* ログイン */
 async function login() {
   const input = document.getElementById("pass").value;
-
   const snaps = await db.collection("admins").get();
   let ok = false;
-
   for (const doc of snaps.docs) {
-    if (input === doc.data().password) {
-      ok = true;
-      break;
-    }
+    if (input === doc.data().password) { ok = true; break; }
   }
-
   if (ok) {
     document.getElementById("loginBox").style.display = "none";
     document.getElementById("gridView").style.display = "grid";
@@ -94,36 +71,19 @@ async function login() {
   }
 }
 
-/* =========================
-   一覧用 PC
-========================= */
+/* 一覧用 PC */
 const listPCMap = new Map();
-
 function createListPC(docId, videoEl) {
   const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
-
   pc.addTransceiver("video", { direction:"recvonly" });
-
   pc.ontrack = e => videoEl.srcObject = e.streams[0];
-
   const callDoc = db.collection("calls").doc(docId);
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
-
-  pc.onicecandidate = e => {
-    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
-  };
-
+  pc.onicecandidate = e => { if (e.candidate) answerCandidates.add(e.candidate.toJSON()); };
   const unsubCall = callDoc.onSnapshot(async snap => {
-    const d = snap.data();
-    if (!d) return;
-
-    if (d.ended) {
-      cleanupListPC(docId);
-      renderGrid();
-      return;
-    }
-
+    const d = snap.data(); if (!d) return;
+    if (d.ended) { cleanupListPC(docId); renderGrid(); return; }
     if (d.offer && !pc.currentRemoteDescription) {
       await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
       const answer = await pc.createAnswer();
@@ -131,83 +91,53 @@ function createListPC(docId, videoEl) {
       await callDoc.update({ answer });
     }
   });
-
   const unsubOffer = offerCandidates.onSnapshot(snap => {
-    snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-    });
+    snap.docChanges().forEach(c => { if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data())); });
   });
-
   listPCMap.set(docId, { pc, videoEl, unsub:()=>{unsubCall();unsubOffer();} });
 }
-
 function cleanupListPC(docId) {
   const item = listPCMap.get(docId);
   if (!item) return;
-  item.unsub();
-  item.pc.close();
-  listPCMap.delete(docId);
+  item.unsub(); item.pc.close(); listPCMap.delete(docId);
 }
 
-/* =========================
-   全画面 PC
-========================= */
+/* 全画面 PC */
 let fsPC = null;
-
 async function openFullscreen(docId) {
   if (fsPC) fsPC.close();
-
   const videoEl = document.getElementById("fullscreenVideo");
   videoEl.srcObject = null;
-
   const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
-
   pc.addTransceiver("video", { direction:"recvonly" });
   pc.addTransceiver("audio", { direction:"recvonly" });
-
   pc.ontrack = e => videoEl.srcObject = e.streams[0];
-
   const callDoc = db.collection("calls").doc(docId);
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
-
-  pc.onicecandidate = e => {
-    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
-  };
-
+  pc.onicecandidate = e => { if (e.candidate) answerCandidates.add(e.candidate.toJSON()); };
   const snap = await callDoc.get();
-  const d = snap.data();
-  if (!d || !d.offer || d.ended) return;
-
+  const d = snap.data(); if (!d || !d.offer || d.ended) return;
   await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
   await callDoc.update({ answer });
-
   offerCandidates.onSnapshot(snap => {
-    snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-    });
+    snap.docChanges().forEach(c => { if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data())); });
   });
-
   fsPC = pc;
-
   videoEl.muted = true;
   document.getElementById("audioToggle").textContent = "🔇";
-
   document.getElementById("gridView").style.display = "none";
   document.getElementById("fullscreenView").style.display = "flex";
 }
 
-/* =========================
-   UI
-========================= */
+/* UI */
 document.getElementById("audioToggle").onclick = () => {
   const v = document.getElementById("fullscreenVideo");
   v.muted = !v.muted;
   document.getElementById("audioToggle").textContent = v.muted ? "🔇" : "🔈";
 };
-
 document.getElementById("backToList").onclick = () => {
   if (fsPC) fsPC.close();
   fsPC = null;
@@ -215,59 +145,24 @@ document.getElementById("backToList").onclick = () => {
   document.getElementById("gridView").style.display = "grid";
 };
 
-/* =========================
-   一覧描画
-========================= */
+/* 一覧描画 */
 let latestCallDocs = [];
-
 function renderGrid() {
   const wrap = document.getElementById("gridView");
   wrap.innerHTML = "";
-
   latestCallDocs.forEach(doc => {
-    const d = doc.data();
-    const docId = doc.id;
-
-    const card = document.createElement("div");
-    card.className = "card";
-
-    const v = document.createElement("video");
-    v.autoplay = true;
-    v.playsInline = true;
-    v.muted = true;
-
-    const prof = document.createElement("div");
-    prof.className = "profile";
-    prof.textContent = `${d.from} → ${docId}`;
-
-    card.appendChild(v);
-    card.appendChild(prof);
-    wrap.appendChild(card);
-
-    if (!listPCMap.has(docId)) createListPC(docId, v);
-    else listPCMap.get(docId).videoEl = v;
-
+    const d = doc.data(); const docId = doc.id;
+    const card = document.createElement("div"); card.className = "card";
+    const v = document.createElement("video"); v.autoplay = true; v.playsInline = true; v.muted = true;
+    const prof = document.createElement("div"); prof.className = "profile"; prof.textContent = `${d.from} → ${docId}`;
+    card.appendChild(v); card.appendChild(prof); wrap.appendChild(card);
+    if (!listPCMap.has(docId)) createListPC(docId, v); else listPCMap.get(docId).videoEl = v;
     card.onclick = () => openFullscreen(docId);
   });
 }
 
-/* =========================
-   calls 監視
-========================= */
+/* calls 監視 */
 db.collection("calls").onSnapshot(snap => {
   const docs = [];
   snap.forEach(doc => {
-    const d = doc.data();
-    if (!d.offer) return;
-    if (d.ended) {
-      cleanupListPC(doc.id);
-      return;
-    }
-    docs.push(doc);
-  });
-  latestCallDocs = docs;
-  renderGrid();
-});
-</script>
-</body>
-</html>
+    const d = doc
