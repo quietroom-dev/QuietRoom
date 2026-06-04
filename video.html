@@ -200,6 +200,7 @@ async function startCamera() {
    カメラ切替
 ========================================= */
 async function renegotiate() {
+  if (!callDoc) return;
   const offer = await pc.createOffer({ iceRestart: false });
   await pc.setLocalDescription(offer);
   await callDoc.update({ offer });
