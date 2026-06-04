@@ -199,7 +199,13 @@ async function startCamera() {
 /* =========================================
    カメラ切替
 ========================================= */
-async function switchCameraFunc() {
+async function renegotiate() {
+  const offer = await pc.createOffer({ iceRestart: false });
+  await pc.setLocalDescription(offer);
+  await callDoc.update({ offer });
+}
+
+  async function switchCameraFunc() {
   currentFacing = currentFacing === "user" ? "environment" : "user";
 
   if (localStream) localStream.getTracks().forEach(t => t.stop());
@@ -214,6 +220,7 @@ async function switchCameraFunc() {
 
   const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
   if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+    await renegotiate();
 }
 
 document.getElementById("switchCamera").onclick = switchCameraFunc;
