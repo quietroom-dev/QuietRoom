@@ -158,6 +158,8 @@ alert("① video.html load\nmyUid=" + myUid + "\ntargetUid=" + targetUid + "\nca
 let myMosaicLevel = 5;
 let myMosaicSize = 25;
 let remoteMosaicSize = 25;
+const mosaicSizes = [1, 10, 13, 16, 19, 25]; // ★ ここを追加（グローバル）
+
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
@@ -263,7 +265,6 @@ function drawMosaic() {
     selfCanvas.width = vw;
     selfCanvas.height = vh;
 
-    const mosaicSizes = [1, 10, 13, 16, 19, 25];
     myMosaicSize = mosaicSizes[myMosaicLevel];
 
     selfCtx.imageSmoothingEnabled = false;
