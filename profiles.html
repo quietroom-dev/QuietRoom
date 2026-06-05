@@ -221,9 +221,9 @@ window.addEventListener("beforeunload", () => {
 setInterval(() => location.reload(), 60000);
 
 /* =========================================
-   ▼▼ 着信リスナー（★ブロックチェック削除） ▼▼
+   ▼▼ 着信リスナー（解除できるように保存） ▼▼
 ========================================= */
-db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
+window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
   const data = snap.data();
   if (!data) return;
 
@@ -233,6 +233,7 @@ db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
     showIncomingCall(data.from);
   }
 });
+
 
 /* =========================================
    着信UI
@@ -253,14 +254,18 @@ async function showIncomingCall(fromUid) {
 }
 
 function acceptCall() {
+  if (window.unsubIncoming) window.unsubIncoming();
   incomingCall.style.display = "none";
   window.location.href = `video.html?target=${window._incomingFrom}`;
 }
 
+
 function declineCall() {
+  if (window.unsubIncoming) window.unsubIncoming();
   db.collection("calls").doc(myUid).delete();
   incomingCall.style.display = "none";
 }
+
 </script>
 
 </body>
