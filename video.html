@@ -100,7 +100,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄</button>
+  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -131,8 +131,12 @@ const db = firebase.firestore();
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
-/* callerUid */
-let callerUid = isCaller ? myUid : targetUid;
+/* caller / callee / callDoc */
+let callerUid = null;
+let calleeUid = null;
+let callDoc = null;
+let offerCandidates = null;
+let answerCandidates = null;
 
 /* モザイク同期 */
 let myMosaicLevel = 5;
@@ -185,7 +189,6 @@ async function switchCameraFunc() {
 
   if (localStream) localStream.getTracks().forEach(t => t.stop());
 
-  // ★ 小窓を一瞬隠す
   selfVideo.style.visibility = "hidden";
   selfCanvas.style.visibility = "hidden";
 
@@ -198,8 +201,6 @@ async function switchCameraFunc() {
 
   selfVideo.onloadedmetadata = () => {
     drawMosaicSelf();
-
-    // ★ 映像サイズが確定した瞬間に表示
     selfVideo.style.visibility = "visible";
     selfCanvas.style.visibility = "visible";
   };
@@ -209,7 +210,6 @@ async function switchCameraFunc() {
 
   await renegotiate();
 }
-
 
 document.getElementById("switchCamera").onclick = switchCameraFunc;
 
@@ -255,15 +255,18 @@ function drawMosaic() {
 
   requestAnimationFrame(drawMosaic);
 }
-function drawMosaicSelf() {
-  // self 側だけ即時更新したい場合のダミー呼び出し用
-}
+function drawMosaicSelf() {}
 requestAnimationFrame(drawMosaic);
 
-/* 発信側 */
-async function runCaller(callDoc, offerCandidates, answerCandidates) {
-  await db.collection("calls").doc(myUid).set({ createdAt: Date.now() }, { merge: true });
+/* ① 発信者：最初に Firestore に全データを書き込む */
+async function startAsCaller() {
   await startCamera();
+
+  callerUid = myUid;
+  calleeUid = targetUid;
+  callDoc = db.collection("calls").doc(calleeUid);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
 
   pc.onicecandidate = e => {
     if (e.candidate) offerCandidates.add(e.candidate.toJSON());
@@ -271,63 +274,89 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-  await callDoc.set({ offer, from: myUid });
 
-  callDoc.onSnapshot(snap => {
-    const d = snap.data();
-    if (d?.declined) {
-      alert("相手が出ませんでした。\nめげずに頑張ってね");
-      location.href = "profiles.html";
-    }
+  await callDoc.set({
+    from: callerUid,
+    to: calleeUid,
+    offer: offer,
+    callerUid: callerUid,
+    calleeUid: calleeUid,
+    createdAt: Date.now()
   });
 
-  callDoc.onSnapshot(async snap => {
-    const data = snap.data();
-    if (data?.answer && !pc.currentRemoteDescription) {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    }
-  });
-
-  answerCandidates.onSnapshot(snap => {
-    snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-    });
-  });
+  localStorage.removeItem("isCaller");
 }
 
-/* 受信側（修正版） */
-async function runCallee(callDoc, offerCandidates, answerCandidates) {
-  await startCamera();
+/* ② 全員：Firestore から読み取り、役割確定＋シグナリング開始 */
+async function setupSignaling() {
+  if (!callDoc) {
+    // 発信者でなければ、自分のUIDを callee とみなす
+    callDoc = db.collection("calls").doc(myUid);
+    offerCandidates = callDoc.collection("offerCandidates");
+    answerCandidates = callDoc.collection("answerCandidates");
+  }
 
-  pc.onicecandidate = e => {
-    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
-  };
+  const snap = await callDoc.get();
+  const data = snap.data();
+  if (!data) return;
 
-  const callData = (await callDoc.get()).data();
-  await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+  callerUid = data.callerUid;
+  calleeUid = data.calleeUid;
 
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  await callDoc.update({ answer });
-
-  offerCandidates.onSnapshot(snap => {
-    snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+  // 自分が発信者側
+  if (callerUid === myUid) {
+    // answer を待つ
+    callDoc.onSnapshot(async s => {
+      const d = s.data();
+      if (d?.answer && !pc.currentRemoteDescription) {
+        await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+      }
     });
-  });
 
-  // ★ カメラ切替後の新しい offer を処理
-  callDoc.onSnapshot(async snap => {
-    const data = snap.data();
-    if (!data) return;
+    // 相手の ICE
+    answerCandidates.onSnapshot(s => {
+      s.docChanges().forEach(c => {
+        if (c.type === "added") {
+          pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+        }
+      });
+    });
 
-    if (data.offer && pc.signalingState === "stable") {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-      const newAnswer = await pc.createAnswer();
-      await pc.setLocalDescription(newAnswer);
-      await callDoc.update({ answer: newAnswer });
-    }
-  });
+  // 自分が着信者側
+  } else if (calleeUid === myUid) {
+    await startCamera();
+
+    pc.onicecandidate = e => {
+      if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+    };
+
+    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await callDoc.update({ answer });
+
+    // 発信者の ICE
+    offerCandidates.onSnapshot(s => {
+      s.docChanges().forEach(c => {
+        if (c.type === "added") {
+          pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+        }
+      });
+    });
+
+    // カメラ切替などで新しい offer が来た場合
+    callDoc.onSnapshot(async s => {
+      const d = s.data();
+      if (!d) return;
+      if (d.offer && pc.signalingState === "stable") {
+        await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+        const newAnswer = await pc.createAnswer();
+        await pc.setLocalDescription(newAnswer);
+        await callDoc.update({ answer: newAnswer });
+      }
+    });
+  }
 }
 
 /* ページ読み込み後 */
@@ -383,17 +412,17 @@ window.addEventListener("load", async () => {
 
   /* 自分が終了ボタンを押した時 */
   document.getElementById("endBtn").onclick = async () => {
-  isEndingMyself = true;
-  await db.collection("calls").doc(callerUid).set({ ended: true }, { merge: true });
-  // Firestore の通話データ削除（相手に通知が届いた後で OK）
-  setTimeout(async () => {
-    await db.collection("calls").doc(callerUid).delete();
-  }, 500);
-  localStorage.removeItem("isCaller");
-  localStorage.removeItem("targetUid");
-  document.getElementById("endPopupBg").style.display = "flex";
-};
-
+    isEndingMyself = true;
+    if (callDoc) {
+      await callDoc.set({ ended: true }, { merge: true });
+      setTimeout(async () => {
+        try { await callDoc.delete(); } catch (e) {}
+      }, 500);
+    }
+    localStorage.removeItem("isCaller");
+    localStorage.removeItem("targetUid");
+    document.getElementById("endPopupBg").style.display = "flex";
+  };
 
   /* 一覧に戻る */
   document.getElementById("backBtn").onclick = () => {
@@ -435,39 +464,35 @@ window.addEventListener("load", async () => {
   };
 
   /* 相手が終了した時 */
-  db.collection("calls").doc(callerUid).onSnapshot(snap => {
-    const d = snap.data();
-    if (!d) return;
-    if (d.ended && !isEndingMyself) {
-      document.getElementById("endPopupBg").style.display = "flex";
-    }
-  });
+  // callDoc は後で確定するので、確定後に監視を開始
+  function watchEnd() {
+    if (!callDoc) return;
+    callDoc.onSnapshot(snap => {
+      const d = snap.data();
+      if (!d) return;
+      if (d.ended && !isEndingMyself) {
+        document.getElementById("endPopupBg").style.display = "flex";
+      }
+    });
+  }
 
   window.addEventListener("beforeunload", async () => {
     try {
-      await db.collection("calls").doc(callerUid).delete();
+      if (callDoc) await callDoc.delete();
     } catch (err) {}
     localStorage.removeItem("isCaller");
     localStorage.removeItem("targetUid");
   });
 
-  /* 役割判定 */
-  let callDoc;
-  let offerCandidates;
-  let answerCandidates;
-
+  /* 役割に応じた初期処理 */
   if (isCaller) {
-    callDoc = db.collection("calls").doc(targetUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    runCaller(callDoc, offerCandidates, answerCandidates);
-    localStorage.removeItem("isCaller");
+    await startAsCaller();
   } else {
-    callDoc = db.collection("calls").doc(myUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-    runCallee(callDoc, offerCandidates, answerCandidates);
+    // 着信者側はここでは何もしない（setupSignaling 内で startCamera）
   }
+
+  await setupSignaling();
+  watchEnd();
 });
 </script>
 
