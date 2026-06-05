@@ -37,6 +37,12 @@ body { margin:0; padding:12px; background:#000; color:#4aff4a; font-family:monos
   background:#000;
   border-radius:4px;
 }
+.profileBox {
+  font-size:11px;
+  color:#4aff4a;
+  margin-top:4px;
+  line-height:1.3;
+}
 
 /* 全画面 */
 #fullscreenView {
@@ -142,14 +148,28 @@ function renderPagedGrid() {
   items.forEach(item => wrap.appendChild(item.videoBox));
 }
 
-function rebuildVideoList() {
+async function rebuildVideoList() {
   allVideoItems = [];
 
-  latestCallDocs.forEach(doc => {
+  for (const doc of latestCallDocs) {
     const d = doc.data();
     const docId = doc.id;
 
-    /* caller 映像 */
+    const fromUid = d.from || d.callerUid;
+    const toUid   = d.to   || d.calleeUid;
+
+    // ▼ Firestore からプロフィール取得
+    const fromProf = fromUid ? (await db.collection("user").doc(fromUid).get()).data() : null;
+    const toProf   = toUid   ? (await db.collection("user").doc(toUid).get()).data()   : null;
+
+    // ▼ 通報数
+    const fromRepSnap = fromUid ? await db.collection("reports").doc(fromUid).get() : null;
+    const toRepSnap   = toUid   ? await db.collection("reports").doc(toUid).get()   : null;
+
+    const fromRep = fromRepSnap?.exists ? fromRepSnap.data().count || 0 : 0;
+    const toRep   = toRepSnap?.exists   ? toRepSnap.data().count   || 0 : 0;
+
+    /* ▼ caller 映像 */
     {
       const box = document.createElement("div");
       box.className = "videoBox";
@@ -159,7 +179,25 @@ function rebuildVideoList() {
       v.playsInline = true;
       v.muted = true;
 
+      const prof = document.createElement("div");
+      prof.className = "profileBox";
+
+      if (fromProf) {
+        prof.innerHTML = `
+          <b>${fromProf.nickname}</b><br>
+          性別：${fromProf.gender}<br>
+          年齢：${fromProf.age}<br>
+          都道府県：${fromProf.prefecture}<br>
+          ひとこと：${fromProf.comment}<br>
+          通報数：${fromRep}<br>
+          <span style="opacity:0.6;">caller</span>
+        `;
+      } else {
+        prof.textContent = "caller: プロフィールなし";
+      }
+
       box.appendChild(v);
+      box.appendChild(prof);
 
       allVideoItems.push({ docId, type:"caller", videoBox:box, videoEl:v });
       createDualPC(docId, "caller", v);
@@ -167,7 +205,7 @@ function rebuildVideoList() {
       box.onclick = () => openFullscreen(docId, "caller");
     }
 
-    /* callee 映像 */
+    /* ▼ callee 映像 */
     {
       const box = document.createElement("div");
       box.className = "videoBox";
@@ -177,14 +215,32 @@ function rebuildVideoList() {
       v.playsInline = true;
       v.muted = true;
 
+      const prof = document.createElement("div");
+      prof.className = "profileBox";
+
+      if (toProf) {
+        prof.innerHTML = `
+          <b>${toProf.nickname}</b><br>
+          性別：${toProf.gender}<br>
+          年齢：${toProf.age}<br>
+          都道府県：${toProf.prefecture}<br>
+          ひとこと：${toProf.comment}<br>
+          通報数：${toRep}<br>
+          <span style="opacity:0.6;">callee</span>
+        `;
+      } else {
+        prof.textContent = "callee: プロフィールなし";
+      }
+
       box.appendChild(v);
+      box.appendChild(prof);
 
       allVideoItems.push({ docId, type:"callee", videoBox:box, videoEl:v });
       createDualPC(docId, "callee", v);
 
       box.onclick = () => openFullscreen(docId, "callee");
     }
-  });
+  }
 
   renderPagedGrid();
 }
