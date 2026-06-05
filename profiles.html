@@ -150,7 +150,7 @@ async function reportUser(targetUid) {
     .collection("blocks").doc(targetUid)
     .set({ blockedAt: Date.now() });
 
-  alert("通報しました。このユーザーは自動的にブロックされました。");
+  alert("通報しました。");
 }
 
 /* =========================================
@@ -193,12 +193,12 @@ db.collection("user")
 async function startCall(targetUid) {
 
   if (await isBlocked(myUid, targetUid)) {
-    alert("このユーザーとは通話できません。（あなたがブロックしています）");
+    alert("このユーザーとは通話できません。");
     return;
   }
 
   if (await isBlocked(targetUid, myUid)) {
-    alert("このユーザーとは通話できません。（相手があなたをブロックしています）");
+    alert("このユーザーとは通話できません。");
     return;
   }
 
@@ -226,7 +226,6 @@ setInterval(() => location.reload(), 60000);
 db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
   const data = snap.data();
   if (!data) return;
-  alert("③ profiles listener\nmyUid=" + myUid);
 
   if (data.from === myUid) return;
 
