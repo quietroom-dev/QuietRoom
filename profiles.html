@@ -191,6 +191,8 @@ db.collection("user")
    ▼ 通話開始（発信時チェックのみ）
 ========================================= */
 async function startCall(targetUid) {
+
+  /* ★ 修正：着信リスナー解除 */
   if (window.unsubIncoming) {
     try { window.unsubIncoming(); } catch(e) {}
   }
@@ -237,7 +239,6 @@ window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(async (snap)
   }
 });
 
-
 /* =========================================
    着信UI
 ========================================= */
@@ -257,16 +258,21 @@ async function showIncomingCall(fromUid) {
 }
 
 function acceptCall() {
+
+  /* ★ 修正：着信リスナー解除 */
   if (window.unsubIncoming) {
     try { window.unsubIncoming(); } catch(e) {}
   }
+
   incomingCall.style.display = "none";
   window.location.href = `video.html?target=${window._incomingFrom}`;
 }
 
-
 function declineCall() {
+
+  /* ★ 修正：着信リスナー解除 */
   if (window.unsubIncoming) window.unsubIncoming();
+
   db.collection("calls").doc(myUid).delete();
   incomingCall.style.display = "none";
 }
