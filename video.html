@@ -361,11 +361,6 @@ async function setupSignaling() {
 
 /* ページ読み込み後 */
 window.addEventListener("load", async () => {
-  // ★ 毎回モザイクレベルを最大に初期化
-myMosaicLevel = 5;
-myMosaicSize = mosaicSizes[myMosaicLevel];
-saveMyMosaic();
-updateMeterUI();
 
   /* モザイクUI */
   const meterBar = document.getElementById("meterBar");
@@ -383,6 +378,12 @@ updateMeterUI();
       b.classList.toggle("active", i < myMosaicLevel);
     });
   }
+
+    // ★ 毎回モザイクレベルを最大に初期化
+myMosaicLevel = 5;
+myMosaicSize = mosaicSizes[myMosaicLevel];
+saveMyMosaic();
+updateMeterUI();
 
   meterUp.onclick = () => {
     if (myMosaicLevel < 5) {
