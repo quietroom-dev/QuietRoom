@@ -108,7 +108,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -199,7 +199,14 @@ async function startCamera() {
 /* =========================================
    カメラ切替
 ========================================= */
-async function switchCameraFunc() {
+async function renegotiate() {
+  if (!callDoc) return;
+  const offer = await pc.createOffer({ iceRestart: false });
+  await pc.setLocalDescription(offer);
+  await callDoc.update({ offer });
+}
+
+  async function switchCameraFunc() {
   currentFacing = currentFacing === "user" ? "environment" : "user";
 
   if (localStream) localStream.getTracks().forEach(t => t.stop());
@@ -214,6 +221,7 @@ async function switchCameraFunc() {
 
   const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
   if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+    await renegotiate();
 }
 
 document.getElementById("switchCamera").onclick = switchCameraFunc;
@@ -353,21 +361,24 @@ window.addEventListener("load", async () => {
     });
   }
 
-  meterUp.onclick = () => {
-    if (myMosaicLevel < 5) {
-      myMosaicLevel++;
-      updateMeterUI();
-      saveMyMosaic();
-    }
-  };
+meterUp.onclick = () => {
+  if (myMosaicLevel < 5) {
+    myMosaicLevel++;
+    myMosaicSize = mosaicSizes[myMosaicLevel]; // ← 追加
+    updateMeterUI();
+    saveMyMosaic();
+  }
+};
 
-  meterDown.onclick = () => {
-    if (myMosaicLevel > 0) {
-      myMosaicLevel--;
-      updateMeterUI();
-      saveMyMosaic();
-    }
-  };
+meterDown.onclick = () => {
+  if (myMosaicLevel > 0) {
+    myMosaicLevel--;
+    myMosaicSize = mosaicSizes[myMosaicLevel]; // ← 追加
+    updateMeterUI();
+    saveMyMosaic();
+  }
+};
+
 
   updateMeterUI();
 
