@@ -108,7 +108,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄</button>
+  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -125,7 +125,6 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
    役割フラグ（最初に実行される）
 ========================================= */
 const isCaller = localStorage.getItem("isCaller") === "1";
-alert("isCaller = " + isCaller);
 
 /* =========================================
    Firebase
@@ -150,7 +149,6 @@ const targetUid = new URLSearchParams(location.search).get("target");
    callerUid（未定義エラー対策）
 ========================================= */
 let callerUid = isCaller ? myUid : targetUid;
-alert("① video.html load\nmyUid=" + myUid + "\ntargetUid=" + targetUid + "\ncallerUid=" + callerUid);
 
 /* =========================================
    モザイク同期
@@ -281,7 +279,6 @@ requestAnimationFrame(drawMosaic);
    発信側
 ========================================= */
 async function runCaller(callDoc, offerCandidates, answerCandidates) {
-  alert("runCaller開始 myUid=" + myUid);
   // ★ 親ドキュメントを確実に作成
   await db.collection("calls").doc(myUid).set({ createdAt: Date.now() }, { merge: true });
   await startCamera();
@@ -445,7 +442,7 @@ document.getElementById("reportBtn").onclick = async () => {
     .doc(targetUid)
     .set({ blockedAt: Date.now() });
 
-  alert("通報しました。このユーザーは自動的にブロックされました。");
+  alert("通報しました。");
   location.href = "profiles.html";
 };
 
@@ -474,7 +471,6 @@ let offerCandidates;
 let answerCandidates;
 
 if (isCaller) {
-  alert("② runCaller直前\nmyUid=" + myUid + "\ntargetUid=" + targetUid + "\ncallerUid=" + callerUid);
   callDoc = db.collection("calls").doc(targetUid);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
