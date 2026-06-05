@@ -100,7 +100,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄🔄</button>
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -131,17 +131,8 @@ const db = firebase.firestore();
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
-/* callerUid（★ここだけ修正） */
-let callerUid = isCaller ? targetUid : myUid;
-
-/* --- トップレベルで参照を一貫させる変数 --- */
-let callDoc = null;
-let offerCandidates = null;
-let answerCandidates = null;
-let unsubCallDoc = null;
-let unsubOfferCandidates = null;
-let unsubAnswerCandidates = null;
-let unsubRemoteMosaic = null;
+/* callerUid */
+let callerUid = isCaller ? myUid : targetUid;
 
 /* モザイク同期 */
 let myMosaicLevel = 5;
@@ -150,12 +141,18 @@ let remoteMosaicSize = 25;
 const mosaicSizes = [1, 10, 13, 16, 19, 25];
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
+const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
 function saveMyMosaic() {
-  try {
-    mosaicDoc.set({ size: myMosaicSize });
-  } catch (e) {}
+  mosaicDoc.set({ size: myMosaicSize });
 }
+
+remoteMosaicDoc.onSnapshot(snap => {
+  const d = snap.data();
+  if (d && typeof d.size === "number") {
+    remoteMosaicSize = d.size;
+  }
+});
 
 /* WebRTC */
 let pc = new RTCPeerConnection({
@@ -163,44 +160,24 @@ let pc = new RTCPeerConnection({
 });
 let localStream = null;
 
-/* カメラ開始（安全化） */
+/* カメラ開始 */
 let currentFacing = "user";
 
 async function startCamera() {
-  // 既存ストリームがあれば停止してクリア
-  if (localStream) {
-    try { localStream.getTracks().forEach(t => t.stop()); } catch(e) {}
-    localStream = null;
-  }
-
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: false
   });
-
   selfVideo.srcObject = localStream;
-
-  // video トラックを既存 sender に置き換えるか addTrack
-  const videoTrack = localStream.getVideoTracks()[0];
-  const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
-  if (sender) {
-    try { await sender.replaceTrack(videoTrack); } catch (e) { pc.addTrack(videoTrack, localStream); }
-  } else {
-    pc.addTrack(videoTrack, localStream);
-  }
-
-  // 自分のモザイク設定を確実に保存（初期化）
-  saveMyMosaic();
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 }
 
 /* カメラ切替＋再ネゴシエーション */
 async function renegotiate() {
   if (!callDoc) return;
-  try {
-    const offer = await pc.createOffer({ iceRestart: false });
-    await pc.setLocalDescription(offer);
-    await callDoc.update({ offer });
-  } catch (e) {}
+  const offer = await pc.createOffer({ iceRestart: false });
+  await pc.setLocalDescription(offer);
+  await callDoc.update({ offer });
 }
 
 async function switchCameraFunc() {
@@ -208,7 +185,7 @@ async function switchCameraFunc() {
 
   if (localStream) localStream.getTracks().forEach(t => t.stop());
 
-  // 小窓を一瞬隠す
+  // ★ 小窓を一瞬隠す
   selfVideo.style.visibility = "hidden";
   selfCanvas.style.visibility = "hidden";
 
@@ -221,19 +198,18 @@ async function switchCameraFunc() {
 
   selfVideo.onloadedmetadata = () => {
     drawMosaicSelf();
+
+    // ★ 映像サイズが確定した瞬間に表示
     selfVideo.style.visibility = "visible";
     selfCanvas.style.visibility = "visible";
   };
 
   const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
-  if (sender) {
-    try { await sender.replaceTrack(localStream.getVideoTracks()[0]); } catch (e) { /* ignore */ }
-  } else {
-    pc.addTrack(localStream.getVideoTracks()[0], localStream);
-  }
+  if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
 
   await renegotiate();
 }
+
 
 document.getElementById("switchCamera").onclick = switchCameraFunc;
 
@@ -279,141 +255,83 @@ function drawMosaic() {
 
   requestAnimationFrame(drawMosaic);
 }
-function drawMosaicSelf() {}
+function drawMosaicSelf() {
+  // self 側だけ即時更新したい場合のダミー呼び出し用
+}
 requestAnimationFrame(drawMosaic);
 
 /* 発信側 */
-async function runCaller(callDocParam, offerCandidatesParam, answerCandidatesParam) {
-  // callDocParam をトップレベルの callDoc に反映
-  callDoc = callDocParam;
-  offerCandidates = offerCandidatesParam;
-  answerCandidates = answerCandidatesParam;
-
+async function runCaller(callDoc, offerCandidates, answerCandidates) {
   await db.collection("calls").doc(myUid).set({ createdAt: Date.now() }, { merge: true });
   await startCamera();
 
   pc.onicecandidate = e => {
-    if (e.candidate) {
-      try { offerCandidates.add(e.candidate.toJSON()); } catch (err) {}
-    }
+    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
   };
 
-  try {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await callDoc.set({ offer, from: myUid });
-  } catch (e) {}
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await callDoc.set({ offer, from: myUid });
 
-  // 発信側の declined と answer を一元監視（戻り値を保存）
-  if (unsubCallDoc) { unsubCallDoc(); unsubCallDoc = null; }
-  unsubCallDoc = callDoc.onSnapshot(async snap => {
+  callDoc.onSnapshot(snap => {
     const d = snap.data();
-    if (!d) return;
     if (d?.declined) {
       alert("相手が出ませんでした。\nめげずに頑張ってね");
       location.href = "profiles.html";
     }
-    if (d?.answer && !pc.remoteDescription) {
-      try { await pc.setRemoteDescription(new RTCSessionDescription(d.answer)); } catch (e) {}
+  });
+
+  callDoc.onSnapshot(async snap => {
+    const data = snap.data();
+    if (data?.answer && !pc.currentRemoteDescription) {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     }
   });
 
-  // answerCandidates の監視（保存）
-  if (unsubAnswerCandidates) { unsubAnswerCandidates(); unsubAnswerCandidates = null; }
-  unsubAnswerCandidates = answerCandidates.onSnapshot(snap => {
+  answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
-        try { pc.addIceCandidate(new RTCIceCandidate(c.doc.data())); } catch (e) {}
-      }
+      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
     });
   });
 }
 
 /* 受信側（修正版） */
-async function runCallee(callDocParam, offerCandidatesParam, answerCandidatesParam) {
-  // callDocParam をトップレベルの callDoc に反映
-  callDoc = callDocParam;
-  offerCandidates = offerCandidatesParam;
-  answerCandidates = answerCandidatesParam;
-
+async function runCallee(callDoc, offerCandidates, answerCandidates) {
   await startCamera();
 
   pc.onicecandidate = e => {
-    if (e.candidate) {
-      try { answerCandidates.add(e.candidate.toJSON()); } catch (err) {}
-    }
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
   };
 
-  const callSnap = await callDoc.get();
-  const callData = callSnap.exists ? callSnap.data() : null;
-  if (callData && callData.offer) {
-    try { await pc.setRemoteDescription(new RTCSessionDescription(callData.offer)); } catch (e) {}
-  }
+  const callData = (await callDoc.get()).data();
+  await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
 
-  try {
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await callDoc.update({ answer });
-  } catch (e) {}
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await callDoc.update({ answer });
 
-  // offerCandidates の監視（保存）
-  if (unsubOfferCandidates) { unsubOfferCandidates(); unsubOfferCandidates = null; }
-  unsubOfferCandidates = offerCandidates.onSnapshot(snap => {
+  offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
-        try { pc.addIceCandidate(new RTCIceCandidate(c.doc.data())); } catch (e) {}
-      }
+      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
     });
   });
 
-  // カメラ切替後の新しい offer を処理（保存）
-  if (unsubCallDoc) { unsubCallDoc(); unsubCallDoc = null; }
-  unsubCallDoc = callDoc.onSnapshot(async snap => {
+  // ★ カメラ切替後の新しい offer を処理
+  callDoc.onSnapshot(async snap => {
     const data = snap.data();
     if (!data) return;
 
     if (data.offer && pc.signalingState === "stable") {
-      try {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-        const newAnswer = await pc.createAnswer();
-        await pc.setLocalDescription(newAnswer);
-        await callDoc.update({ answer: newAnswer });
-      } catch (e) {}
+      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      const newAnswer = await pc.createAnswer();
+      await pc.setLocalDescription(newAnswer);
+      await callDoc.update({ answer: newAnswer });
     }
   });
 }
 
-/* クリーンアップ関数 */
-async function cleanupAndExit() {
-  try {
-    if (unsubCallDoc) { unsubCallDoc(); unsubCallDoc = null; }
-    if (unsubOfferCandidates) { unsubOfferCandidates(); unsubOfferCandidates = null; }
-    if (unsubAnswerCandidates) { unsubAnswerCandidates(); unsubAnswerCandidates = null; }
-    if (unsubRemoteMosaic) { unsubRemoteMosaic(); unsubRemoteMosaic = null; }
-    if (callDoc) {
-      try { await db.collection("calls").doc(callerUid).delete(); } catch(e) {}
-      callDoc = null;
-    }
-  } catch(e) {}
-  try { localStorage.removeItem("isCaller"); } catch(e) {}
-  try { localStorage.removeItem("targetUid"); } catch(e) {}
-}
-
 /* ページ読み込み後 */
 window.addEventListener("load", async () => {
-
-  /* デバッグログ（必要ならコメントアウト） */
-  try {
-    console.log("LOAD video.html", { isCaller, myUid, targetUid, callerUid });
-    pc.oniceconnectionstatechange = () => console.log("ICE state:", pc.iceConnectionState);
-    pc.onsignalingstatechange = () => console.log("Signaling state:", pc.signalingState);
-    pc.onconnectionstatechange = () => console.log("Connection state:", pc.connectionState);
-    setInterval(() => {
-      console.log("remoteDesc:", !!pc.remoteDescription, "localDesc:", !!pc.localDescription,
-                  "senders:", pc.getSenders().map(s => s.track && s.track.kind),
-                  "tracks:", localStream ? localStream.getTracks().map(t => t.kind) : []);
-    }, 3000);
-  } catch (e) {}
 
   /* モザイクUI */
   const meterBar = document.getElementById("meterBar");
@@ -465,17 +383,17 @@ window.addEventListener("load", async () => {
 
   /* 自分が終了ボタンを押した時 */
   document.getElementById("endBtn").onclick = async () => {
-    isEndingMyself = true;
-    try { await db.collection("calls").doc(callerUid).set({ ended: true }, { merge: true }); } catch(e) {}
-    setTimeout(async () => {
-      try { await db.collection("calls").doc(callerUid).delete(); } catch(e) {}
-    }, 500);
+  isEndingMyself = true;
+  await db.collection("calls").doc(callerUid).set({ ended: true }, { merge: true });
+  // Firestore の通話データ削除（相手に通知が届いた後で OK）
+  setTimeout(async () => {
+    await db.collection("calls").doc(callerUid).delete();
+  }, 500);
+  localStorage.removeItem("isCaller");
+  localStorage.removeItem("targetUid");
+  document.getElementById("endPopupBg").style.display = "flex";
+};
 
-    // クリーンアップ
-    await cleanupAndExit();
-
-    document.getElementById("endPopupBg").style.display = "flex";
-  };
 
   /* 一覧に戻る */
   document.getElementById("backBtn").onclick = () => {
@@ -484,44 +402,40 @@ window.addEventListener("load", async () => {
 
   /* ブロック */
   document.getElementById("blockBtn").onclick = async () => {
-    try {
-      await db.collection("users")
-        .doc(myUid).collection("blocks")
-        .doc(targetUid)
-        .set({ blockedAt: Date.now() });
-    } catch (e) {}
+    await db.collection("users")
+      .doc(myUid).collection("blocks")
+      .doc(targetUid)
+      .set({ blockedAt: Date.now() });
+
     alert("ブロックしました。");
     location.href = "profiles.html";
   };
 
   /* 通報（通報 → 自動ブロック） */
   document.getElementById("reportBtn").onclick = async () => {
-    try {
-      const already = await db.collection("reports")
-        .doc(targetUid).collection("from").doc(myUid).get();
+    const already = await db.collection("reports")
+      .doc(targetUid).collection("from").doc(myUid).get();
 
-      if (!already.exists) {
-        await db.collection("reports")
-          .doc(targetUid).collection("from").doc(myUid)
-          .set({ reportedAt: Date.now() });
+    if (!already.exists) {
+      await db.collection("reports")
+        .doc(targetUid).collection("from").doc(myUid)
+        .set({ reportedAt: Date.now() });
 
-        await db.collection("reports").doc(targetUid)
-          .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
-      }
+      await db.collection("reports").doc(targetUid)
+        .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+    }
 
-      await db.collection("users")
-        .doc(myUid).collection("blocks")
-        .doc(targetUid)
-        .set({ blockedAt: Date.now() });
-    } catch (e) {}
+    await db.collection("users")
+      .doc(myUid).collection("blocks")
+      .doc(targetUid)
+      .set({ blockedAt: Date.now() });
 
     alert("通報しました。このユーザーは自動的にブロックされました。");
     location.href = "profiles.html";
   };
 
-  /* 相手が終了した時（戻り値を保存して二重登録を防ぐ） */
-  if (unsubCallDoc) { unsubCallDoc(); unsubCallDoc = null; }
-  unsubCallDoc = db.collection("calls").doc(callerUid).onSnapshot(snap => {
+  /* 相手が終了した時 */
+  db.collection("calls").doc(callerUid).onSnapshot(snap => {
     const d = snap.data();
     if (!d) return;
     if (d.ended && !isEndingMyself) {
@@ -529,31 +443,25 @@ window.addEventListener("load", async () => {
     }
   });
 
-  /* remote mosaic listener を targetUid があるときだけ登録 */
-  if (targetUid) {
-    const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
-    if (unsubRemoteMosaic) { unsubRemoteMosaic(); unsubRemoteMosaic = null; }
-    unsubRemoteMosaic = remoteMosaicDoc.onSnapshot(snap => {
-      const d = snap.data();
-      if (d && typeof d.size === "number") {
-        remoteMosaicSize = d.size;
-      }
-    });
-  }
-
   window.addEventListener("beforeunload", async () => {
     try {
-      await cleanupAndExit();
+      await db.collection("calls").doc(callerUid).delete();
     } catch (err) {}
+    localStorage.removeItem("isCaller");
+    localStorage.removeItem("targetUid");
   });
 
   /* 役割判定 */
+  let callDoc;
+  let offerCandidates;
+  let answerCandidates;
+
   if (isCaller) {
     callDoc = db.collection("calls").doc(targetUid);
     offerCandidates = callDoc.collection("offerCandidates");
     answerCandidates = callDoc.collection("answerCandidates");
     runCaller(callDoc, offerCandidates, answerCandidates);
-    try { localStorage.removeItem("isCaller"); } catch(e) {}
+    localStorage.removeItem("isCaller");
   } else {
     callDoc = db.collection("calls").doc(myUid);
     offerCandidates = callDoc.collection("offerCandidates");
