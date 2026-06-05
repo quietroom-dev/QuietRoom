@@ -11,14 +11,32 @@
 <style>
 body { margin:0; padding:12px; background:#000; color:#4aff4a; font-family:monospace; }
 
-/* ログイン偽装画面 */
+/* ログイン画面 */
 #loginBox { text-align:center; margin-top:40px; }
 
-/* 一覧 */
-#gridView { display:none; grid-template-columns:repeat(4, 1fr); gap:8px; }
-.card { background:#0a0a0a; border-radius:8px; padding:4px; border:1px solid #1f1f1f; cursor:pointer; }
-.card video { width:100%; aspect-ratio:4/3; background:#000; border-radius:4px; }
-.profile { font-size:11px; margin-top:4px; color:#4aff4a; }
+/* 一覧（8映像 × 横スワイプ） */
+#gridView {
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:8px;
+  width:100%;
+  height:calc(100vh - 20px);
+  overflow:hidden;
+  touch-action:pan-y;
+}
+
+.videoBox {
+  background:#0a0a0a;
+  border-radius:8px;
+  padding:4px;
+  border:1px solid #1f1f1f;
+}
+.videoBox video {
+  width:100%;
+  aspect-ratio:4/3;
+  background:#000;
+  border-radius:4px;
+}
 
 /* 全画面 */
 #fullscreenView {
@@ -34,9 +52,8 @@ body { margin:0; padding:12px; background:#000; color:#4aff4a; font-family:monos
 
 <body>
 
-<!-- ▼▼▼ 監視センター風ログイン画面 ▼▼▼ -->
+<!-- ▼▼▼ ログイン画面 ▼▼▼ -->
 <div id="loginBox">
-
   <h3 style="color:#4aff4a; font-weight:normal;">
     ── Security Operation Console ──
   </h3>
@@ -64,7 +81,7 @@ body { margin:0; padding:12px; background:#000; color:#4aff4a; font-family:monos
     [ERROR] 検証失敗：再試行してください
   </p>
 </div>
-<!-- ▲▲▲ 監視センター風ログイン画面 ▲▲▲ -->
+<!-- ▲▲▲ ログイン画面 ▲▲▲ -->
 
 <!-- 一覧 -->
 <div id="gridView"></div>
@@ -90,7 +107,7 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* ▼▼▼ ログイン（UID を書かない方式） ▼▼▼ */
+/* ▼▼▼ ログイン ▼▼▼ */
 async function login() {
   const input = document.getElementById("pass").value;
   const snaps = await db.collection("admins").get();
@@ -107,10 +124,86 @@ async function login() {
 }
 /* ▲▲▲ ログイン ▲▲▲ */
 
-/* ▼▼▼ 一覧用 PC ▼▼▼ */
-const listPCMap = new Map();
 
-function createListPC(docId, videoEl) {
+/* ▼▼▼ 一覧（8映像 × 横スワイプ） ▼▼▼ */
+let latestCallDocs = [];
+let page = 0;
+const pageSize = 8;
+let allVideoItems = []; // { docId, type, videoBox, videoEl }
+
+function renderPagedGrid() {
+  const wrap = document.getElementById("gridView");
+  wrap.innerHTML = "";
+
+  const start = page * pageSize;
+  const end = start + pageSize;
+  const items = allVideoItems.slice(start, end);
+
+  items.forEach(item => wrap.appendChild(item.videoBox));
+}
+
+function rebuildVideoList() {
+  allVideoItems = [];
+
+  latestCallDocs.forEach(doc => {
+    const d = doc.data();
+    const docId = doc.id;
+
+    /* caller 映像 */
+    {
+      const box = document.createElement("div");
+      box.className = "videoBox";
+
+      const v = document.createElement("video");
+      v.autoplay = true;
+      v.playsInline = true;
+      v.muted = true;
+
+      box.appendChild(v);
+
+      allVideoItems.push({ docId, type:"caller", videoBox:box, videoEl:v });
+      createDualPC(docId, "caller", v);
+
+      box.onclick = () => openFullscreen(docId, "caller");
+    }
+
+    /* callee 映像 */
+    {
+      const box = document.createElement("div");
+      box.className = "videoBox";
+
+      const v = document.createElement("video");
+      v.autoplay = true;
+      v.playsInline = true;
+      v.muted = true;
+
+      box.appendChild(v);
+
+      allVideoItems.push({ docId, type:"callee", videoBox:box, videoEl:v });
+      createDualPC(docId, "callee", v);
+
+      box.onclick = () => openFullscreen(docId, "callee");
+    }
+  });
+
+  renderPagedGrid();
+}
+
+/* 横スワイプ */
+let touchStartX = 0;
+document.addEventListener("touchstart", e => {
+  touchStartX = e.touches[0].clientX;
+});
+document.addEventListener("touchend", e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (dx < -50) { page++; renderPagedGrid(); }
+  if (dx > 50) { page = Math.max(0, page - 1); renderPagedGrid(); }
+});
+/* ▲▲▲ 一覧 ▲▲▲ */
+
+
+/* ▼▼▼ WebRTC（caller / callee 2映像） ▼▼▼ */
+function createDualPC(docId, type, videoEl) {
   const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
   pc.addTransceiver("video", { direction:"recvonly" });
   pc.ontrack = e => videoEl.srcObject = e.streams[0];
@@ -120,14 +213,19 @@ function createListPC(docId, videoEl) {
   const answerCandidates = callDoc.collection("answerCandidates");
 
   pc.onicecandidate = e => {
-    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+    if (!e.candidate) return;
+    if (type === "caller") {
+      answerCandidates.add(e.candidate.toJSON());
+    } else {
+      offerCandidates.add(e.candidate.toJSON());
+    }
   };
 
-  const unsubCall = callDoc.onSnapshot(async snap => {
+  callDoc.onSnapshot(async snap => {
     const d = snap.data();
-    if (!d) return;
-    if (d.ended) { cleanupListPC(docId); renderGrid(); return; }
-    if (d.offer && !pc.currentRemoteDescription) {
+    if (!d || !d.offer || d.ended) return;
+
+    if (pc.signalingState === "stable") {
       await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -135,42 +233,29 @@ function createListPC(docId, videoEl) {
     }
   });
 
-  const unsubOffer = offerCandidates.onSnapshot(snap => {
+  offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
+      if (c.type === "added" && type === "caller") {
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
   });
 
-  const unsubAnswer = answerCandidates.onSnapshot(snap => {
+  answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
+      if (c.type === "added" && type === "callee") {
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
   });
-
-  listPCMap.set(docId, {
-    pc,
-    videoEl,
-    unsub: () => { unsubCall(); unsubOffer(); unsubAnswer(); }
-  });
 }
+/* ▲▲▲ WebRTC ▲▲▲ */
 
-function cleanupListPC(docId) {
-  const item = listPCMap.get(docId);
-  if (!item) return;
-  item.unsub();
-  item.pc.close();
-  listPCMap.delete(docId);
-}
-/* ▲▲▲ 一覧用 PC ▲▲▲ */
 
-/* ▼▼▼ 全画面 PC ▼▼▼ */
+/* ▼▼▼ 全画面 ▼▼▼ */
 let fsPC = null;
 
-async function openFullscreen(docId) {
+async function openFullscreen(docId, type) {
   if (fsPC) fsPC.close();
 
   const videoEl = document.getElementById("fullscreenVideo");
@@ -186,21 +271,29 @@ async function openFullscreen(docId) {
   const answerCandidates = callDoc.collection("answerCandidates");
 
   pc.onicecandidate = e => {
-    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+    if (!e.candidate) return;
+    if (type === "caller") {
+      answerCandidates.add(e.candidate.toJSON());
+    } else {
+      offerCandidates.add(e.candidate.toJSON());
+    }
   };
 
-  const snap = await callDoc.get();
-  const d = snap.data();
-  if (!d || !d.offer || d.ended) return;
+  callDoc.onSnapshot(async snap => {
+    const d = snap.data();
+    if (!d || !d.offer || d.ended) return;
 
-  await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  await callDoc.update({ answer });
+    if (pc.signalingState === "stable") {
+      await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await callDoc.update({ answer });
+    }
+  });
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
+      if (c.type === "added" && type === "caller") {
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -208,7 +301,7 @@ async function openFullscreen(docId) {
 
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") {
+      if (c.type === "added" && type === "callee") {
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -222,9 +315,7 @@ async function openFullscreen(docId) {
   document.getElementById("gridView").style.display = "none";
   document.getElementById("fullscreenView").style.display = "flex";
 }
-/* ▲▲▲ 全画面 PC ▲▲▲ */
 
-/* ▼▼▼ UI ▼▼▼ */
 document.getElementById("audioToggle").onclick = () => {
   const v = document.getElementById("fullscreenVideo");
   v.muted = !v.muted;
@@ -237,47 +328,8 @@ document.getElementById("backToList").onclick = () => {
   document.getElementById("fullscreenView").style.display = "none";
   document.getElementById("gridView").style.display = "grid";
 };
-/* ▲▲▲ UI ▲▲▲ */
+/* ▲▲▲ 全画面 ▲▲▲ */
 
-/* ▼▼▼ 一覧描画 ▼▼▼ */
-let latestCallDocs = [];
-
-function renderGrid() {
-  const wrap = document.getElementById("gridView");
-  wrap.innerHTML = "";
-
-  latestCallDocs.forEach(doc => {
-    const d = doc.data();
-    const docId = doc.id;
-
-    const card = document.createElement("div");
-    card.className = "card";
-
-    const v = document.createElement("video");
-    v.autoplay = true;
-    v.playsInline = true;
-    v.muted = true;
-
-    const prof = document.createElement("div");
-    prof.className = "profile";
-    const from = d.from || d.callerUid || "?";
-    const to = d.to || d.calleeUid || docId;
-    prof.textContent = `${from} → ${to}`;
-
-    card.appendChild(v);
-    card.appendChild(prof);
-    wrap.appendChild(card);
-
-    if (!listPCMap.has(docId)) {
-      createListPC(docId, v);
-    } else {
-      listPCMap.get(docId).videoEl = v;
-    }
-
-    card.onclick = () => openFullscreen(docId);
-  });
-}
-/* ▲▲▲ 一覧描画 ▲▲▲ */
 
 /* ▼▼▼ calls 監視 ▼▼▼ */
 db.collection("calls").onSnapshot(snap => {
@@ -286,11 +338,11 @@ db.collection("calls").onSnapshot(snap => {
     const d = doc.data();
     if (!d) return;
     if (!d.offer) return;
-    if (d.ended) { cleanupListPC(doc.id); return; }
+    if (d.ended) return;
     docs.push(doc);
   });
   latestCallDocs = docs;
-  renderGrid();
+  rebuildVideoList();
 });
 /* ▲▲▲ calls 監視 ▲▲▲ */
 
