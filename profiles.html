@@ -191,6 +191,9 @@ db.collection("user")
    ▼ 通話開始（発信時チェックのみ）
 ========================================= */
 async function startCall(targetUid) {
+  if (window.unsubIncoming) {
+    try { window.unsubIncoming(); } catch(e) {}
+  }
 
   if (await isBlocked(myUid, targetUid)) {
     alert("このユーザーとは通話できません。");
@@ -254,7 +257,9 @@ async function showIncomingCall(fromUid) {
 }
 
 function acceptCall() {
-  if (window.unsubIncoming) window.unsubIncoming();
+  if (window.unsubIncoming) {
+    try { window.unsubIncoming(); } catch(e) {}
+  }
   incomingCall.style.display = "none";
   window.location.href = `video.html?target=${window._incomingFrom}`;
 }
