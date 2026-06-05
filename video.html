@@ -333,10 +333,7 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
 
 /* ページ読み込み後 */
 window.addEventListener("load", async () => {
-  // ★ profiles.html の着信リスナーを停止
-if (window.unsubIncoming) {
-  try { window.unsubIncoming(); } catch(e) {}
-}
+
   /* モザイクUI */
   const meterBar = document.getElementById("meterBar");
   const meterUp = document.getElementById("meterUp");
