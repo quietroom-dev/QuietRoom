@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -49,13 +50,11 @@ body { margin:0; padding:12px; background:#000; color:#4aff4a; font-family:monos
     [SYS] セッション維持のため検証コードを入力してください
   </div>
 
-  <!-- 実はパスワード入力欄 -->
   <input id="pass" type="password"
     placeholder="検証コード"
     style="padding:10px; width:240px; border-radius:4px; border:1px solid #4aff4a;
            background:#000; color:#4aff4a; margin-top:25px; font-family:monospace;">
 
-  <!-- ボタンに見えないボタン -->
   <button onclick="login()"
     style="margin-top:12px; padding:8px 18px; border:none; border-radius:4px;
            background:#0f0f0f; color:#4aff4a; font-size:12px; font-family:monospace;">
@@ -92,7 +91,7 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* ▼▼▼ ログイン（UID を書かない最強方式） ▼▼▼ */
+/* ▼▼▼ ログイン（UID を書かない方式） ▼▼▼ */
 async function login() {
   const input = document.getElementById("pass").value;
   const snaps = await db.collection("admins").get();
@@ -111,6 +110,7 @@ async function login() {
 
 /* ▼▼▼ 一覧用 PC ▼▼▼ */
 const listPCMap = new Map();
+
 function createListPC(docId, videoEl) {
   const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
   pc.addTransceiver("video", { direction:"recvonly" });
@@ -120,10 +120,13 @@ function createListPC(docId, videoEl) {
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
 
-  pc.onicecandidate = e => { if (e.candidate) answerCandidates.add(e.candidate.toJSON()); };
+  pc.onicecandidate = e => {
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+  };
 
   const unsubCall = callDoc.onSnapshot(async snap => {
-    const d = snap.data(); if (!d) return;
+    const d = snap.data();
+    if (!d) return;
     if (d.ended) { cleanupListPC(docId); renderGrid(); return; }
     if (d.offer && !pc.currentRemoteDescription) {
       await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
@@ -135,22 +138,39 @@ function createListPC(docId, videoEl) {
 
   const unsubOffer = offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      if (c.type === "added") {
+        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
     });
   });
 
-  listPCMap.set(docId, { pc, videoEl, unsub:()=>{unsubCall();unsubOffer();} });
+  const unsubAnswer = answerCandidates.onSnapshot(snap => {
+    snap.docChanges().forEach(c => {
+      if (c.type === "added") {
+        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
+    });
+  });
+
+  listPCMap.set(docId, {
+    pc,
+    videoEl,
+    unsub: () => { unsubCall(); unsubOffer(); unsubAnswer(); }
+  });
 }
 
 function cleanupListPC(docId) {
   const item = listPCMap.get(docId);
   if (!item) return;
-  item.unsub(); item.pc.close(); listPCMap.delete(docId);
+  item.unsub();
+  item.pc.close();
+  listPCMap.delete(docId);
 }
 /* ▲▲▲ 一覧用 PC ▲▲▲ */
 
 /* ▼▼▼ 全画面 PC ▼▼▼ */
 let fsPC = null;
+
 async function openFullscreen(docId) {
   if (fsPC) fsPC.close();
 
@@ -166,10 +186,13 @@ async function openFullscreen(docId) {
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
 
-  pc.onicecandidate = e => { if (e.candidate) answerCandidates.add(e.candidate.toJSON()); };
+  pc.onicecandidate = e => {
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+  };
 
   const snap = await callDoc.get();
-  const d = snap.data(); if (!d || !d.offer || d.ended) return;
+  const d = snap.data();
+  if (!d || !d.offer || d.ended) return;
 
   await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
   const answer = await pc.createAnswer();
@@ -178,7 +201,17 @@ async function openFullscreen(docId) {
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      if (c.type === "added") {
+        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
+    });
+  });
+
+  answerCandidates.onSnapshot(snap => {
+    snap.docChanges().forEach(c => {
+      if (c.type === "added") {
+        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
     });
   });
 
@@ -209,29 +242,38 @@ document.getElementById("backToList").onclick = () => {
 
 /* ▼▼▼ 一覧描画 ▼▼▼ */
 let latestCallDocs = [];
+
 function renderGrid() {
   const wrap = document.getElementById("gridView");
   wrap.innerHTML = "";
 
   latestCallDocs.forEach(doc => {
-    const d = doc.data(); const docId = doc.id;
+    const d = doc.data();
+    const docId = doc.id;
 
     const card = document.createElement("div");
     card.className = "card";
 
     const v = document.createElement("video");
-    v.autoplay = true; v.playsInline = true; v.muted = true;
+    v.autoplay = true;
+    v.playsInline = true;
+    v.muted = true;
 
     const prof = document.createElement("div");
     prof.className = "profile";
-    prof.textContent = `${d.from} → ${docId}`;
+    const from = d.from || d.callerUid || "?";
+    const to = d.to || d.calleeUid || docId;
+    prof.textContent = `${from} → ${to}`;
 
     card.appendChild(v);
     card.appendChild(prof);
     wrap.appendChild(card);
 
-    if (!listPCMap.has(docId)) createListPC(docId, v);
-    else listPCMap.get(docId).videoEl = v;
+    if (!listPCMap.has(docId)) {
+      createListPC(docId, v);
+    } else {
+      listPCMap.get(docId).videoEl = v;
+    }
 
     card.onclick = () => openFullscreen(docId);
   });
@@ -243,6 +285,7 @@ db.collection("calls").onSnapshot(snap => {
   const docs = [];
   snap.forEach(doc => {
     const d = doc.data();
+    if (!d) return;
     if (!d.offer) return;
     if (d.ended) { cleanupListPC(doc.id); return; }
     docs.push(doc);
@@ -255,3 +298,4 @@ db.collection("calls").onSnapshot(snap => {
 </script>
 </body>
 </html>
+```
