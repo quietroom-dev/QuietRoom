@@ -100,7 +100,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄🔄</button>
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -131,9 +131,7 @@ const db = firebase.firestore();
 const myUid = localStorage.getItem("myUid");
 const targetUid = new URLSearchParams(location.search).get("target");
 
-/* =========================================
-   ★ 修正：callerUid の正しい決定
-========================================= */
+/* callerUid（★ここだけ修正） */
 let callerUid = isCaller ? targetUid : myUid;
 
 /* モザイク同期 */
@@ -291,7 +289,7 @@ async function runCaller(callDoc, offerCandidates, answerCandidates) {
   });
 }
 
-/* 受信側 */
+/* 受信側（修正版） */
 async function runCallee(callDoc, offerCandidates, answerCandidates) {
   await startCamera();
 
@@ -380,14 +378,11 @@ window.addEventListener("load", async () => {
   document.getElementById("endBtn").onclick = async () => {
     isEndingMyself = true;
     await db.collection("calls").doc(callerUid).set({ ended: true }, { merge: true });
-
     setTimeout(async () => {
       await db.collection("calls").doc(callerUid).delete();
     }, 500);
-
     localStorage.removeItem("isCaller");
     localStorage.removeItem("targetUid");
-
     document.getElementById("endPopupBg").style.display = "flex";
   };
 
@@ -430,17 +425,12 @@ window.addEventListener("load", async () => {
     location.href = "profiles.html";
   };
 
-  /* =========================================
-     ★ 修正：相手が終了した時（delete は無視 & 二重発火防止）
-  ========================================== */
-  const unsubscribeEnd = db.collection("calls").doc(callerUid).onSnapshot(snap => {
+  /* 相手が終了した時（元コードのまま） */
+  db.collection("calls").doc(callerUid).onSnapshot(snap => {
     const d = snap.data();
-
-    if (!d) return;  // delete の場合は終了扱いにしない
-
+    if (!d) return;
     if (d.ended && !isEndingMyself) {
       document.getElementById("endPopupBg").style.display = "flex";
-      unsubscribeEnd();  // 二度発火防止
     }
   });
 
@@ -467,3 +457,24 @@ window.addEventListener("load", async () => {
     callDoc = db.collection("calls").doc(myUid);
     offerCandidates = callDoc.collection("offerCandidates");
     answerCandidates = callDoc.collection("answerCandidates");
+    runCallee(callDoc, offerCandidates, answerCandidates);
+  }
+});
+</script>
+
+<!-- 通話終了ポップアップ -->
+<div id="endPopupBg">
+  <div id="endPopupBox">
+    <p>通話が終了しました。</p>
+    <button id="backBtn" class="main-btn">一覧に戻る</button>
+    <div class="sub-btns">
+      <button id="blockBtn" class="sub-btn">⛔ ブロック</button>
+      <button id="reportBtn" class="sub-btn">🚨 通報</button>
+    </div>
+        </div>
+  </div>
+</div>
+
+</body>
+</html>
+
