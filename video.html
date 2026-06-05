@@ -108,7 +108,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -353,24 +353,21 @@ window.addEventListener("load", async () => {
     });
   }
 
-meterUp.onclick = () => {
-  if (myMosaicLevel < 5) {
-    myMosaicLevel++;
-    myMosaicSize = mosaicSizes[myMosaicLevel]; // ← 追加
-    updateMeterUI();
-    saveMyMosaic();
-  }
-};
+  meterUp.onclick = () => {
+    if (myMosaicLevel < 5) {
+      myMosaicLevel++;
+      updateMeterUI();
+      saveMyMosaic();
+    }
+  };
 
-meterDown.onclick = () => {
-  if (myMosaicLevel > 0) {
-    myMosaicLevel--;
-    myMosaicSize = mosaicSizes[myMosaicLevel]; // ← 追加
-    updateMeterUI();
-    saveMyMosaic();
-  }
-};
-
+  meterDown.onclick = () => {
+    if (myMosaicLevel > 0) {
+      myMosaicLevel--;
+      updateMeterUI();
+      saveMyMosaic();
+    }
+  };
 
   updateMeterUI();
 
