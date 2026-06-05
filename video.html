@@ -186,14 +186,23 @@ async function switchCameraFunc() {
 
   if (localStream) localStream.getTracks().forEach(t => t.stop());
 
+  // ★ 小窓を一瞬隠す
+  selfVideo.style.visibility = "hidden";
+  selfCanvas.style.visibility = "hidden";
+
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: false
   });
 
   selfVideo.srcObject = localStream;
+
   selfVideo.onloadedmetadata = () => {
     drawMosaicSelf();
+
+    // ★ 映像サイズが確定した瞬間に表示
+    selfVideo.style.visibility = "visible";
+    selfCanvas.style.visibility = "visible";
   };
 
   const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
@@ -201,6 +210,7 @@ async function switchCameraFunc() {
 
   await renegotiate();
 }
+
 
 document.getElementById("switchCamera").onclick = switchCameraFunc;
 
