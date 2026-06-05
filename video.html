@@ -330,6 +330,19 @@ async function runCallee(callDoc, offerCandidates, answerCandidates) {
   await pc.setLocalDescription(answer);
   await callDoc.update({ answer });
 
+  callDoc.onSnapshot(async snap => {
+  const data = snap.data();
+  if (!data) return;
+
+  // ★ 新しい offer が来たら再ネゴシエーション
+  if (data.offer && pc.signalingState === "stable") {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await callDoc.update({ answer });
+  }
+});
+
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
