@@ -100,7 +100,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄👀</button>
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
   <button class="icon-btn" id="endBtn">✕</button>
 </div>
 
@@ -361,6 +361,11 @@ async function setupSignaling() {
 
 /* ページ読み込み後 */
 window.addEventListener("load", async () => {
+  // ★ 毎回モザイクレベルを最大に初期化
+myMosaicLevel = 5;
+myMosaicSize = mosaicSizes[myMosaicLevel];
+saveMyMosaic();
+updateMeterUI();
 
   /* モザイクUI */
   const meterBar = document.getElementById("meterBar");
