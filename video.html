@@ -383,12 +383,17 @@ window.addEventListener("load", async () => {
 
   /* 自分が終了ボタンを押した時 */
   document.getElementById("endBtn").onclick = async () => {
-    isEndingMyself = true;
+  isEndingMyself = true;
+  await db.collection("calls").doc(callerUid).set({ ended: true }, { merge: true });
+  // Firestore の通話データ削除（相手に通知が届いた後で OK）
+  setTimeout(async () => {
     await db.collection("calls").doc(callerUid).delete();
-    localStorage.removeItem("isCaller");
-    localStorage.removeItem("targetUid");
-    document.getElementById("endPopupBg").style.display = "flex";
-  };
+  }, 500);
+  localStorage.removeItem("isCaller");
+  localStorage.removeItem("targetUid");
+  document.getElementById("endPopupBg").style.display = "flex";
+};
+
 
   /* 一覧に戻る */
   document.getElementById("backBtn").onclick = () => {
