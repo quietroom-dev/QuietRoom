@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -134,6 +135,15 @@ const targetUid = new URLSearchParams(location.search).get("target");
 /* callerUid（★ここだけ修正） */
 let callerUid = isCaller ? targetUid : myUid;
 
+/* --- トップレベルで参照を一貫させる変数 --- */
+let callDoc = null;
+let offerCandidates = null;
+let answerCandidates = null;
+let unsubCallDoc = null;
+let unsubOfferCandidates = null;
+let unsubAnswerCandidates = null;
+let unsubRemoteMosaic = null;
+
 /* モザイク同期 */
 let myMosaicLevel = 5;
 let myMosaicSize = 25;
@@ -141,18 +151,12 @@ let remoteMosaicSize = 25;
 const mosaicSizes = [1, 10, 13, 16, 19, 25];
 
 const mosaicDoc = db.collection("mosaic").doc(myUid);
-const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
 function saveMyMosaic() {
-  mosaicDoc.set({ size: myMosaicSize });
+  try {
+    mosaicDoc.set({ size: myMosaicSize });
+  } catch (e) {}
 }
-
-remoteMosaicDoc.onSnapshot(snap => {
-  const d = snap.data();
-  if (d && typeof d.size === "number") {
-    remoteMosaicSize = d.size;
-  }
-});
 
 /* WebRTC */
 let pc = new RTCPeerConnection({
@@ -160,24 +164,44 @@ let pc = new RTCPeerConnection({
 });
 let localStream = null;
 
-/* カメラ開始 */
+/* カメラ開始（安全化） */
 let currentFacing = "user";
 
 async function startCamera() {
+  // 既存ストリームがあれば停止してクリア
+  if (localStream) {
+    try { localStream.getTracks().forEach(t => t.stop()); } catch(e) {}
+    localStream = null;
+  }
+
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: false
   });
+
   selfVideo.srcObject = localStream;
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  // video トラックを既存 sender に置き換えるか addTrack
+  const videoTrack = localStream.getVideoTracks()[0];
+  const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
+  if (sender) {
+    try { await sender.replaceTrack(videoTrack); } catch (e) { pc.addTrack(videoTrack, localStream); }
+  } else {
+    pc.addTrack(videoTrack, localStream);
+  }
+
+  // 自分のモザイク設定を確実に保存（初期化）
+  saveMyMosaic();
 }
 
 /* カメラ切替＋再ネゴシエーション */
 async function renegotiate() {
   if (!callDoc) return;
-  const offer = await pc.createOffer({ iceRestart: false });
-  await pc.setLocalDescription(offer);
-  await callDoc.update({ offer });
+  try {
+    const offer = await pc.createOffer({ iceRestart: false });
+    await pc.setLocalDescription(offer);
+    await callDoc.update({ offer });
+  } catch (e) {}
 }
 
 async function switchCameraFunc() {
@@ -185,6 +209,7 @@ async function switchCameraFunc() {
 
   if (localStream) localStream.getTracks().forEach(t => t.stop());
 
+  // 小窓を一瞬隠す
   selfVideo.style.visibility = "hidden";
   selfCanvas.style.visibility = "hidden";
 
@@ -202,7 +227,11 @@ async function switchCameraFunc() {
   };
 
   const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
-  if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+  if (sender) {
+    try { await sender.replaceTrack(localStream.getVideoTracks()[0]); } catch (e) { /* ignore */ }
+  } else {
+    pc.addTrack(localStream.getVideoTracks()[0], localStream);
+  }
 
   await renegotiate();
 }
@@ -255,76 +284,137 @@ function drawMosaicSelf() {}
 requestAnimationFrame(drawMosaic);
 
 /* 発信側 */
-async function runCaller(callDoc, offerCandidates, answerCandidates) {
+async function runCaller(callDocParam, offerCandidatesParam, answerCandidatesParam) {
+  // callDocParam をトップレベルの callDoc に反映
+  callDoc = callDocParam;
+  offerCandidates = offerCandidatesParam;
+  answerCandidates = answerCandidatesParam;
+
   await db.collection("calls").doc(myUid).set({ createdAt: Date.now() }, { merge: true });
   await startCamera();
 
   pc.onicecandidate = e => {
-    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
+    if (e.candidate) {
+      try { offerCandidates.add(e.candidate.toJSON()); } catch (err) {}
+    }
   };
 
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  await callDoc.set({ offer, from: myUid });
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await callDoc.set({ offer, from: myUid });
+  } catch (e) {}
 
-  callDoc.onSnapshot(snap => {
+  // 発信側の declined と answer を一元監視（戻り値を保存）
+  if (unsubCallDoc) { unsubCallDoc(); unsubCallDoc = null; }
+  unsubCallDoc = callDoc.onSnapshot(async snap => {
     const d = snap.data();
+    if (!d) return;
     if (d?.declined) {
       alert("相手が出ませんでした。\nめげずに頑張ってね");
       location.href = "profiles.html";
     }
-  });
-
-  callDoc.onSnapshot(async snap => {
-    const data = snap.data();
-    if (data?.answer && !pc.currentRemoteDescription) {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    if (d?.answer && !pc.remoteDescription) {
+      try { await pc.setRemoteDescription(new RTCSessionDescription(d.answer)); } catch (e) {}
     }
   });
 
-  answerCandidates.onSnapshot(snap => {
+  // answerCandidates の監視（保存）
+  if (unsubAnswerCandidates) { unsubAnswerCandidates(); unsubAnswerCandidates = null; }
+  unsubAnswerCandidates = answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      if (c.type === "added") {
+        try { pc.addIceCandidate(new RTCIceCandidate(c.doc.data())); } catch (e) {}
+      }
     });
   });
 }
 
 /* 受信側（修正版） */
-async function runCallee(callDoc, offerCandidates, answerCandidates) {
+async function runCallee(callDocParam, offerCandidatesParam, answerCandidatesParam) {
+  // callDocParam をトップレベルの callDoc に反映
+  callDoc = callDocParam;
+  offerCandidates = offerCandidatesParam;
+  answerCandidates = answerCandidatesParam;
+
   await startCamera();
 
   pc.onicecandidate = e => {
-    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+    if (e.candidate) {
+      try { answerCandidates.add(e.candidate.toJSON()); } catch (err) {}
+    }
   };
 
-  const callData = (await callDoc.get()).data();
-  await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+  const callSnap = await callDoc.get();
+  const callData = callSnap.exists ? callSnap.data() : null;
+  if (callData && callData.offer) {
+    try { await pc.setRemoteDescription(new RTCSessionDescription(callData.offer)); } catch (e) {}
+  }
 
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  await callDoc.update({ answer });
+  try {
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await callDoc.update({ answer });
+  } catch (e) {}
 
-  offerCandidates.onSnapshot(snap => {
+  // offerCandidates の監視（保存）
+  if (unsubOfferCandidates) { unsubOfferCandidates(); unsubOfferCandidates = null; }
+  unsubOfferCandidates = offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added") pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      if (c.type === "added") {
+        try { pc.addIceCandidate(new RTCIceCandidate(c.doc.data())); } catch (e) {}
+      }
     });
   });
 
-  callDoc.onSnapshot(async snap => {
+  // カメラ切替後の新しい offer を処理（保存）
+  if (unsubCallDoc) { unsubCallDoc(); unsubCallDoc = null; }
+  unsubCallDoc = callDoc.onSnapshot(async snap => {
     const data = snap.data();
     if (!data) return;
 
     if (data.offer && pc.signalingState === "stable") {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-      const newAnswer = await pc.createAnswer();
-      await pc.setLocalDescription(newAnswer);
-      await callDoc.update({ answer: newAnswer });
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const newAnswer = await pc.createAnswer();
+        await pc.setLocalDescription(newAnswer);
+        await callDoc.update({ answer: newAnswer });
+      } catch (e) {}
     }
   });
 }
 
+/* クリーンアップ関数 */
+async function cleanupAndExit() {
+  try {
+    if (unsubCallDoc) { unsubCallDoc(); unsubCallDoc = null; }
+    if (unsubOfferCandidates) { unsubOfferCandidates(); unsubOfferCandidates = null; }
+    if (unsubAnswerCandidates) { unsubAnswerCandidates(); unsubAnswerCandidates = null; }
+    if (unsubRemoteMosaic) { unsubRemoteMosaic(); unsubRemoteMosaic = null; }
+    if (callDoc) {
+      try { await db.collection("calls").doc(callerUid).delete(); } catch(e) {}
+      callDoc = null;
+    }
+  } catch(e) {}
+  try { localStorage.removeItem("isCaller"); } catch(e) {}
+  try { localStorage.removeItem("targetUid"); } catch(e) {}
+}
+
 /* ページ読み込み後 */
 window.addEventListener("load", async () => {
+
+  /* デバッグログ（必要ならコメントアウト） */
+  try {
+    console.log("LOAD video.html", { isCaller, myUid, targetUid, callerUid });
+    pc.oniceconnectionstatechange = () => console.log("ICE state:", pc.iceConnectionState);
+    pc.onsignalingstatechange = () => console.log("Signaling state:", pc.signalingState);
+    pc.onconnectionstatechange = () => console.log("Connection state:", pc.connectionState);
+    setInterval(() => {
+      console.log("remoteDesc:", !!pc.remoteDescription, "localDesc:", !!pc.localDescription,
+                  "senders:", pc.getSenders().map(s => s.track && s.track.kind),
+                  "tracks:", localStream ? localStream.getTracks().map(t => t.kind) : []);
+    }, 3000);
+  } catch (e) {}
 
   /* モザイクUI */
   const meterBar = document.getElementById("meterBar");
@@ -377,12 +467,14 @@ window.addEventListener("load", async () => {
   /* 自分が終了ボタンを押した時 */
   document.getElementById("endBtn").onclick = async () => {
     isEndingMyself = true;
-    await db.collection("calls").doc(callerUid).set({ ended: true }, { merge: true });
+    try { await db.collection("calls").doc(callerUid).set({ ended: true }, { merge: true }); } catch(e) {}
     setTimeout(async () => {
-      await db.collection("calls").doc(callerUid).delete();
+      try { await db.collection("calls").doc(callerUid).delete(); } catch(e) {}
     }, 500);
-    localStorage.removeItem("isCaller");
-    localStorage.removeItem("targetUid");
+
+    // クリーンアップ
+    await cleanupAndExit();
+
     document.getElementById("endPopupBg").style.display = "flex";
   };
 
@@ -393,40 +485,44 @@ window.addEventListener("load", async () => {
 
   /* ブロック */
   document.getElementById("blockBtn").onclick = async () => {
-    await db.collection("users")
-      .doc(myUid).collection("blocks")
-      .doc(targetUid)
-      .set({ blockedAt: Date.now() });
-
+    try {
+      await db.collection("users")
+        .doc(myUid).collection("blocks")
+        .doc(targetUid)
+        .set({ blockedAt: Date.now() });
+    } catch (e) {}
     alert("ブロックしました。");
     location.href = "profiles.html";
   };
 
   /* 通報（通報 → 自動ブロック） */
   document.getElementById("reportBtn").onclick = async () => {
-    const already = await db.collection("reports")
-      .doc(targetUid).collection("from").doc(myUid).get();
+    try {
+      const already = await db.collection("reports")
+        .doc(targetUid).collection("from").doc(myUid).get();
 
-    if (!already.exists) {
-      await db.collection("reports")
-        .doc(targetUid).collection("from").doc(myUid)
-        .set({ reportedAt: Date.now() });
+      if (!already.exists) {
+        await db.collection("reports")
+          .doc(targetUid).collection("from").doc(myUid)
+          .set({ reportedAt: Date.now() });
 
-      await db.collection("reports").doc(targetUid)
-        .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
-    }
+        await db.collection("reports").doc(targetUid)
+          .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+      }
 
-    await db.collection("users")
-      .doc(myUid).collection("blocks")
-      .doc(targetUid)
-      .set({ blockedAt: Date.now() });
+      await db.collection("users")
+        .doc(myUid).collection("blocks")
+        .doc(targetUid)
+        .set({ blockedAt: Date.now() });
+    } catch (e) {}
 
     alert("通報しました。このユーザーは自動的にブロックされました。");
     location.href = "profiles.html";
   };
 
-  /* 相手が終了した時（元コードのまま） */
-  db.collection("calls").doc(callerUid).onSnapshot(snap => {
+  /* 相手が終了した時（戻り値を保存して二重登録を防ぐ） */
+  if (unsubCallDoc) { unsubCallDoc(); unsubCallDoc = null; }
+  unsubCallDoc = db.collection("calls").doc(callerUid).onSnapshot(snap => {
     const d = snap.data();
     if (!d) return;
     if (d.ended && !isEndingMyself) {
@@ -434,25 +530,31 @@ window.addEventListener("load", async () => {
     }
   });
 
+  /* remote mosaic listener を targetUid があるときだけ登録 */
+  if (targetUid) {
+    const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
+    if (unsubRemoteMosaic) { unsubRemoteMosaic(); unsubRemoteMosaic = null; }
+    unsubRemoteMosaic = remoteMosaicDoc.onSnapshot(snap => {
+      const d = snap.data();
+      if (d && typeof d.size === "number") {
+        remoteMosaicSize = d.size;
+      }
+    });
+  }
+
   window.addEventListener("beforeunload", async () => {
     try {
-      await db.collection("calls").doc(callerUid).delete();
+      await cleanupAndExit();
     } catch (err) {}
-    localStorage.removeItem("isCaller");
-    localStorage.removeItem("targetUid");
   });
 
   /* 役割判定 */
-  let callDoc;
-  let offerCandidates;
-  let answerCandidates;
-
   if (isCaller) {
     callDoc = db.collection("calls").doc(targetUid);
     offerCandidates = callDoc.collection("offerCandidates");
     answerCandidates = callDoc.collection("answerCandidates");
     runCaller(callDoc, offerCandidates, answerCandidates);
-    localStorage.removeItem("isCaller");
+    try { localStorage.removeItem("isCaller"); } catch(e) {}
   } else {
     callDoc = db.collection("calls").doc(myUid);
     offerCandidates = callDoc.collection("offerCandidates");
@@ -471,10 +573,9 @@ window.addEventListener("load", async () => {
       <button id="blockBtn" class="sub-btn">⛔ ブロック</button>
       <button id="reportBtn" class="sub-btn">🚨 通報</button>
     </div>
-        </div>
   </div>
 </div>
 
 </body>
 </html>
-
+```
