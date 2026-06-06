@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -132,6 +131,32 @@ async function login() {
 /* ▲▲▲ ログイン ▲▲▲ */
 
 
+/* ▼▼▼ キャッシュ ▼▼▼ */
+const profileCache = new Map();
+const reportCache  = new Map();
+
+async function getProfile(uid) {
+  if (!uid) return null;
+  if (profileCache.has(uid)) return profileCache.get(uid);
+
+  const snap = await db.collection("user").doc(uid).get();
+  const data = snap.exists ? snap.data() : null;
+  profileCache.set(uid, data);
+  return data;
+}
+
+async function getReportCount(uid) {
+  if (!uid) return 0;
+  if (reportCache.has(uid)) return reportCache.get(uid);
+
+  const snap = await db.collection("reports").doc(uid).get();
+  const count = snap.exists ? (snap.data().count || 0) : 0;
+  reportCache.set(uid, count);
+  return count;
+}
+/* ▲▲▲ キャッシュ ▲▲▲ */
+
+
 /* ▼▼▼ 一覧（8映像 × 横スワイプ） ▼▼▼ */
 let latestCallDocs = [];
 let page = 0;
@@ -159,18 +184,12 @@ async function rebuildVideoList() {
     const fromUid = d.from || d.callerUid;
     const toUid   = d.to   || d.calleeUid;
 
-    // ▼ Firestore からプロフィール取得
-    const fromSnap = fromUid ? await db.collection("user").doc(fromUid).get() : null;
-    const toSnap   = toUid   ? await db.collection("user").doc(toUid).get()   : null;
-    const fromProf = fromSnap && fromSnap.exists ? fromSnap.data() : null;
-    const toProf   = toSnap   && toSnap.exists   ? toSnap.data()   : null;
-
-    // ▼ 通報数
-    const fromRepSnap = fromUid ? await db.collection("reports").doc(fromUid).get() : null;
-    const toRepSnap   = toUid   ? await db.collection("reports").doc(toUid).get()   : null;
-
-    const fromRep = fromRepSnap && fromRepSnap.exists ? fromRepSnap.data().count || 0 : 0;
-    const toRep   = toRepSnap   && toRepSnap.exists   ? toRepSnap.data().count   || 0 : 0;
+    const [fromProf, toProf, fromRep, toRep] = await Promise.all([
+      getProfile(fromUid),
+      getProfile(toUid),
+      getReportCount(fromUid),
+      getReportCount(toUid)
+    ]);
 
     /* ▼ caller 映像 */
     {
@@ -245,7 +264,6 @@ async function rebuildVideoList() {
     }
   }
 
-  // ページが範囲外になっていたら補正
   const maxPage = allVideoItems.length > 0 ? Math.floor((allVideoItems.length - 1) / pageSize) : 0;
   if (page > maxPage) page = maxPage;
 
@@ -285,7 +303,6 @@ function createDualPC(docId, type, videoEl) {
 
   pc.onicecandidate = e => {
     if (!e.candidate) return;
-    // 正しい向きに送る
     if (type === "caller") {
       // caller 映像 → offerCandidates に管理者 ICE
       offerCandidates.add(e.candidate.toJSON());
@@ -310,8 +327,6 @@ function createDualPC(docId, type, videoEl) {
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") {
-        // 発信側 ICE（offerCandidates）は callee が読むのが本来だが、
-        // 管理者はどちらの映像も recvonly なので、そのまま追加
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -348,7 +363,6 @@ async function openFullscreen(docId, type) {
 
   pc.onicecandidate = e => {
     if (!e.candidate) return;
-    // 一覧と同じく向きを修正
     if (type === "caller") {
       offerCandidates.add(e.candidate.toJSON());
     } else {
@@ -426,4 +440,3 @@ db.collection("calls").onSnapshot(snap => {
 </script>
 </body>
 </html>
-```
