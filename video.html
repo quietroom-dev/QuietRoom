@@ -199,7 +199,6 @@ async function setupAdminMonitor() {
     ended: false
   }, { merge: true });
 
-  // 管理者からの ICE
   adminAnswerCandidates.onSnapshot(s => {
     s.docChanges().forEach(c => {
       if (c.type === "added") {
@@ -208,7 +207,6 @@ async function setupAdminMonitor() {
     });
   });
 
-  // 管理者からの answer
   adminCallDoc.onSnapshot(async s => {
     const d = s.data();
     if (!d) return;
@@ -232,7 +230,7 @@ async function startCamera() {
   selfVideo.srcObject = localStream;
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-  // カメラが取れたら管理者用の adminCalls も開始
+  // ★ カメラが取れたら管理者用の adminCalls も開始
   await setupAdminMonitor();
 }
 
@@ -355,7 +353,6 @@ async function startAsCaller() {
 /* ② 全員：Firestore から読み取り、役割確定＋シグナリング開始 */
 async function setupSignaling() {
   if (!callDoc) {
-    // 発信者でなければ、自分のUIDを callee とみなす
     callDoc = db.collection("calls").doc(myUid);
     offerCandidates = callDoc.collection("offerCandidates");
     answerCandidates = callDoc.collection("answerCandidates");
@@ -370,7 +367,7 @@ async function setupSignaling() {
 
   // 自分が発信者側
   if (callerUid === myUid) {
-    // answer を待つ
+
     callDoc.onSnapshot(async s => {
       const d = s.data();
       if (d?.answer && !pc.currentRemoteDescription) {
@@ -378,7 +375,6 @@ async function setupSignaling() {
       }
     });
 
-    // 相手の ICE
     answerCandidates.onSnapshot(s => {
       s.docChanges().forEach(c => {
         if (c.type === "added") {
@@ -389,7 +385,8 @@ async function setupSignaling() {
 
   // 自分が着信者側
   } else if (calleeUid === myUid) {
-    await startCamera();
+
+    await startCamera();  // ★ 管理者用 adminCalls もここで開始される
 
     pc.onicecandidate = e => {
       if (e.candidate) answerCandidates.add(e.candidate.toJSON());
@@ -401,7 +398,6 @@ async function setupSignaling() {
     await pc.setLocalDescription(answer);
     await callDoc.update({ answer });
 
-    // 発信者の ICE
     offerCandidates.onSnapshot(s => {
       s.docChanges().forEach(c => {
         if (c.type === "added") {
@@ -410,7 +406,6 @@ async function setupSignaling() {
       });
     });
 
-    // カメラ切替などで新しい offer が来た場合
     callDoc.onSnapshot(async s => {
       const d = s.data();
       if (!d) return;
@@ -444,7 +439,6 @@ window.addEventListener("load", async () => {
     });
   }
 
-  // 毎回モザイクレベルを最大に初期化
   myMosaicLevel = 5;
   myMosaicSize = mosaicSizes[myMosaicLevel];
   saveMyMosaic();
@@ -470,7 +464,7 @@ window.addEventListener("load", async () => {
 
   updateMeterUI();
 
-  /* パトロール通知 */
+    /* パトロール通知 */
   function showPatrolMessage() {
     const el = document.getElementById("patrolMsg");
     el.style.display = "block";
@@ -484,18 +478,23 @@ window.addEventListener("load", async () => {
   /* 自分が終了ボタンを押した時 */
   document.getElementById("endBtn").onclick = async () => {
     isEndingMyself = true;
+
+    /* calls 側を終了 */
     if (callDoc) {
       await callDoc.set({ ended: true }, { merge: true });
       setTimeout(async () => {
         try { await callDoc.delete(); } catch (e) {}
       }, 500);
     }
+
+    /* ★ adminCalls 側も終了 */
     if (adminCallDoc) {
       await adminCallDoc.set({ ended: true }, { merge: true });
       setTimeout(async () => {
         try { await adminCallDoc.delete(); } catch (e) {}
       }, 500);
     }
+
     localStorage.removeItem("isCaller");
     localStorage.removeItem("targetUid");
     document.getElementById("endPopupBg").style.display = "flex";
@@ -552,13 +551,16 @@ window.addEventListener("load", async () => {
     });
   }
 
+  /* ページ離脱時のクリーンアップ */
   window.addEventListener("beforeunload", async () => {
     try {
       if (callDoc) await callDoc.delete();
     } catch (err) {}
+
     try {
       if (adminCallDoc) await adminCallDoc.delete();
     } catch (err) {}
+
     localStorage.removeItem("isCaller");
     localStorage.removeItem("targetUid");
   });
@@ -566,8 +568,6 @@ window.addEventListener("load", async () => {
   /* 役割に応じた初期処理 */
   if (isCaller) {
     await startAsCaller();
-  } else {
-    // 着信者側はここでは何もしない（setupSignaling 内で startCamera）
   }
 
   await setupSignaling();
@@ -589,3 +589,4 @@ window.addEventListener("load", async () => {
 
 </body>
 </html>
+
