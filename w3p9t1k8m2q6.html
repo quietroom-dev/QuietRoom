@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -159,15 +160,17 @@ async function rebuildVideoList() {
     const toUid   = d.to   || d.calleeUid;
 
     // ▼ Firestore からプロフィール取得
-    const fromProf = fromUid ? (await db.collection("user").doc(fromUid).get()).data() : null;
-    const toProf   = toUid   ? (await db.collection("user").doc(toUid).get()).data()   : null;
+    const fromSnap = fromUid ? await db.collection("user").doc(fromUid).get() : null;
+    const toSnap   = toUid   ? await db.collection("user").doc(toUid).get()   : null;
+    const fromProf = fromSnap && fromSnap.exists ? fromSnap.data() : null;
+    const toProf   = toSnap   && toSnap.exists   ? toSnap.data()   : null;
 
     // ▼ 通報数
     const fromRepSnap = fromUid ? await db.collection("reports").doc(fromUid).get() : null;
     const toRepSnap   = toUid   ? await db.collection("reports").doc(toUid).get()   : null;
 
-    const fromRep = fromRepSnap?.exists ? fromRepSnap.data().count || 0 : 0;
-    const toRep   = toRepSnap?.exists   ? toRepSnap.data().count   || 0 : 0;
+    const fromRep = fromRepSnap && fromRepSnap.exists ? fromRepSnap.data().count || 0 : 0;
+    const toRep   = toRepSnap   && toRepSnap.exists   ? toRepSnap.data().count   || 0 : 0;
 
     /* ▼ caller 映像 */
     {
@@ -242,6 +245,10 @@ async function rebuildVideoList() {
     }
   }
 
+  // ページが範囲外になっていたら補正
+  const maxPage = allVideoItems.length > 0 ? Math.floor((allVideoItems.length - 1) / pageSize) : 0;
+  if (page > maxPage) page = maxPage;
+
   renderPagedGrid();
 }
 
@@ -252,8 +259,16 @@ document.addEventListener("touchstart", e => {
 });
 document.addEventListener("touchend", e => {
   const dx = e.changedTouches[0].clientX - touchStartX;
-  if (dx < -50) { page++; renderPagedGrid(); }
-  if (dx > 50) { page = Math.max(0, page - 1); renderPagedGrid(); }
+  if (dx < -50) {
+    page++;
+    const maxPage = allVideoItems.length > 0 ? Math.floor((allVideoItems.length - 1) / pageSize) : 0;
+    page = Math.min(page, maxPage);
+    renderPagedGrid();
+  }
+  if (dx > 50) {
+    page = Math.max(0, page - 1);
+    renderPagedGrid();
+  }
 });
 /* ▲▲▲ 一覧 ▲▲▲ */
 
@@ -270,10 +285,13 @@ function createDualPC(docId, type, videoEl) {
 
   pc.onicecandidate = e => {
     if (!e.candidate) return;
+    // 正しい向きに送る
     if (type === "caller") {
-      answerCandidates.add(e.candidate.toJSON());
-    } else {
+      // caller 映像 → offerCandidates に管理者 ICE
       offerCandidates.add(e.candidate.toJSON());
+    } else {
+      // callee 映像 → answerCandidates に管理者 ICE
+      answerCandidates.add(e.candidate.toJSON());
     }
   };
 
@@ -291,7 +309,9 @@ function createDualPC(docId, type, videoEl) {
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added" && type === "caller") {
+      if (c.type === "added") {
+        // 発信側 ICE（offerCandidates）は callee が読むのが本来だが、
+        // 管理者はどちらの映像も recvonly なので、そのまま追加
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -299,7 +319,7 @@ function createDualPC(docId, type, videoEl) {
 
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added" && type === "callee") {
+      if (c.type === "added") {
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -328,10 +348,11 @@ async function openFullscreen(docId, type) {
 
   pc.onicecandidate = e => {
     if (!e.candidate) return;
+    // 一覧と同じく向きを修正
     if (type === "caller") {
-      answerCandidates.add(e.candidate.toJSON());
-    } else {
       offerCandidates.add(e.candidate.toJSON());
+    } else {
+      answerCandidates.add(e.candidate.toJSON());
     }
   };
 
@@ -349,7 +370,7 @@ async function openFullscreen(docId, type) {
 
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added" && type === "caller") {
+      if (c.type === "added") {
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -357,7 +378,7 @@ async function openFullscreen(docId, type) {
 
   answerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
-      if (c.type === "added" && type === "callee") {
+      if (c.type === "added") {
         pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
     });
@@ -405,3 +426,4 @@ db.collection("calls").onSnapshot(snap => {
 </script>
 </body>
 </html>
+```
