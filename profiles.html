@@ -6,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -27,8 +26,6 @@ body {
 .user-card h3 {
   margin: 0 0 5px 0;
 }
-
-/* ▼ 着信UI ▼ */
 #incomingCall {
   position: fixed;
   inset: 0;
@@ -62,155 +59,100 @@ body {
 <h2>プロフィール一覧</h2>
 <div id="userList"></div>
 
-<!-- ▼ 着信UI ▼ -->
 <div id="incomingCall">
-  <h2>通話きとるで。誰か知らんけど。<br>
-  無音・モザイクで安全や。</h2>
+  <h2>通話きとるで。誰か知らんけど。<br>無音・モザイクで安全や。</h2>
   <div id="callerProfile"></div>
   <button onclick="acceptCall()">出る</button>
   <button onclick="declineCall()">出ない</button>
 </div>
 
 <script>
-/* =========================================
-   Firebase
-========================================= */
-const firebaseConfig = {
+firebase.initializeApp({
   apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
   projectId: "roomvideo",
   storageBucket: "roomvideo.firebasestorage.app",
   messagingSenderId: "1030429439546",
   appId: "1:1030429439546:web:1481670cb78deb35e2a703"
-};
-firebase.initializeApp(firebaseConfig);
-
+});
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* =========================================
-   ▼ 匿名ログイン（必須）
-========================================= */
-auth.signInAnonymously().catch(err => {
-  console.error("匿名ログイン失敗:", err);
-});
+auth.signInAnonymously();
 
-/* =========================================
-   ▼ ログイン完了後に処理開始
-========================================= */
 auth.onAuthStateChanged(async user => {
   if (!user) return;
 
   const myUid = localStorage.getItem("myUid");
   if (!myUid) {
-    alert("エラー：UID がありません。再ログインしてな。");
+    alert("UID がありません。再ログインしてな。");
     location.href = "index.html";
     return;
   }
 
-  /* 自分をオンラインにする */
   db.collection("user").doc(myUid).update({ online: true });
 
-  /* =========================================
-     一覧表示
-  ========================================= */
-  db.collection("user")
-    .orderBy("online", "desc")
-    .get()
-    .then(async snapshot => {
-      for (const doc of snapshot.docs) {
-        const d = doc.data();
-        const statusIcon = d.online ? "💡" : "💤";
+  db.collection("user").orderBy("online", "desc").get().then(async snap => {
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const repSnap = await db.collection("reports").doc(doc.id).get();
+      const rep = repSnap.exists ? repSnap.data().count || 0 : 0;
 
-        // ▼ 通報数の取得
-        const rep = await db.collection("reports").doc(doc.id).get();
-        const reportCount = rep.exists ? rep.data().count || 0 : 0;
+      const card = document.createElement("div");
+      card.className = "user-card";
 
-        const card = document.createElement("div");
-        card.className = "user-card";
+      card.innerHTML = `
+        <h3>${d.online ? "💡" : "💤"} ${d.nickname}</h3>
+        <p>性別：${d.gender}</p>
+        <p>年齢：${d.age}</p>
+        <p>都道府県：${d.prefecture}</p>
+        <p>ひとこと：${d.comment}</p>
+        <p>通報数：${rep}</p>
+        <button onclick="startCall('${doc.id}')">📞 通話する</button>
+        <button onclick="reportUser('${doc.id}')">🚨 通報</button>
+        <button onclick="blockUser('${doc.id}')">⛔ ブロック</button>
+      `;
 
-        card.innerHTML = `
-          <h3>${statusIcon} ${d.nickname}</h3>
-          <p>性別：${d.gender}</p>
-          <p>年齢：${d.age}</p>
-          <p>都道府県：${d.prefecture}</p>
-          <p>ひとこと：${d.comment}</p>
-          <p>通報数：${reportCount}</p>
-          <button onclick="startCall('${doc.id}')">📞 通話する</button>
-          <button onclick="reportUser('${doc.id}')">🚨 通報</button>
-          <button onclick="blockUser('${doc.id}')">⛔ ブロック</button>
-        `;
-
-        userList.appendChild(card);
-      }
-    });
-
-  /* =========================================
-     ▼ 着信リスナー
-  ========================================= */
-  window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(async (snap) => {
-    const data = snap.data();
-    if (!data) return;
-
-    if (data.from === myUid) return;
-
-    if (data.offer && data.from) {
-      showIncomingCall(data.from);
+      userList.appendChild(card);
     }
   });
 
+  window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
+    const d = snap.data();
+    if (!d) return;
+    if (d.from === myUid) return;
+    if (d.offer && d.from) showIncomingCall(d.from);
+  });
 });
 
-/* =========================================
-   ▼ ブロック確認（user に統一）
-========================================= */
 async function isBlocked(me, target) {
   const doc = await db.collection("user").doc(me)
     .collection("blocks").doc(target).get();
   return doc.exists;
 }
 
-/* =========================================
-   ▼ ブロック処理（user に統一）
-========================================= */
 async function blockUser(targetUid) {
   const myUid = localStorage.getItem("myUid");
-
-  const already = await db.collection("user")
-    .doc(myUid).collection("blocks").doc(targetUid).get();
-
-  if (already.exists) {
-    alert("もうブロックしとるで。どんだけ嫌いやねん。");
-    return;
-  }
-
-  await db.collection("user")
-    .doc(myUid).collection("blocks").doc(targetUid)
+  await db.collection("user").doc(myUid)
+    .collection("blocks").doc(targetUid)
     .set({ blockedAt: Date.now() });
-
   alert("ブロックしたで。");
 }
 
-/* =========================================
-   ▼ 通報処理（user に統一）
-========================================= */
 async function reportUser(targetUid) {
   const myUid = localStorage.getItem("myUid");
 
   const already = await db.collection("reports")
     .doc(targetUid).collection("from").doc(myUid).get();
 
-  if (already.exists) {
-    alert("もう通報しとるで。どんだけ嫌いやねん。");
-    return;
+  if (!already.exists) {
+    await db.collection("reports")
+      .doc(targetUid).collection("from").doc(myUid)
+      .set({ reportedAt: Date.now() });
+
+    await db.collection("reports").doc(targetUid)
+      .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
   }
-
-  await db.collection("reports")
-    .doc(targetUid).collection("from").doc(myUid)
-    .set({ reportedAt: Date.now() });
-
-  await db.collection("reports").doc(targetUid)
-    .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
 
   await db.collection("user").doc(myUid)
     .collection("blocks").doc(targetUid)
@@ -219,46 +161,34 @@ async function reportUser(targetUid) {
   alert("通報したで。");
 }
 
-/* =========================================
-   ▼ 通話開始（完全版）
-========================================= */
 async function startCall(targetUid) {
   const myUid = localStorage.getItem("myUid");
 
-  if (window.unsubIncoming) {
-    try { window.unsubIncoming(); } catch(e) {}
-  }
-
   if (await isBlocked(myUid, targetUid)) {
-    alert("ブロックしとる相手や。誰か知らんけど。");
+    alert("ブロックしとる相手や。");
+    return;
+  }
+  if (await isBlocked(targetUid, myUid)) {
+    alert("ブロックされとるで。");
     return;
   }
 
-  if (await isBlocked(targetUid, myUid)) {
-    alert("ブロックされとるで。誰か知らんけど。");
-    return;
-  }
+  if (window.unsubIncoming) window.unsubIncoming();
 
   localStorage.setItem("isCaller", "1");
   localStorage.setItem("targetUid", targetUid);
 
-  window.location.href = `video.html?target=${targetUid}`;
+  location.href = `video.html?target=${targetUid}`;
 }
 
-/* =========================================
-   ▼ ページ離脱でオフライン
-========================================= */
 window.addEventListener("beforeunload", () => {
   const myUid = localStorage.getItem("myUid");
   if (myUid) db.collection("user").doc(myUid).update({ online: false });
 });
 
-/* =========================================
-   ▼ 着信UI
-========================================= */
 async function showIncomingCall(fromUid) {
-  const prof = await db.collection("user").doc(fromUid).get();
-  const d = prof.data();
+  const snap = await db.collection("user").doc(fromUid).get();
+  const d = snap.data();
 
   callerProfile.innerHTML = `
     <p>名前：${d.nickname}</p>
@@ -272,23 +202,17 @@ async function showIncomingCall(fromUid) {
 }
 
 function acceptCall() {
-  if (window.unsubIncoming) {
-    try { window.unsubIncoming(); } catch(e) {}
-  }
-
+  if (window.unsubIncoming) window.unsubIncoming();
   incomingCall.style.display = "none";
-  window.location.href = `video.html?target=${window._incomingFrom}`;
+  location.href = `video.html?target=${window._incomingFrom}`;
 }
 
 function declineCall() {
   const myUid = localStorage.getItem("myUid");
-
   if (window.unsubIncoming) window.unsubIncoming();
-
   db.collection("calls").doc(myUid).delete();
   incomingCall.style.display = "none";
 }
-
 </script>
 
 </body>
