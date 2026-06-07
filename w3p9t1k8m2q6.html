@@ -115,24 +115,40 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* 匿名ログイン */
+/* ▼ 匿名ログイン */
+let adminReady = false;
+
 auth.signInAnonymously().catch(err => {
   console.error("匿名ログイン失敗:", err);
 });
 
+auth.onAuthStateChanged(user => {
+  if (user) adminReady = true;
+});
+
 /* ▼▼▼ ログイン ▼▼▼ */
 async function login() {
+  if (!adminReady) {
+    alert("認証中やで。1秒後にもう一回押してな。");
+    return;
+  }
+
   const input = document.getElementById("pass").value;
   const snaps = await db.collection("admins").get();
+
   let ok = false;
   for (const doc of snaps.docs) {
-    if (input === doc.data().password) { ok = true; break; }
+    if (input === doc.data().password) {
+      ok = true;
+      break;
+    }
   }
+
   if (ok) {
-    document.getElementById("loginBox").style.display = "none";
-    document.getElementById("gridView").style.display = "grid";
+    loginBox.style.display = "none";
+    gridView.style.display = "grid";
   } else {
-    document.getElementById("err").style.display = "block";
+    err.style.display = "block";
   }
 }
 /* ▲▲▲ ログイン ▲▲▲ */
@@ -185,8 +201,7 @@ async function rebuildVideoList() {
   allVideoItems = [];
 
   for (const doc of latestCallDocs) {
-    const d = doc.data();
-    const userUid = doc.id; // adminCalls/{userUid}
+    const userUid = doc.id;
 
     const [prof, rep] = await Promise.all([
       getProfile(userUid),
@@ -264,13 +279,11 @@ function createAdminPC(userUid, videoEl) {
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
 
-  // 管理者は「answer 側」
   pc.onicecandidate = e => {
     if (!e.candidate) return;
     answerCandidates.add(e.candidate.toJSON());
   };
 
-  // ユーザーの offer を受信して answer を返す
   callDoc.onSnapshot(async snap => {
     const d = snap.data();
     if (!d || !d.offer || d.ended) return;
@@ -283,7 +296,6 @@ function createAdminPC(userUid, videoEl) {
     }
   });
 
-  // ユーザー側 ICE
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(c => {
       if (c.type === "added") {
