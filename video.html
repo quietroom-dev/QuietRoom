@@ -6,6 +6,7 @@
 <title>誰かわからん通話</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
@@ -125,6 +126,7 @@ firebase.initializeApp({
   messagingSenderId: "1030429439546",
   appId: "1:1030429439546:web:1481670cb78deb35e2a703"
 });
+const auth = firebase.auth();
 const db = firebase.firestore();
 
 /* UID / パラメータ */
@@ -419,159 +421,167 @@ async function setupSignaling() {
   }
 }
 
-/* ページ読み込み後 */
-window.addEventListener("load", async () => {
+/* ページ読み込み後＋匿名ログイン完了後 */
+auth.signInAnonymously().catch(err => {
+  console.error("匿名ログイン失敗:", err);
+});
 
-  /* モザイクUI */
-  const meterBar = document.getElementById("meterBar");
-  const meterUp = document.getElementById("meterUp");
-  const meterDown = document.getElementById("meterDown");
+auth.onAuthStateChanged(user => {
+  if (!user) return;
 
-  for (let i = 0; i < 5; i++) {
-    const div = document.createElement("div");
-    div.className = "meter-block";
-    meterBar.appendChild(div);
-  }
+  window.addEventListener("load", async () => {
 
-  function updateMeterUI() {
-    [...meterBar.children].forEach((b, i) => {
-      b.classList.toggle("active", i < myMosaicLevel);
-    });
-  }
+    /* モザイクUI */
+    const meterBar = document.getElementById("meterBar");
+    const meterUp = document.getElementById("meterUp");
+    const meterDown = document.getElementById("meterDown");
 
-  myMosaicLevel = 5;
-  myMosaicSize = mosaicSizes[myMosaicLevel];
-  saveMyMosaic();
-  updateMeterUI();
-
-  meterUp.onclick = () => {
-    if (myMosaicLevel < 5) {
-      myMosaicLevel++;
-      myMosaicSize = mosaicSizes[myMosaicLevel];
-      updateMeterUI();
-      saveMyMosaic();
+    for (let i = 0; i < 5; i++) {
+      const div = document.createElement("div");
+      div.className = "meter-block";
+      meterBar.appendChild(div);
     }
-  };
 
-  meterDown.onclick = () => {
-    if (myMosaicLevel > 0) {
-      myMosaicLevel--;
-      myMosaicSize = mosaicSizes[myMosaicLevel];
-      updateMeterUI();
-      saveMyMosaic();
+    function updateMeterUI() {
+      [...meterBar.children].forEach((b, i) => {
+        b.classList.toggle("active", i < myMosaicLevel);
+      });
     }
-  };
 
-  updateMeterUI();
+    myMosaicLevel = 5;
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    saveMyMosaic();
+    updateMeterUI();
+
+    meterUp.onclick = () => {
+      if (myMosaicLevel < 5) {
+        myMosaicLevel++;
+        myMosaicSize = mosaicSizes[myMosaicLevel];
+        updateMeterUI();
+        saveMyMosaic();
+      }
+    };
+
+    meterDown.onclick = () => {
+      if (myMosaicLevel > 0) {
+        myMosaicLevel--;
+        myMosaicSize = mosaicSizes[myMosaicLevel];
+        updateMeterUI();
+        saveMyMosaic();
+      }
+    };
+
+    updateMeterUI();
 
     /* パトロール通知 */
-  function showPatrolMessage() {
-    const el = document.getElementById("patrolMsg");
-    el.style.display = "block";
-    setTimeout(() => { el.style.display = "none"; }, 3000);
-  }
-  setInterval(showPatrolMessage, 60000);
-  setTimeout(showPatrolMessage, 10000);
-
-  let isEndingMyself = false;
-
-  /* 自分が終了ボタンを押した時 */
-  document.getElementById("endBtn").onclick = async () => {
-    isEndingMyself = true;
-
-    /* calls 側を終了 */
-    if (callDoc) {
-      await callDoc.set({ ended: true }, { merge: true });
-      setTimeout(async () => {
-        try { await callDoc.delete(); } catch (e) {}
-      }, 500);
+    function showPatrolMessage() {
+      const el = document.getElementById("patrolMsg");
+      el.style.display = "block";
+      setTimeout(() => { el.style.display = "none"; }, 3000);
     }
+    setInterval(showPatrolMessage, 60000);
+    setTimeout(showPatrolMessage, 10000);
 
-    /* ★ adminCalls 側も終了 */
-    if (adminCallDoc) {
-      await adminCallDoc.set({ ended: true }, { merge: true });
-      setTimeout(async () => {
-        try { await adminCallDoc.delete(); } catch (e) {}
-      }, 500);
-    }
+    let isEndingMyself = false;
 
-    localStorage.removeItem("isCaller");
-    localStorage.removeItem("targetUid");
-    document.getElementById("endPopupBg").style.display = "flex";
-  };
+    /* 自分が終了ボタンを押した時 */
+    document.getElementById("endBtn").onclick = async () => {
+      isEndingMyself = true;
 
-  /* 一覧に戻る */
-  document.getElementById("backBtn").onclick = () => {
-    location.href = "profiles.html";
-  };
-
-  /* ブロック */
-  document.getElementById("blockBtn").onclick = async () => {
-    await db.collection("users")
-      .doc(myUid).collection("blocks")
-      .doc(targetUid)
-      .set({ blockedAt: Date.now() });
-
-    alert("ブロックしました。");
-    location.href = "profiles.html";
-  };
-
-  /* 通報（通報 → 自動ブロック） */
-  document.getElementById("reportBtn").onclick = async () => {
-    const already = await db.collection("reports")
-      .doc(targetUid).collection("from").doc(myUid).get();
-
-    if (!already.exists) {
-      await db.collection("reports")
-        .doc(targetUid).collection("from").doc(myUid)
-        .set({ reportedAt: Date.now() });
-
-      await db.collection("reports").doc(targetUid)
-        .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
-    }
-
-    await db.collection("users")
-      .doc(myUid).collection("blocks")
-      .doc(targetUid)
-      .set({ blockedAt: Date.now() });
-
-    alert("通報したで。");
-    location.href = "profiles.html";
-  };
-
-  /* 相手が終了した時 */
-  function watchEnd() {
-    if (!callDoc) return;
-    callDoc.onSnapshot(snap => {
-      const d = snap.data();
-      if (!d) return;
-      if (d.ended && !isEndingMyself) {
-        document.getElementById("endPopupBg").style.display = "flex";
+      /* calls 側を終了 */
+      if (callDoc) {
+        await callDoc.set({ ended: true }, { merge: true });
+        setTimeout(async () => {
+          try { await callDoc.delete(); } catch (e) {}
+        }, 500);
       }
+
+      /* ★ adminCalls 側も終了 */
+      if (adminCallDoc) {
+        await adminCallDoc.set({ ended: true }, { merge: true });
+        setTimeout(async () => {
+          try { await adminCallDoc.delete(); } catch (e) {}
+        }, 500);
+      }
+
+      localStorage.removeItem("isCaller");
+      localStorage.removeItem("targetUid");
+      document.getElementById("endPopupBg").style.display = "flex";
+    };
+
+    /* 一覧に戻る */
+    document.getElementById("backBtn").onclick = () => {
+      location.href = "profiles.html";
+    };
+
+    /* ブロック */
+    document.getElementById("blockBtn").onclick = async () => {
+      await db.collection("users")
+        .doc(myUid).collection("blocks")
+        .doc(targetUid)
+        .set({ blockedAt: Date.now() });
+
+      alert("ブロックしました。");
+      location.href = "profiles.html";
+    };
+
+    /* 通報（通報 → 自動ブロック） */
+    document.getElementById("reportBtn").onclick = async () => {
+      const already = await db.collection("reports")
+        .doc(targetUid).collection("from").doc(myUid).get();
+
+      if (!already.exists) {
+        await db.collection("reports")
+          .doc(targetUid).collection("from").doc(myUid)
+          .set({ reportedAt: Date.now() });
+
+        await db.collection("reports").doc(targetUid)
+          .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+      }
+
+      await db.collection("users")
+        .doc(myUid).collection("blocks")
+        .doc(targetUid)
+        .set({ blockedAt: Date.now() });
+
+      alert("通報したで。");
+      location.href = "profiles.html";
+    };
+
+    /* 相手が終了した時 */
+    function watchEnd() {
+      if (!callDoc) return;
+      callDoc.onSnapshot(snap => {
+        const d = snap.data();
+        if (!d) return;
+        if (d.ended && !isEndingMyself) {
+          document.getElementById("endPopupBg").style.display = "flex";
+        }
+      });
+    }
+
+    /* ページ離脱時のクリーンアップ */
+    window.addEventListener("beforeunload", async () => {
+      try {
+        if (callDoc) await callDoc.delete();
+      } catch (err) {}
+
+      try {
+        if (adminCallDoc) await adminCallDoc.delete();
+      } catch (err) {}
+
+      localStorage.removeItem("isCaller");
+      localStorage.removeItem("targetUid");
     });
-  }
 
-  /* ページ離脱時のクリーンアップ */
-  window.addEventListener("beforeunload", async () => {
-    try {
-      if (callDoc) await callDoc.delete();
-    } catch (err) {}
+    /* 役割に応じた初期処理 */
+    if (isCaller) {
+      await startAsCaller();
+    }
 
-    try {
-      if (adminCallDoc) await adminCallDoc.delete();
-    } catch (err) {}
-
-    localStorage.removeItem("isCaller");
-    localStorage.removeItem("targetUid");
+    await setupSignaling();
+    watchEnd();
   });
-
-  /* 役割に応じた初期処理 */
-  if (isCaller) {
-    await startAsCaller();
-  }
-
-  await setupSignaling();
-  watchEnd();
 });
 </script>
 
@@ -589,4 +599,3 @@ window.addEventListener("load", async () => {
 
 </body>
 </html>
-
