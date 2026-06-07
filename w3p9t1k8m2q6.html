@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -7,6 +6,7 @@
 <title>QuietRoom 管理者</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
@@ -112,7 +112,13 @@ firebase.initializeApp({
   messagingSenderId: "1030429439546",
   appId: "1:1030429439546:web:1481670cb78deb35e2a703"
 });
+const auth = firebase.auth();
 const db = firebase.firestore();
+
+/* 匿名ログイン */
+auth.signInAnonymously().catch(err => {
+  console.error("匿名ログイン失敗:", err);
+});
 
 /* ▼▼▼ ログイン ▼▼▼ */
 async function login() {
@@ -374,4 +380,3 @@ db.collection("adminCalls").onSnapshot(snap => {
 </script>
 </body>
 </html>
-```
