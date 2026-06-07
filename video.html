@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Quiet Room</title>
+<title>誰かわからん通話</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -110,7 +110,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">v3.0管理人がパトロールすることがあります。安全に使ってね。</div>
+<div id="patrolMsg">管理人がたまに見回りしとるで。安全に使ってな。</div>
 
 <script>
 /* 役割フラグ */
@@ -535,7 +535,7 @@ window.addEventListener("load", async () => {
       .doc(targetUid)
       .set({ blockedAt: Date.now() });
 
-    alert("通報しました。このユーザーは自動的にブロックされました。");
+    alert("通報したで。");
     location.href = "profiles.html";
   };
 
