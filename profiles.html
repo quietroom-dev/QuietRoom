@@ -162,21 +162,21 @@ auth.onAuthStateChanged(async user => {
 });
 
 /* =========================================
-   ▼ ブロック確認
+   ▼ ブロック確認（user に統一）
 ========================================= */
 async function isBlocked(me, target) {
-  const doc = await db.collection("users").doc(me)
+  const doc = await db.collection("user").doc(me)
     .collection("blocks").doc(target).get();
   return doc.exists;
 }
 
 /* =========================================
-   ▼ ブロック処理
+   ▼ ブロック処理（user に統一）
 ========================================= */
 async function blockUser(targetUid) {
   const myUid = localStorage.getItem("myUid");
 
-  const already = await db.collection("users")
+  const already = await db.collection("user")
     .doc(myUid).collection("blocks").doc(targetUid).get();
 
   if (already.exists) {
@@ -184,7 +184,7 @@ async function blockUser(targetUid) {
     return;
   }
 
-  await db.collection("users")
+  await db.collection("user")
     .doc(myUid).collection("blocks").doc(targetUid)
     .set({ blockedAt: Date.now() });
 
@@ -192,7 +192,7 @@ async function blockUser(targetUid) {
 }
 
 /* =========================================
-   ▼ 通報処理
+   ▼ 通報処理（user に統一）
 ========================================= */
 async function reportUser(targetUid) {
   const myUid = localStorage.getItem("myUid");
@@ -212,7 +212,7 @@ async function reportUser(targetUid) {
   await db.collection("reports").doc(targetUid)
     .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
 
-  await db.collection("users").doc(myUid)
+  await db.collection("user").doc(myUid)
     .collection("blocks").doc(targetUid)
     .set({ blockedAt: Date.now() });
 
@@ -220,7 +220,7 @@ async function reportUser(targetUid) {
 }
 
 /* =========================================
-   ▼ 通話開始
+   ▼ 通話開始（完全版）
 ========================================= */
 async function startCall(targetUid) {
   const myUid = localStorage.getItem("myUid");
