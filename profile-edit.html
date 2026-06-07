@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QuietRoom プロフィール編集</title>
+<title>誰かわからん通話 プロフィール編集</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -92,7 +92,7 @@ button {
 
 <!-- ▼ 着信UI ▼ -->
 <div id="incomingCall">
-  <h2>📞 着信があります</h2>
+  <h2>📞 通話きたで。誰か知らんけど。</h2>
   <div id="callerProfile"></div>
   <button onclick="acceptCall()">出る</button>
   <button onclick="declineCall()">出ない</button>
@@ -145,7 +145,7 @@ function saveProfile() {
     prefecture: prefecture.value,
     comment: comment.value
   }).then(() => {
-    alert("保存しました");
+    alert("保存したで");
   });
 }
 
