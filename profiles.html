@@ -163,9 +163,6 @@ async function reportUser(targetUid) {
 }
 
 async function startCall(targetUid) {
-  alert(myUid);
-alert(targetUid);
-
   const myUid = localStorage.getItem("myUid");
 
   if (await isBlocked(myUid, targetUid)) {
@@ -177,6 +174,14 @@ alert(targetUid);
     return;
   }
 
+  // ▼ calls/{targetUid} に発信情報を書き込む（これが必須）
+  await db.collection("calls").doc(targetUid).set({
+    from: myUid,
+    offer: null,
+    answer: null,
+    ended: false
+  });
+
   if (window.unsubIncoming) window.unsubIncoming();
 
   localStorage.setItem("isCaller", "1");
@@ -185,10 +190,6 @@ alert(targetUid);
   location.href = `video.html?target=${targetUid}`;
 }
 
-window.addEventListener("beforeunload", () => {
-  const myUid = localStorage.getItem("myUid");
-  if (myUid) db.collection("user").doc(myUid).update({ online: false });
-});
 
 async function showIncomingCall(fromUid) {
   const snap = await db.collection("user").doc(fromUid).get();
