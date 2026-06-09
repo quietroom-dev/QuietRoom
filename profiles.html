@@ -162,6 +162,9 @@ async function reportUser(targetUid) {
 }
 
 async function startCall(targetUid) {
+  alert(myUid);
+alert(targetUid);
+
   const myUid = localStorage.getItem("myUid");
 
   if (await isBlocked(myUid, targetUid)) {
