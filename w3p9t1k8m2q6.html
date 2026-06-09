@@ -106,39 +106,36 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* ▼▼▼ 管理者ログイン（カスタムトークン方式） ▼▼▼ */
+/* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
 async function login() {
   const input = document.getElementById("pass").value;
 
-  // admins コレクションで password → token を取得
+  // admins から password を探す
   const snaps = await db.collection("admins").get();
-  let token = null;
+  let ok = false;
 
   for (const doc of snaps.docs) {
     const d = doc.data();
     if (input === d.password) {
-      token = d.token;
+      ok = true;
       break;
     }
   }
 
-  if (!token) {
+  if (!ok) {
     err.style.display = "block";
     return;
   }
 
   try {
-    // 管理者トークンでログイン
-    await auth.signInWithCustomToken(token);
+    // 匿名ログイン（uid を得る）
+    await auth.signInAnonymously();
 
-    // admin クレーム確認
-    const idt = await auth.currentUser.getIdTokenResult();
-    if (!idt.claims.admin) {
-      err.style.display = "block";
-      return;
-    }
+    // 匿名 uid を admins に登録（管理者化）
+    await db.collection("admins").doc(auth.currentUser.uid).set({
+      password: input
+    });
 
-    // ログイン成功
     loginBox.style.display = "none";
     gridView.style.display = "grid";
 
