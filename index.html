@@ -83,7 +83,7 @@
       appId: "1:1030429439546:web:1481670cb78deb35e2a703"
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
@@ -92,7 +92,14 @@
       console.error("匿名ログイン失敗:", err);
     });
 
-    // ▼ ログイン完了後に登録処理を使えるようにする
+    // ▼ ★ここが重要：ログイン完了後に myUid を保存
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        localStorage.setItem("myUid", user.uid);
+      }
+    });
+
+    // ▼ プロフィール保存
     function saveProfile() {
       const user = auth.currentUser;
       if (!user) {
@@ -116,6 +123,7 @@
       };
 
       db.collection("user").doc(uid).set(data).then(() => {
+        // 念のため二重保存
         localStorage.setItem("myUid", uid);
         window.location.href = "profiles.html";
       });
