@@ -127,8 +127,10 @@ auth.onAuthStateChanged(async user => {
 });
 
 async function isBlocked(me, target) {
+  alert("isBlocked 入った");
   const doc = await db.collection("user").doc(me)
     .collection("blocks").doc(target).get();
+  alert("isBlocked 読み込み完了");
   return doc.exists;
 }
 
@@ -163,7 +165,6 @@ async function reportUser(targetUid) {
 }
 
 async function startCall(targetUid) {
-  alert("startCall 発火");
   const myUid = localStorage.getItem("myUid");
 
   if (await isBlocked(myUid, targetUid)) {
