@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.1
+  v1.1.0
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -171,10 +171,12 @@ async function startCall(targetUid) {
     alert("ブロックしとる相手や。");
     return;
   }
+  alert("isBlocked(自分→相手) の後まで来た");  
   if (await isBlocked(targetUid, myUid)) {
     alert("ブロックされとるで。");
     return;
   }
+  alert("isBlocked(相手→自分) の後まで来た");   // ← ここに追加
 
   // ▼ calls/{targetUid} に発信情報を書き込む（これが必須）
   await db.collection("calls").doc(targetUid).set({
