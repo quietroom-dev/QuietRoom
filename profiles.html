@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.2
+  v1.1.0.
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -128,6 +128,7 @@ auth.onAuthStateChanged(async user => {
 
 async function isBlocked(me, target) {
   alert("isBlocked 入った");
+  alert("me=" + me + " / target=" + target);
   alert("myUid=" + myUid + " / me=" + me + " / target=" + target);
   const doc = await db.collection("user").doc(me)
     .collection("blocks").doc(target).get();
