@@ -92,12 +92,6 @@
       console.error("匿名ログイン失敗:", err);
     });
 
-    // ▼ ★ここが重要：ログイン完了後に myUid を保存
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        localStorage.setItem("myUid", user.uid);
-      }
-    });
 
     // ▼ プロフィール保存
     function saveProfile() {
@@ -123,8 +117,6 @@
       };
 
       db.collection("user").doc(uid).set(data).then(() => {
-        // 念のため二重保存
-        localStorage.setItem("myUid", uid);
         window.location.href = "profiles.html";
       });
     }
