@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.0
+  v1.1.1
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -174,16 +174,18 @@ async function reportUser(targetUid) {
 }
 
   async function startCall(targetUid) {
+      alert("スタートコール開始");
+      alert(targetUid);
 if (await isBlocked(targetUid)) {
   alert("ブロックしとる相手や。");
   return;
 }
-
+  alert("ブロックしている確認通過");
 if (await isBlockedBy(targetUid)) {
   alert("ブロックされとるで。");
   return;
 }
-
+  alert("ブロックされてる確認通過");
   // ▼ calls/{targetUid} に発信情報を書き込む（これが必須）
   await db.collection("calls").doc(targetUid).set({
     from: myUid,
@@ -191,7 +193,7 @@ if (await isBlockedBy(targetUid)) {
     answer: null,
     ended: false
   });
-
+  alert("from作成通過");
   location.href = `video.html?target=${targetUid}`;
 }
 
