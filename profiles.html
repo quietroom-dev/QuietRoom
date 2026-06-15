@@ -173,6 +173,7 @@ async function reportUser(targetUid) {
   alert("通報したで。");
 }
 
+  async function startCall(targetUid) {
 if (await isBlocked(targetUid)) {
   alert("ブロックしとる相手や。");
   return;
@@ -190,11 +191,6 @@ if (await isBlockedBy(targetUid)) {
     answer: null,
     ended: false
   });
-
-  if (window.unsubIncoming) window.unsubIncoming();
-
-  localStorage.setItem("isCaller", "1");
-  localStorage.setItem("targetUid", targetUid);
 
   location.href = `video.html?target=${targetUid}`;
 }
