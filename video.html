@@ -114,8 +114,6 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 <div id="patrolMsg">管理人がたまに見回りしとるで。安全に使ってな。</div>
 
 <script>
-/* 役割フラグ */
-const isCaller = localStorage.getItem("isCaller") === "1";
 
 /* Firebase */
 firebase.initializeApp({
@@ -155,6 +153,35 @@ const mosaicSizes = [1, 10, 13, 16, 19, 25];
 const mosaicDoc = db.collection("mosaic").doc(myUid);
 const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
+async function resolveRole() {
+  const snap = await db.collection("calls").doc(myUid).get();
+  const data = snap.data();
+
+if (!data || !data.call) {
+  callerUid = myUid;
+  calleeUid = targetUid;
+
+  // 発信側 → 着信者へoffer送信
+  await db.collection("offers").doc(calleeUid).set({
+    from: myUid
+  });
+}
+  else {
+  callerUid = data.from;
+  calleeUid = myUid;
+
+  // from削除（着信確定後のリセット）
+  await db.collection("calls").doc(myUid).delete();
+
+  // offer監視開始
+  db.collection("offers").doc(myUid)
+    .onSnapshot(snap => {
+      const offer = snap.data();
+      if (!offer) return;
+      handleOffer(offer);
+    });
+}
+  
 function saveMyMosaic() {
   mosaicDoc.set({ size: myMosaicSize });
 }
