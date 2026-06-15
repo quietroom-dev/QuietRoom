@@ -132,6 +132,9 @@ async function isBlocked(targetUid) {
 }
 async function isBlockedBy(targetUid) {
     alert("blockedBy入った");
+  alert(myUid);
+  alert(targetUid);
+  
   const doc = await db.collection("user").doc(targetUid)
   .collection("blocks").doc(myUid).get();
     alert("blockedby出る")
