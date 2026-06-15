@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.4
+  v1.1.0
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -85,7 +85,7 @@ auth.onAuthStateChanged(async user => {
   myUid = user.uid;
   alert(myUid);
   if (!myUid) {
-    alert("UID がありません。再ログインしてな。");
+    alert("プロフィール作成からやり直してな。");
     location.href = "index.html";
     return;
   }
@@ -121,17 +121,21 @@ auth.onAuthStateChanged(async user => {
     const d = snap.data();
     if (!d) return;
     if (d.from === myUid) return;
-    if (d.offer && d.from) showIncomingCall(d.from);
+    if (d.from) showIncomingCall(d.from);
   });
 });
 
-async function isBlocked(target) {
-  alert("isBlocked 入った");
-  alert("myUid=" + myUid + " / target=" + target);
-  alert("auth.uid=" + auth.currentUser.uid);
+async function isBlocked(targetUid) {
   const doc = await db.collection("user").doc(myUid)
-  .collection("blocks").doc(target).get();
-  alert("isBlocked 読み込み完了");
+  .collection("blocks").doc(targetUid).get();
+  return doc.exists;
+}
+  async function isBlockedBy(targetUid) {
+  const doc = await db.collection("user")
+    .doc(targetUid)
+    .collection("blocks")
+    .doc(myUid)
+    .get();
   return doc.exists;
 }
 
@@ -147,14 +151,20 @@ async function reportUser(targetUid) {
   const already = await db.collection("reports")
     .doc(targetUid).collection("from").doc(myUid).get();
 
-  if (!already.exists) {
-    await db.collection("reports")
-      .doc(targetUid).collection("from").doc(myUid)
-      .set({ reportedAt: Date.now() });
-
-    await db.collection("reports").doc(targetUid)
-      .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+  if (already.exists) {
+    alert("通報済みや。どんだけ嫌いやねん。");
+    return;
   }
+
+  await db.collection("reports")
+    .doc(targetUid).collection("from").doc(myUid)
+    .set({ reportedAt: Date.now() });
+
+  await db.collection("reports").doc(targetUid)
+    .set(
+      { count: firebase.firestore.FieldValue.increment(1) },
+      { merge: true }
+    );
 
   await db.collection("user").doc(myUid)
     .collection("blocks").doc(targetUid)
@@ -163,17 +173,15 @@ async function reportUser(targetUid) {
   alert("通報したで。");
 }
 
-async function startCall(targetUid) {
-  if (await isBlocked(targetUid)) {
-    alert("ブロックしとる相手や。");
-    return;
-  }
-  alert("isBlocked(自分→相手) の後まで来た");  
-  if (await isBlocked(targetUid)) {
-    alert("ブロックされとるで。");
-    return;
-  }
-  alert("isBlocked(相手→自分) の後まで来た");   // ← ここに追加
+if (await isBlocked(targetUid)) {
+  alert("ブロックしとる相手や。");
+  return;
+}
+
+if (await isBlockedBy(targetUid)) {
+  alert("ブロックされとるで。");
+  return;
+}
 
   // ▼ calls/{targetUid} に発信情報を書き込む（これが必須）
   await db.collection("calls").doc(targetUid).set({
