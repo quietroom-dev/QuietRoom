@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.1
+  v1.1.2
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -130,12 +130,10 @@ async function isBlocked(targetUid) {
   .collection("blocks").doc(targetUid).get();
   return doc.exists;
 }
-  async function isBlockedBy(targetUid) {
-  const doc = await db.collection("user")
-    .doc(targetUid)
-    .collection("blocks")
-    .doc(myUid)
-    .get();
+async function isBlockedBy(targetUid) {
+    alert("blockedBy入った");
+  const doc = await db.collection("user").doc(targetUid)
+  .collection("blocks").doc(myUid).get();
   return doc.exists;
 }
 
