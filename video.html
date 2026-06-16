@@ -127,14 +127,13 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* UID / パラメータ */
-const auth = firebase.auth();
+let myUid = null;
+let targetUid = null;
 
 auth.onAuthStateChanged(user => {
-  if (user) {
-    const myUid = user.uid;
-    alert(myUid);
-  }
+  if (!user) return;
+  myUid = user.uid;
+  alert(myUid);
 });
 const targetUid = new URLSearchParams(location.search).get("target");
 alert(targetUid);
