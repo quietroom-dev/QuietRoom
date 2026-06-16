@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.3
+  v1.1.4
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -204,6 +204,7 @@ if (await isBlockedBy(targetUid)) {
   alert("プロフィール見つからん");
   return;
 }
+  const d = snap.data();
 
   callerProfile.innerHTML = `
     <p>名前：${d.nickname}</p>
