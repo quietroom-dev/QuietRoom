@@ -131,36 +131,15 @@ async function isBlocked(targetUid) {
   return doc.exists;
 }
 
-  async function isBlockedBy(targetUid) {
-  alert("①開始");
 
-  try {
-    const doc = await db.collection("user")
-      .doc(targetUid)
-      .collection("blocks")
-      .doc(myUid)
-      .get();
-
-    alert("②取得成功");
-    return doc.exists;
-
-  } catch (e) {
-    alert("③エラー");
-    alert(String(e));
-    return false;
-  }
-}
-//async function isBlockedBy(targetUid) {
-//    alert("blockedBy入った");
-//  alert(myUid);
-//  alert(targetUid);
+async function isBlockedBy(targetUid) {
+    alert("blockedBy入った");
   
-//  const doc = await db.collection("user").doc(targetUid)
-//  .collection("blocks").doc(myUid).get();
-//    alert("blockedby出る")
-//  return doc.exists;
-//}
-
+  const doc = await db.collection("user").doc(targetUid)
+  .collection("blocks").doc(myUid).get();
+    alert("blockedby出る")
+  return doc.exists;
+}
   
 async function blockUser(targetUid) {
   await db.collection("user").doc(myUid)
