@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.7
+  v1.1.8
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -196,19 +196,33 @@ if (await isBlockedBy(targetUid)) {
 
 
 async function showIncomingCall(fromUid) {
+  alert("showIncomingCall開始");
+
   const snap = await db.collection("user").doc(fromUid).get();
+
+  alert("user取得成功");
+
   const d = snap.data();
 
-  callerProfile.innerHTML = `
-    <p>名前：${d.nickname}</p>
-    <p>性別：${d.gender}</p>
-    <p>都道府県：${d.prefecture}</p>
-    <p>ひとこと：${d.comment}</p>
-  `;
-
-  window._incomingFrom = fromUid;
   incomingCall.style.display = "flex";
+
+  alert("表示完了");
 }
+  
+//  async function showIncomingCall(fromUid) {
+//  const snap = await db.collection("user").doc(fromUid).get();
+//  const d = snap.data();
+
+//  callerProfile.innerHTML = `
+//    <p>名前：${d.nickname}</p>
+//    <p>性別：${d.gender}</p>
+//    <p>都道府県：${d.prefecture}</p>
+//    <p>ひとこと：${d.comment}</p>
+//  `;
+
+//  window._incomingFrom = fromUid;
+//  incomingCall.style.display = "flex";
+//}
 
 function acceptCall() {
   if (window.unsubIncoming) window.unsubIncoming();
