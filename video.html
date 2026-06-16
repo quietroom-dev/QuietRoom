@@ -162,12 +162,10 @@ const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
 async function resolveRole() {
   const snap = await db.collection("calls").doc(myUid).get();
-
   // 発信者
   if (!snap.exists) {
     callerUid = myUid;
     calleeUid = targetUid;
-
     await db.collection("offers").doc(calleeUid).set({
       from: myUid
     });
