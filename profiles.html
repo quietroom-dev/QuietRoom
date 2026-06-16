@@ -83,7 +83,6 @@ auth.signInAnonymously();
 auth.onAuthStateChanged(async user => {
   if (!user) return;
   myUid = user.uid;
-  alert(myUid);
   if (!myUid) {
     alert("プロフィール作成からやり直してな。");
     location.href = "index.html";
@@ -119,6 +118,7 @@ auth.onAuthStateChanged(async user => {
 
   window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
     const d = snap.data();
+    alert("from見てる");
     if (!d) return;
     if (d.from === myUid) return;
     if (d.from) showIncomingCall(d.from);
@@ -133,11 +133,9 @@ async function isBlocked(targetUid) {
 
 
 async function isBlockedBy(targetUid) {
-    alert("blockedBy入った");
   
   const doc = await db.collection("user").doc(targetUid)
   .collection("blocks").doc(myUid).get();
-    alert("blockedby出る")
   return doc.exists;
 }
   
@@ -175,18 +173,14 @@ async function reportUser(targetUid) {
 }
 
   async function startCall(targetUid) {
-      alert("スタートコール開始");
-      alert(targetUid);
 if (await isBlocked(targetUid)) {
   alert("ブロックしとる相手や。");
   return;
 }
-  alert("ブロックしている確認通過");
 if (await isBlockedBy(targetUid)) {
   alert("ブロックされとるで。");
   return;
 }
-  alert("ブロックされてる確認通過");
   // ▼ calls/{targetUid} に発信情報を書き込む（これが必須）
   await db.collection("calls").doc(targetUid).set({
     from: myUid,
@@ -194,7 +188,6 @@ if (await isBlockedBy(targetUid)) {
     answer: null,
     ended: false
   });
-  alert("from作成通過");
   location.href = `video.html?target=${targetUid}`;
 }
 
