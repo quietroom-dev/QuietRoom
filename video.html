@@ -133,10 +133,11 @@ const auth = firebase.auth();
 auth.onAuthStateChanged(user => {
   if (user) {
     const myUid = user.uid;
-    console.log("myUid:", myUid);
+    alert(myUid);
   }
 });
 const targetUid = new URLSearchParams(location.search).get("target");
+alert(targetUid);
 
 /* caller / callee / callDoc */
 let callerUid = null;
