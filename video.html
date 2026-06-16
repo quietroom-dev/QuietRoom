@@ -163,26 +163,36 @@ const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
 
 async function resolveRole() {
   const snap = await db.collection("calls").doc(myUid).get();
+
+  // 発信者
   if (!snap.exists) {
     callerUid = myUid;
     calleeUid = targetUid;
-    // 発信側 → 着信者へoffer送信
+
     await db.collection("offers").doc(calleeUid).set({
-    from: myUid
-  });
-}
+      from: myUid
+    });
+  }
+
+  // 着信者
   else {
+    const data = snap.data();
+
     callerUid = data.from;
     calleeUid = myUid;
-    // from削除（着信確定後のリセット）
+
+    // from削除（着信確定）
     await db.collection("calls").doc(myUid).delete();
-    // offer監視開始
+
+    // offer監視
     db.collection("offers").doc(myUid)
-    .onSnapshot(snap => {
-      const offer = snap.data();
-      if (!offer) return;
-      handleOffer(offer);
-    });
+      .onSnapshot(snap => {
+        const offer = snap.data();
+        if (!offer) return;
+
+        handleOffer(offer);
+      });
+  }
 }
   
 function saveMyMosaic() {
