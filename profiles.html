@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.6
+  v1.1.7
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -118,10 +118,13 @@ auth.onAuthStateChanged(async user => {
 
   window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
     const d = snap.data();
-    alert("from見てる");
     if (!d) return;
     if (d.from === myUid) return;
-    if (d.from) showIncomingCall(d.from);
+   // if (d.from) showIncomingCall(d.from);
+    if (d.from) {
+  alert("着信検知");
+  showIncomingCall(d.from);
+}
   });
 });
 
