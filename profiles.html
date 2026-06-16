@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.0
+  v1.1.1
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -197,7 +197,11 @@ if (await isBlockedBy(targetUid)) {
   
   async function showIncomingCall(fromUid) {
   const snap = await db.collection("user").doc(fromUid).get();
-  const d = snap.data();
+  //const d = snap.data();
+  if (!snap.exists) {
+  alert("プロフィール見つからん");
+  return;
+}
 
   callerProfile.innerHTML = `
     <p>名前：${d.nickname}</p>
