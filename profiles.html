@@ -83,7 +83,7 @@ auth.signInAnonymously();
 auth.onAuthStateChanged(async user => {
   if (!user) return;
   myUid = user.uid;
-  alert(myUid);
+//  alert(myUid);
   if (!myUid) {
     alert("プロフィール作成からやり直してな。");
     location.href = "index.html";
@@ -123,7 +123,7 @@ auth.onAuthStateChanged(async user => {
     if (d.from === myUid) return;
    // if (d.from) showIncomingCall(d.from);
     if (d.from) {
-  alert("着信検知");
+//  alert("着信検知");
   showIncomingCall(d.from);
 }
   });
@@ -196,12 +196,12 @@ if (await isBlockedBy(targetUid)) {
 }
   
   async function showIncomingCall(fromUid) {
-  alert("fromUid=" + fromUid);
+//  alert("fromUid=" + fromUid);
   const snap = await db.collection("user").doc(fromUid).get();
   //const d = snap.data();
-  alert("exists=" + snap.exists);
+//  alert("exists=" + snap.exists);
   if (!snap.exists) {
-  alert("プロフィール見つからん");
+//  alert("プロフィール見つからん");
   return;
 }
   const d = snap.data();
