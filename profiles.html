@@ -83,7 +83,7 @@ auth.signInAnonymously();
 auth.onAuthStateChanged(async user => {
   if (!user) return;
   myUid = user.uid;
-//  alert(myUid);
+  alert(myUid);
   if (!myUid) {
     alert("プロフィール作成からやり直してな。");
     location.href = "index.html";
