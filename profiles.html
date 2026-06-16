@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.1
+  v1.1.2
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -177,6 +177,7 @@ async function reportUser(targetUid) {
 }
 
   async function startCall(targetUid) {
+    alert("fromUid=" + fromUid + "myUid" + myUid);
 if (await isBlocked(targetUid)) {
   alert("ブロックしとる相手や。");
   return;
