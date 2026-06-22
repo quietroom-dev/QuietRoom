@@ -167,7 +167,7 @@ async function resolveRole() {
     callerUid = myUid;
     calleeUid = targetUid;
     alert("I'm callerUid:"+callerUid+" calleeUid:"+calleeUid);
-    await db.collection("offers").doc(calleeUid).set({
+    await db.collection("offer").doc(calleeUid).set({
       from: myUid
     });
   }
@@ -175,11 +175,9 @@ async function resolveRole() {
   // 着信者
   else {
     const data = snap.data();
-
     callerUid = data.from;
     calleeUid = myUid;
     alert("callerUid:"+callerUid+" I'm calleeUid:"+calleeUid);
-
     // from削除（着信確定）
     await db.collection("calls").doc(myUid).delete();
 
@@ -188,7 +186,6 @@ async function resolveRole() {
       .onSnapshot(snap => {
         const offer = snap.data();
         if (!offer) return;
-
         handleOffer(offer);
       });
   }
