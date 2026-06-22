@@ -133,10 +133,10 @@ let targetUid = null;
 auth.onAuthStateChanged(user => {
   if (!user) return;
   myUid = user.uid;
-  alert(myUid);
+  alert("myUid:"+myUid);
 });
 const targetUid = new URLSearchParams(location.search).get("target");
-alert(targetUid);
+alert("targetUid:"+targetUid);
 
 /* caller / callee / callDoc */
 let callerUid = null;
@@ -166,6 +166,7 @@ async function resolveRole() {
   if (!snap.exists) {
     callerUid = myUid;
     calleeUid = targetUid;
+    alert("callerUid:"+callerUid+" calleeUid:"+calleeUid);
     await db.collection("offers").doc(calleeUid).set({
       from: myUid
     });
