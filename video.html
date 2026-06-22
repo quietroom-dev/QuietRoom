@@ -166,7 +166,7 @@ async function resolveRole() {
   if (!snap.exists) {
     callerUid = myUid;
     calleeUid = targetUid;
-    alert("callerUid:"+callerUid+" calleeUid:"+calleeUid);
+    alert("I'm callerUid:"+callerUid+" calleeUid:"+calleeUid);
     await db.collection("offers").doc(calleeUid).set({
       from: myUid
     });
@@ -178,6 +178,7 @@ async function resolveRole() {
 
     callerUid = data.from;
     calleeUid = myUid;
+    alert("callerUid:"+callerUid+" I'm calleeUid:"+calleeUid);
 
     // from削除（着信確定）
     await db.collection("calls").doc(myUid).delete();
