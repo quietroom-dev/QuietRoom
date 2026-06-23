@@ -182,7 +182,6 @@ auth.onAuthStateChanged(async user => {
     });
   await initializeCall();
 });
-
 async function initializeCall() {
   if (myUid === callerUid) { // 発信者
     await startAsCaller();
@@ -191,26 +190,58 @@ async function initializeCall() {
     await startAsCallee();
   }
 }
-
+  
+//発信者処理
 async function startAsCaller() {
   await startCamera();
   pc.onicecandidate = e => {
     if (e.candidate) offerCandidates.add(e.candidate.toJSON());
   };
-  const offer = await pc.createOffer();
+  const offer = await pc.createOffer(); 
   await pc.setLocalDescription(offer);
   await callDoc.set({
-    from: callerUid,
-    to: calleeUid,
     offer: offer,
-    callerUid: callerUid,
-    calleeUid: calleeUid,
     createdAt: Date.now()
+  }, { merge:true });
+  const unsubscribe = callDoc.onSnapshot(async s => {
+   const d = s.data();
+   if (!d?.answer) return;
+   unsubscribe();
+   if (!pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+   }
   });
-}
+  answerCandidates.onSnapshot(s => {
+   s.docChanges().forEach(c => {
+    if (c.type === "added") {pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));}
+   });
+  });
+ }
 
-
-
+ //着信者処理
+ async function startAsCallee() {
+  await startCamera();
+  const unsubscribe = callDoc.onSnapshot(async snap => {
+   const data = snap.data();
+   if (!data?.offer) return;
+   unsubscribe();
+   if (pc.currentRemoteDescription) return;
+   pc.onicecandidate = e => {
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+   };
+   await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+   const answer = await pc.createAnswer();
+   await pc.setLocalDescription(answer);
+   await callDoc.update({ answer });
+   offerCandidates.onSnapshot(s => {
+    s.docChanges().forEach(c => {
+     if (c.type === "added") {
+      pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+     }
+    });
+   });
+  });
+ };
 
 
 
@@ -426,73 +457,14 @@ requestAnimationFrame(drawMosaic);
 
 /* ② 全員：Firestore から読み取り、役割確定＋シグナリング開始 */
 async function setupSignaling() {
-  if (!callDoc) {
-    callDoc = db.collection("calls").doc(myUid);
-    offerCandidates = callDoc.collection("offerCandidates");
-    answerCandidates = callDoc.collection("answerCandidates");
-  }
 
-  const snap = await callDoc.get();
-  const data = snap.data();
-  if (!data) return;
 
-  callerUid = data.callerUid;
-  calleeUid = data.calleeUid;
 
-  // 自分が発信者側
-  if (callerUid === myUid) {
-
-    callDoc.onSnapshot(async s => {
-      const d = s.data();
-      if (d?.answer && !pc.currentRemoteDescription) {
-        await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
-      }
-    });
-
-    answerCandidates.onSnapshot(s => {
-      s.docChanges().forEach(c => {
-        if (c.type === "added") {
-          pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-        }
-      });
-    });
 
   // 自分が着信者側
   } else if (calleeUid === myUid) {
 
-    await startCamera();  // ★ 管理者用 adminCalls もここで開始される
-
-    pc.onicecandidate = e => {
-      if (e.candidate) answerCandidates.add(e.candidate.toJSON());
-    };
-
-    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await callDoc.update({ answer });
-
-    offerCandidates.onSnapshot(s => {
-      s.docChanges().forEach(c => {
-        if (c.type === "added") {
-          pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-        }
-      });
-    });
-
-    callDoc.onSnapshot(async s => {
-      const d = s.data();
-      if (!d) return;
-      if (d.offer && pc.signalingState === "stable") {
-        await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
-        const newAnswer = await pc.createAnswer();
-        await pc.setLocalDescription(newAnswer);
-        await callDoc.update({ answer: newAnswer });
-      }
-    });
-  }
-}
-
+    
 /* ページ読み込み後＋匿名ログイン完了後 */
 auth.signInAnonymously().catch(err => {
   console.error("匿名ログイン失敗:", err);
