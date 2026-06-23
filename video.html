@@ -243,6 +243,15 @@ async function startAsCaller() {
   });
  };
 
+/* WebRTC（相手用） */
+let pc = new RTCPeerConnection({
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+});
+pc.onconnectionstatechange = () => {
+  console.log("connectionState =", pc.connectionState);
+};
+let localStream = null;
+
 /* 相手映像受信 */
 const mainVideo = document.getElementById("mainVideo");
 const mainCanvas = document.getElementById("mainCanvas");
@@ -253,12 +262,6 @@ const selfCtx = selfCanvas.getContext("2d");
 pc.ontrack = e => {
   mainVideo.srcObject = e.streams[0];
 };
-
-/* WebRTC（相手用） */
-let pc = new RTCPeerConnection({
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-});
-let localStream = null;
 
 async function startCamera() {
   localStream = await navigator.mediaDevices.getUserMedia({
