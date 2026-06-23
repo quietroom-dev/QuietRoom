@@ -130,11 +130,23 @@ const db = firebase.firestore();
 let myUid = null;
 let targetUid = null;
 
-auth.onAuthStateChanged(user => {
+auth.onAuthStateChanged(async user => {
   if (!user) return;
   myUid = user.uid;
   alert("myUid:"+myUid);
+  mosaicDoc = db.collection("mosaic").doc(myUid);
+  if (targetUid) {
+    remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
+    remoteMosaicDoc.onSnapshot(snap => {
+      const d = snap.data();
+      if (d?.size) {
+        remoteMosaicSize = d.size;
+      }
+    });
+  }
+  await initializeCall();
 });
+
 const targetUid = new URLSearchParams(location.search).get("target");
 alert("targetUid:"+targetUid);
 
@@ -157,8 +169,8 @@ let myMosaicSize = 25;
 let remoteMosaicSize = 25;
 const mosaicSizes = [1, 10, 13, 16, 19, 25];
 
-const mosaicDoc = db.collection("mosaic").doc(myUid);
-const remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
+let mosaicDoc;
+let remoteMosaicDoc;
 
 async function resolveRole() {
   const snap = await db.collection("calls").doc(myUid).get();
