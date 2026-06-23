@@ -162,6 +162,7 @@ auth.onAuthStateChanged(async user => {
   answerCandidates = callDoc.collection("answerCandidates");
   if (myUid === callerUid) {
    remoteUid = calleeUid;
+   alert("発信者");
 　}
 　else if (myUid === calleeUid) {
    remoteUid = callerUid;
@@ -184,6 +185,7 @@ auth.onAuthStateChanged(async user => {
 });
 async function initializeCall() {
   if (myUid === callerUid) { // 発信者
+    alert("発信者処理に飛ぶ");
     await startAsCaller();
   }
   else { // 着信者
@@ -193,6 +195,7 @@ async function initializeCall() {
   
 //発信者処理
 async function startAsCaller() {
+  alert("発信者処理に入った");
   await startCamera();
   pc.onicecandidate = e => {
     if (e.candidate) offerCandidates.add(e.candidate.toJSON());
