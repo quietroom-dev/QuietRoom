@@ -128,26 +128,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let myUid = null;
-let targetUid = null;
-
-auth.onAuthStateChanged(async user => {
-  if (!user) return;
-  myUid = user.uid;
-  alert("myUid:"+myUid);
-  mosaicDoc = db.collection("mosaic").doc(myUid);
-  if (targetUid) {
-    remoteMosaicDoc = db.collection("mosaic").doc(targetUid);
-    remoteMosaicDoc.onSnapshot(snap => {
-      const d = snap.data();
-      if (d?.size) {
-        remoteMosaicSize = d.size;
-      }
-    });
-  }
-  await initializeCall();
-});
-
-/* caller / callee / callDoc */
+let remoteUid = null;
 let callerUid = null;
 let calleeUid = null;
 let callDoc = null;
@@ -169,9 +150,72 @@ const mosaicSizes = [1, 10, 13, 16, 19, 25];
 let mosaicDoc;
 let remoteMosaicDoc;
 
-const params = new URLSearchParams(location.search);
-const callerUid = params.get("callerUid");
-const calleeUid = params.get("calleeUid");
+auth.onAuthStateChanged(async user => {
+  if (!user) return;
+  myUid = user.uid;
+  const params = new URLSearchParams(location.search);
+  callerUid = params.get("callerUid");
+  calleeUid = params.get("calleeUid");
+  const callId = callerUid + "_" + calleeUid;
+  callDoc = db.collection("calls").doc(callId);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  if (myUid === callerUid) {
+   remoteUid = calleeUid;
+　}
+　else if (myUid === calleeUid) {
+   remoteUid = callerUid;
+　}
+　else {
+   alert("参加権限がありません");
+   location.href = "profiles.html";
+   return;
+　}
+  alert("myUid:"+myUid+"\nremoteUid:"+remoteUid+"\ncallerUid:"+callerUid+"\ncalleeUid:"+calleeUid);
+  mosaicDoc = db.collection("mosaic").doc(myUid);
+  remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
+  remoteMosaicDoc.onSnapshot(snap => {
+    const d = snap.data();
+    if (d?.size) {
+      remoteMosaicSize = d.size;
+    }
+    });
+  await initializeCall();
+});
+
+async function initializeCall() {
+  if (myUid === callerUid) { // 発信者
+    await startAsCaller();
+  }
+  else { // 着信者
+    await startAsCallee();
+  }
+}
+
+async function startAsCaller() {
+  await startCamera();
+  pc.onicecandidate = e => {
+    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
+  };
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await callDoc.set({
+    from: callerUid,
+    to: calleeUid,
+    offer: offer,
+    callerUid: callerUid,
+    calleeUid: calleeUid,
+    createdAt: Date.now()
+  });
+}
+
+
+
+
+
+
+
+  
   
 /*
   async function resolveRole() {
@@ -205,6 +249,10 @@ const calleeUid = params.get("calleeUid");
   }
 }
 */
+
+
+
+  
 function saveMyMosaic() {
   mosaicDoc.set({ size: myMosaicSize });
 }
@@ -374,33 +422,7 @@ function drawMosaicSelf() {}
 requestAnimationFrame(drawMosaic);
 
 /* ① 発信者：最初に Firestore に全データを書き込む */
-async function startAsCaller() {
-  await startCamera();
 
-  callerUid = myUid;
-  calleeUid = targetUid;
-  callDoc = db.collection("calls").doc(calleeUid);
-  offerCandidates = callDoc.collection("offerCandidates");
-  answerCandidates = callDoc.collection("answerCandidates");
-
-  pc.onicecandidate = e => {
-    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
-  };
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-
-  await callDoc.set({
-    from: callerUid,
-    to: calleeUid,
-    offer: offer,
-    callerUid: callerUid,
-    calleeUid: calleeUid,
-    createdAt: Date.now()
-  });
-
-  localStorage.removeItem("isCaller");
-}
 
 /* ② 全員：Firestore から読み取り、役割確定＋シグナリング開始 */
 async function setupSignaling() {
