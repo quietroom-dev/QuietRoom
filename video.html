@@ -151,6 +151,7 @@ let mosaicDoc;
 let remoteMosaicDoc;
 
 auth.onAuthStateChanged(async user => {
+  alert("ver.1.0.0");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -267,13 +268,15 @@ pc.ontrack = e => {
 };
 
 async function startCamera() {
+  alert("スタートカメラ入った");
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: false
   });
+  alert("カメラ取得");
   selfVideo.srcObject = localStream;
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
+  alert("スタートカメラ完了");
   // ★ カメラが取れたら管理者用の adminCalls も開始
 //  await setupAdminMonitor();
 }
