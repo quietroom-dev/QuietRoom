@@ -243,6 +243,36 @@ async function startAsCaller() {
   });
  };
 
+/* 相手映像受信 */
+const mainVideo = document.getElementById("mainVideo");
+const mainCanvas = document.getElementById("mainCanvas");
+const mainCtx = mainCanvas.getContext("2d");
+const selfVideo = document.getElementById("selfVideo");
+const selfCanvas = document.getElementById("selfCanvas");
+const selfCtx = selfCanvas.getContext("2d");
+pc.ontrack = e => {
+  mainVideo.srcObject = e.streams[0];
+};
+
+/* WebRTC（相手用） */
+let pc = new RTCPeerConnection({
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+});
+let localStream = null;
+
+async function startCamera() {
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentFacing },
+    audio: false
+  });
+  selfVideo.srcObject = localStream;
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  // ★ カメラが取れたら管理者用の adminCalls も開始
+//  await setupAdminMonitor();
+}
+
+
 
 
 
@@ -282,7 +312,7 @@ async function startAsCaller() {
 */
 
 
-
+/*
   
 function saveMyMosaic() {
   mosaicDoc.set({ size: myMosaicSize });
@@ -295,14 +325,10 @@ remoteMosaicDoc.onSnapshot(snap => {
   }
 });
 
-/* WebRTC（相手用） */
-let pc = new RTCPeerConnection({
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-});
-let localStream = null;
+
 
 /* 管理者用 WebRTC：自分の映像を adminCalls/{myUid} に publish */
-async function setupAdminMonitor() {
+/*async function setupAdminMonitor() {
   if (!localStream) return;
 
   adminPc = new RTCPeerConnection({
@@ -349,24 +375,15 @@ async function setupAdminMonitor() {
     }
   });
 }
-
+*/
+  
 /* カメラ開始 */
-let currentFacing = "user";
+//let currentFacing = "user";
 
-async function startCamera() {
-  localStream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: currentFacing },
-    audio: false
-  });
-  selfVideo.srcObject = localStream;
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-  // ★ カメラが取れたら管理者用の adminCalls も開始
-  await setupAdminMonitor();
-}
 
 /* カメラ切替＋再ネゴシエーション */
-async function renegotiate() {
+/*async function renegotiate() {
   if (!callDoc) return;
   const offer = await pc.createOffer({ iceRestart: false });
   await pc.setLocalDescription(offer);
@@ -406,22 +423,11 @@ async function switchCameraFunc() {
 }
 
 document.getElementById("switchCamera").onclick = switchCameraFunc;
+*/
 
-/* 相手映像 */
-const mainVideo = document.getElementById("mainVideo");
-const mainCanvas = document.getElementById("mainCanvas");
-const mainCtx = mainCanvas.getContext("2d");
-
-const selfVideo = document.getElementById("selfVideo");
-const selfCanvas = document.getElementById("selfCanvas");
-const selfCtx = selfCanvas.getContext("2d");
-
-pc.ontrack = e => {
-  mainVideo.srcObject = e.streams[0];
-};
 
 /* モザイク描画 */
-function drawMosaic() {
+/*function drawMosaic() {
   const w = mainVideo.videoWidth;
   const h = mainVideo.videoHeight;
 
@@ -451,32 +457,12 @@ function drawMosaic() {
 }
 function drawMosaicSelf() {}
 requestAnimationFrame(drawMosaic);
-
-/* ① 発信者：最初に Firestore に全データを書き込む */
-
-
-/* ② 全員：Firestore から読み取り、役割確定＋シグナリング開始 */
-async function setupSignaling() {
+*/
 
 
-
-
-  // 自分が着信者側
-  } else if (calleeUid === myUid) {
-
-    
-/* ページ読み込み後＋匿名ログイン完了後 */
-auth.signInAnonymously().catch(err => {
-  console.error("匿名ログイン失敗:", err);
-});
-
-auth.onAuthStateChanged(user => {
-  if (!user) return;
-
-  window.addEventListener("load", async () => {
 
     /* モザイクUI */
-    const meterBar = document.getElementById("meterBar");
+/*    const meterBar = document.getElementById("meterBar");
     const meterUp = document.getElementById("meterUp");
     const meterDown = document.getElementById("meterDown");
 
@@ -516,7 +502,7 @@ auth.onAuthStateChanged(user => {
     };
 
     updateMeterUI();
-
+*/
     /* パトロール通知 */
     function showPatrolMessage() {
       const el = document.getElementById("patrolMsg");
@@ -529,19 +515,19 @@ auth.onAuthStateChanged(user => {
     let isEndingMyself = false;
 
     /* 自分が終了ボタンを押した時 */
-    document.getElementById("endBtn").onclick = async () => {
+/*    document.getElementById("endBtn").onclick = async () => {
       isEndingMyself = true;
-
+*/
       /* calls 側を終了 */
-      if (callDoc) {
+/*      if (callDoc) {
         await callDoc.set({ ended: true }, { merge: true });
         setTimeout(async () => {
           try { await callDoc.delete(); } catch (e) {}
         }, 500);
       }
-
+*/
       /* ★ adminCalls 側も終了 */
-      if (adminCallDoc) {
+/*      if (adminCallDoc) {
         await adminCallDoc.set({ ended: true }, { merge: true });
         setTimeout(async () => {
           try { await adminCallDoc.delete(); } catch (e) {}
@@ -552,14 +538,14 @@ auth.onAuthStateChanged(user => {
       localStorage.removeItem("targetUid");
       document.getElementById("endPopupBg").style.display = "flex";
     };
-
+*/
     /* 一覧に戻る */
-    document.getElementById("backBtn").onclick = () => {
+/*    document.getElementById("backBtn").onclick = () => {
       location.href = "profiles.html";
     };
-
+*/
     /* ブロック */
-    document.getElementById("blockBtn").onclick = async () => {
+/*    document.getElementById("blockBtn").onclick = async () => {
       await db.collection("users")
         .doc(myUid).collection("blocks")
         .doc(targetUid)
@@ -568,9 +554,9 @@ auth.onAuthStateChanged(user => {
       alert("ブロックしました。");
       location.href = "profiles.html";
     };
-
+*/
     /* 通報（通報 → 自動ブロック） */
-    document.getElementById("reportBtn").onclick = async () => {
+/*    document.getElementById("reportBtn").onclick = async () => {
       const already = await db.collection("reports")
         .doc(targetUid).collection("from").doc(myUid).get();
 
@@ -591,9 +577,9 @@ auth.onAuthStateChanged(user => {
       alert("通報したで。");
       location.href = "profiles.html";
     };
-
+*/
     /* 相手が終了した時 */
-    function watchEnd() {
+/*    function watchEnd() {
       if (!callDoc) return;
       callDoc.onSnapshot(snap => {
         const d = snap.data();
@@ -603,9 +589,9 @@ auth.onAuthStateChanged(user => {
         }
       });
     }
-
+*/
     /* ページ離脱時のクリーンアップ */
-    window.addEventListener("beforeunload", async () => {
+/*    window.addEventListener("beforeunload", async () => {
       try {
         if (callDoc) await callDoc.delete();
       } catch (err) {}
@@ -618,15 +604,10 @@ auth.onAuthStateChanged(user => {
       localStorage.removeItem("targetUid");
     });
 
-    /* 役割に応じた初期処理 */
-    if (isCaller) {
-      await startAsCaller();
-    }
 
-    await setupSignaling();
-    watchEnd();
   });
 });
+*/
 </script>
 
 <!-- 通話終了ポップアップ -->
@@ -640,6 +621,5 @@ auth.onAuthStateChanged(user => {
     </div>
   </div>
 </div>
-
 </body>
 </html>
