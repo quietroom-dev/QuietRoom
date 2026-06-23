@@ -147,9 +147,6 @@ auth.onAuthStateChanged(async user => {
   await initializeCall();
 });
 
-const targetUid = new URLSearchParams(location.search).get("target");
-alert("targetUid:"+targetUid);
-
 /* caller / callee / callDoc */
 let callerUid = null;
 let calleeUid = null;
@@ -172,7 +169,12 @@ const mosaicSizes = [1, 10, 13, 16, 19, 25];
 let mosaicDoc;
 let remoteMosaicDoc;
 
-async function resolveRole() {
+const params = new URLSearchParams(location.search);
+const callerUid = params.get("callerUid");
+const calleeUid = params.get("calleeUid");
+  
+/*
+  async function resolveRole() {
   const snap = await db.collection("calls").doc(myUid).get();
   // 発信者
   if (!snap.exists) {
@@ -202,7 +204,7 @@ async function resolveRole() {
       });
   }
 }
-  
+*/
 function saveMyMosaic() {
   mosaicDoc.set({ size: myMosaicSize });
 }
