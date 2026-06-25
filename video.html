@@ -208,6 +208,7 @@ async function startAsCaller() {
     offer: offer,
     createdAt: Date.now()
   }, { merge:true });
+  alert("offer書いた");
   const unsubscribe = callDoc.onSnapshot(async s => {
    const d = s.data();
    if (!d?.answer) return;
