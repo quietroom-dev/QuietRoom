@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.4
+  v1.1.5
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -221,6 +221,7 @@ if (await isBlockedBy(targetUid)) {
 function acceptCall() {
   if (window.unsubIncoming) window.unsubIncoming();
   incomingCall.style.display = "none";
+  db.collection("calls").doc(myUid).delete();
   location.href =
   `video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
 }
