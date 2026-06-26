@@ -152,7 +152,7 @@ let remoteMosaicDoc;
 let currentFacing = "user";
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.1.0.2");
+  alert("ver.1.0.3");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -196,13 +196,14 @@ async function initializeCall() {
   callDoc.onSnapshot(snap => {
    const d = snap.data();
    if (!d?.ended) return;
-   alert("相手が通話を終了しました");
+   alert("通話終わったで");
    if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
    }
    if (pc) {
      pc.close();
    }
+   db.collection("calls").doc(myUid).delete();
    location.href = "profiles.html";
   });
 }
