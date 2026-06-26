@@ -151,6 +151,8 @@ let mosaicDoc;
 let remoteMosaicDoc;
 let currentFacing = "user";
 
+let callId = null;
+
 auth.onAuthStateChanged(async user => {
   alert("ver.1.0.4");
   if (!user) return;
@@ -158,7 +160,7 @@ auth.onAuthStateChanged(async user => {
   const params = new URLSearchParams(location.search);
   callerUid = params.get("callerUid");
   calleeUid = params.get("calleeUid");
-  const callId = callerUid + "_" + calleeUid;
+  callId = callerUid + "_" + calleeUid;
   callDoc = db.collection("calls").doc(callId);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
