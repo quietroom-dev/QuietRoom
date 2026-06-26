@@ -153,7 +153,6 @@ let currentFacing = "user";
 
 let callId = null;
 let isEndingMyself = false;
-let isCleaningUp = false;
 
 auth.onAuthStateChanged(async user => {
   alert("ver.1.0.6");
@@ -273,7 +272,7 @@ async function startAsCaller() {
 let pc = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
-pc.onconnectionstatechange = () => {
+pc.onconnectionstatechange = async () => {
   console.log("connectionState =", pc.connectionState);
   if (
     pc.connectionState === "failed" ||
@@ -329,23 +328,6 @@ document.getElementById("endBtn").onclick = async () => {
   }
   location.href = "profiles.html";
 };
-async function cleanupCall() {
-  if (isCleaningUp) return;
-  isCleaningUp = true;
-  try {
-    if (callDoc) {
-      await callDoc.set({
-        ended: true
-      }, { merge: true });
-    }
-  } catch (e) {}
-  if (localStream) {
-    localStream.getTracks().forEach(t => t.stop());
-  }
-  if (pc) {
-    pc.close();
-  }
-}
 async function deleteCollection(collectionRef) {
   const snapshot = await collectionRef.get();
   const promises = [];
