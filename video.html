@@ -155,7 +155,7 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.1.0.5");
+  alert("ver.1.0.6");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -196,7 +196,7 @@ async function initializeCall() {
   else { // 着信者
     await startAsCallee();
   }
-  callDoc.onSnapshot(snap => {
+  callDoc.onSnapshot(async snap => {
    const d = snap.data();
    if (!d?.ended) return;
    if (isEndingMyself) return;
