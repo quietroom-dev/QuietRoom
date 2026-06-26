@@ -342,6 +342,7 @@ async function switchCameraFunc() {
   currentFacing = currentFacing === "user"
     ? "environment"
     : "user";
+  selfVideo.style.visibility = "hidden";
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
   }
@@ -349,13 +350,16 @@ async function switchCameraFunc() {
     video: { facingMode: currentFacing },
     audio: false
   });
-  selfVideo.srcObject = localStream;
   const sender = pc.getSenders().find(s =>
     s.track && s.track.kind === "video"
   );
   if (sender) {
     sender.replaceTrack(localStream.getVideoTracks()[0]);
   }
+  selfVideo.srcObject = localStream;
+  selfVideo.onloadedmetadata = () => {
+    selfVideo.style.visibility = "visible";
+  };
 }
 
 
