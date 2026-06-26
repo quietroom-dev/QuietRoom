@@ -168,7 +168,7 @@ auth.onAuthStateChanged(async user => {
   answerCandidates = callDoc.collection("answerCandidates");
   if (myUid === callerUid) {
    remoteUid = calleeUid;
-   alert("発信者");
+   /.alert("発信者");
 　}
 　else if (myUid === calleeUid) {
    remoteUid = callerUid;
@@ -191,7 +191,7 @@ auth.onAuthStateChanged(async user => {
 });
 async function initializeCall() {
   if (myUid === callerUid) { // 発信者
-    alert("発信者処理に飛ぶ");
+    //alert("発信者処理に飛ぶ");
     await startAsCaller();
   }
   else { // 着信者
@@ -217,7 +217,7 @@ async function initializeCall() {
   
 //発信者処理
 async function startAsCaller() {
-  alert("発信者処理に入った");
+  //alert("発信者処理に入った");
   await startCamera();
   pc.onicecandidate = e => {
     if (e.candidate) offerCandidates.add(e.candidate.toJSON());
@@ -228,7 +228,7 @@ async function startAsCaller() {
     offer: offer,
     createdAt: Date.now()
   }, { merge:true });
-  alert("offer書いた");
+  //alert("offer書いた");
   const unsubscribe = callDoc.onSnapshot(async s => {
    const d = s.data();
    if (!d?.answer) return;
@@ -300,15 +300,15 @@ pc.ontrack = e => {
 };
 
 async function startCamera() {
-  alert("スタートカメラ入った");
+  //alert("スタートカメラ入った");
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: false
   });
-  alert("カメラ取得");
+  //alert("カメラ取得");
   selfVideo.srcObject = localStream;
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  alert("スタートカメラ完了");
+  //alert("スタートカメラ完了");
   // ★ カメラが取れたら管理者用の adminCalls も開始
 //  await setupAdminMonitor();
 }
@@ -354,7 +354,27 @@ async function deleteCollection(collectionRef) {
   });
   await Promise.all(promises);
 }
-  
+//カメラ切替え
+document.getElementById("switchCamera").onclick = switchCameraFunc;
+async function switchCameraFunc() {
+  currentFacing = currentFacing === "user"
+    ? "environment"
+    : "user";
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+  }
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentFacing },
+    audio: false
+  });
+  selfVideo.srcObject = localStream;
+  const sender = pc.getSenders().find(s =>
+    s.track && s.track.kind === "video"
+  );
+  if (sender) {
+    sender.replaceTrack(localStream.getVideoTracks()[0]);
+  }
+}
 
 
 
