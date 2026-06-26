@@ -208,6 +208,8 @@ async function initializeCall() {
    if (pc) {
      pc.close();
    }
+   await deleteCollection(offerCandidates);
+   await deleteCollection(answerCandidates);
    await callDoc.delete();
    location.href = "profiles.html";
   });
