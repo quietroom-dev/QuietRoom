@@ -226,9 +226,14 @@ function acceptCall() {
   `video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
 }
 
-function declineCall() {
+async function declineCall() {
   if (window.unsubIncoming) window.unsubIncoming();
   db.collection("calls").doc(myUid).delete();
+  const callId = window._incomingFrom + "_" + myUid;
+  const callDoc = db.collection("calls").doc(callId);
+  await callDoc.set({
+  ended: true
+  }, { merge: true });
   incomingCall.style.display = "none";
 }
 </script>
