@@ -152,9 +152,10 @@ let remoteMosaicDoc;
 let currentFacing = "user";
 
 let callId = null;
+let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.1.0.4");
+  alert("ver.1.0.5");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -198,6 +199,7 @@ async function initializeCall() {
   callDoc.onSnapshot(snap => {
    const d = snap.data();
    if (!d?.ended) return;
+   if (isEndingMyself) return;
    alert("通話終わったで");
    if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
@@ -205,7 +207,7 @@ async function initializeCall() {
    if (pc) {
      pc.close();
    }
-   db.collection("calls").doc(callId).delete();
+   await callDoc.delete();
    location.href = "profiles.html";
   });
 }
@@ -300,6 +302,7 @@ async function startCamera() {
 
 //終了ボタン処理
 document.getElementById("endBtn").onclick = async () => {
+  isEndingMyself = true;
   if (callDoc) {
     await callDoc.set({
       ended: true
