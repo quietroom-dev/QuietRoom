@@ -152,7 +152,7 @@ let remoteMosaicDoc;
 let currentFacing = "user";
 
 let callId = null;
-//let isEndingMyself = false;
+let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
   alert("ver.1.0.6");
@@ -199,7 +199,7 @@ async function initializeCall() {
   callDoc.onSnapshot(async snap => {
    const d = snap.data();
    if (!d?.ended) return;
-   //if (isEndingMyself) return;
+   if (isEndingMyself) return;
    alert("通話終わったで");
    if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
@@ -302,7 +302,7 @@ async function startCamera() {
 
 //終了ボタン処理
 document.getElementById("endBtn").onclick = async () => {
-  //isEndingMyself = true;
+  isEndingMyself = true;
   if (callDoc) {
     await callDoc.set({
       ended: true
