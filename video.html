@@ -153,6 +153,7 @@ let currentFacing = "user";
 
 let callId = null;
 let isEndingMyself = false;
+let isCleaningUp = false;
 
 auth.onAuthStateChanged(async user => {
   alert("ver.1.0.6");
@@ -316,7 +317,23 @@ document.getElementById("endBtn").onclick = async () => {
   }
   location.href = "profiles.html";
 };
-
+async function cleanupCall() {
+  if (isCleaningUp) return;
+  isCleaningUp = true;
+  try {
+    if (callDoc) {
+      await callDoc.set({
+        ended: true
+      }, { merge: true });
+    }
+  } catch (e) {}
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+  }
+  if (pc) {
+    pc.close();
+  }
+}
 
   
 
