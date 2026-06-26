@@ -336,7 +336,14 @@ async function cleanupCall() {
     pc.close();
   }
 }
-
+async function deleteCollection(collectionRef) {
+  const snapshot = await collectionRef.get();
+  const promises = [];
+  snapshot.forEach(doc => {
+    promises.push(doc.ref.delete());
+  });
+  await Promise.all(promises);
+}
   
 
 
