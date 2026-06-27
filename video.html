@@ -182,13 +182,16 @@ auth.onAuthStateChanged(async user => {
   remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
   remoteMosaicDoc.onSnapshot(snap => {
     const d = snap.data();
-    if (d?.size) {
+    if (d?.size != null) {
       remoteMosaicSize = d.size;
     }
     });
   await initializeCall();
 });
 async function initializeCall() {
+  await mosaicDoc.set({
+   size: myMosaicSize
+  });
   if (myUid === callerUid) { // 発信者
     //alert("発信者処理に飛ぶ");
     await startAsCaller();
@@ -350,7 +353,7 @@ async function switchCameraFunc() {
   }
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
-    audio: false
+    audio: true
   });
   const sender = pc.getSenders().find(s =>
     s.track && s.track.kind === "video"
@@ -363,9 +366,72 @@ async function switchCameraFunc() {
     selfVideo.style.visibility = "visible";
   };
 }
-
-
-
+//モザイク処理
+function drawMosaic() {
+  const mw = mainVideo.videoWidth;
+  const mh = mainVideo.videoHeight;
+  if (mw && mh) {
+    mainCanvas.width = mw;
+    mainCanvas.height = mh;
+    if (remoteMosaicSize === 1) {
+      // モザイクなし
+      mainCtx.drawImage(mainVideo, 0, 0, mw, mh);
+    } else {
+      const s = remoteMosaicSize;
+      mainCtx.clearRect(0, 0, mw, mh);
+      mainCtx.imageSmoothingEnabled = false;
+      mainCtx.drawImage(mainVideo, 0, 0, mw / s, mh / s);
+      mainCtx.drawImage(mainCanvas,0, 0, mw / s, mh / s,0, 0, mw, mh);
+    }
+  }
+  const sw = selfVideo.videoWidth;
+  const sh = selfVideo.videoHeight;
+  if (sw && sh) {
+    selfCanvas.width = sw;
+    selfCanvas.height = sh;
+    const s = myMosaicSize;
+    if (s === 1) {
+     selfCtx.drawImage(selfVideo, 0, 0, sw, sh);
+    } else {
+     selfCtx.clearRect(0,0,sw,sh);
+     selfCtx.imageSmoothingEnabled = false;
+     selfCtx.drawImage(selfVideo,0,0,sw/s,sh/s);
+     selfCtx.drawImage(selfCanvas,0,0,sw/s,sh/s,0,0,sw,sh);
+    }
+  }
+  requestAnimationFrame(drawMosaic);
+}
+requestAnimationFrame(drawMosaic);
+document.getElementById("meterUp").onclick = () => {
+  if (myMosaicLevel < mosaicSizes.length - 1) {
+    myMosaicLevel++;
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    mosaicDoc.set({ size: myMosaicSize });
+    updateMeterUI();
+  }
+};
+document.getElementById("meterDown").onclick = () => {
+  if (myMosaicLevel > 0) {
+    myMosaicLevel--;
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    mosaicDoc.set({ size: myMosaicSize });
+    updateMeterUI();
+  }
+};
+//バー
+const meterBar = document.getElementById("meterBar");
+for (let i = 0; i < mosaicSizes.length; i++) {
+  const block = document.createElement("div");
+  block.className = "meter-block";
+  meterBar.appendChild(block);
+}
+updateMeterUI();
+function updateMeterUI() {
+  [...meterBar.children].forEach((b, i) => {
+    b.classList.toggle("active", i < myMosaicLevel);
+  });
+}
+updateMeterUI();
 
   
   
