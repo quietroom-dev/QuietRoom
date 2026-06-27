@@ -191,7 +191,7 @@ auth.onAuthStateChanged(async user => {
   await initializeCall();
 });
 async function initializeCall() {
-  alert("initlalizeCall開始");
+  alert("mosaicDoc=" + mosaicDoc);
   await mosaicDoc.set({
    size: myMosaicSize
   });
