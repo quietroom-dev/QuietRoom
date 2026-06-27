@@ -302,11 +302,13 @@ async function startCamera() {
   //alert("スタートカメラ入った");
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
-    audio: false
+    audio: true
   });
   //alert("カメラ取得");
   selfVideo.srcObject = localStream;
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  const videoTrack = localStream.getVideoTracks()[0];
+  pc.addTrack(videoTrack, localStream);
+  //localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
   //alert("スタートカメラ完了");
   // ★ カメラが取れたら管理者用の adminCalls も開始
 //  await setupAdminMonitor();
