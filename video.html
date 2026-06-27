@@ -155,7 +155,7 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.1.1.2");
+  alert("ver.1.1.3");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -187,6 +187,7 @@ auth.onAuthStateChanged(async user => {
       remoteMosaicSize = d.size;
     }
     });
+  alert("initlalizeCallに飛ぶ");
   await initializeCall();
 });
 async function initializeCall() {
