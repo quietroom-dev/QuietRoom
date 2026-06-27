@@ -167,10 +167,11 @@ auth.onAuthStateChanged(async user => {
   answerCandidates = callDoc.collection("answerCandidates");
   if (myUid === callerUid) {
    remoteUid = calleeUid;
-   //alert("発信者");
+   alert("発信者");
 　}
 　else if (myUid === calleeUid) {
    remoteUid = callerUid;
+   alert("着信者");
 　}
 　else {
    alert("参加権限がありません");
@@ -193,7 +194,7 @@ async function initializeCall() {
    size: myMosaicSize
   });
   if (myUid === callerUid) { // 発信者
-    //alert("発信者処理に飛ぶ");
+    alert("発信者処理に飛ぶ");
     await startAsCaller();
   }
   else { // 着信者
@@ -230,7 +231,7 @@ async function startAsCaller() {
     offer: offer,
     createdAt: Date.now()
   }, { merge:true });
-  //alert("offer書いた");
+  alert("offer書いた");
   const unsubscribe = callDoc.onSnapshot(async s => {
    const d = s.data();
    if (!d?.answer) return;
