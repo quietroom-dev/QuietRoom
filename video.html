@@ -155,7 +155,7 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.1.1.4");
+  alert("ver.1.1.5");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -191,6 +191,19 @@ auth.onAuthStateChanged(async user => {
   await initializeCall();
 });
 async function initializeCall() {
+  alert("myUid=" + myUid);
+
+try {
+  await mosaicDoc.set({
+    size: myMosaicSize
+  });
+  alert("set成功");
+} catch (e) {
+  alert("set失敗");
+  alert(e);
+  alert(e.message);
+  console.error(e);
+}
   alert("mosaicDoc=" + mosaicDoc);
   await mosaicDoc.set({
    size: myMosaicSize
