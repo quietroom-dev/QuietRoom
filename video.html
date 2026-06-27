@@ -155,7 +155,7 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.1.1.0");
+  alert("ver.1.1.1");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -302,17 +302,17 @@ pc.ontrack = e => {
 };
 
 async function startCamera() {
-  //alert("スタートカメラ入った");
+  alert("スタートカメラ入った");
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: true
   });
-  //alert("カメラ取得");
+  alert("カメラ取得");
   selfVideo.srcObject = localStream;
   const videoTrack = localStream.getVideoTracks()[0];
   pc.addTrack(videoTrack, localStream);
   //localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  //alert("スタートカメラ完了");
+  alert("スタートカメラ完了");
   // ★ カメラが取れたら管理者用の adminCalls も開始
 //  await setupAdminMonitor();
 }
