@@ -215,6 +215,17 @@ async function initializeCall() {
    if (pc) {
      pc.close();
    }
+   if (adminPc){
+    if(adminCallDoc){
+     await adminCallDoc.set({
+        ended:true
+     },{merge:true});
+     await deleteCollection(adminOfferCandidates);
+     await deleteCollection(adminAnswerCandidates);
+     await adminCallDoc.delete();
+    }
+    adminPc.close();
+   }
    await deleteCollection(offerCandidates);
    await deleteCollection(answerCandidates);
    await callDoc.delete();
@@ -291,6 +302,11 @@ pc.onconnectionstatechange = async () => {
         ended: true
       }, { merge: true });
     }
+    if(adminCallDoc){
+      await adminCallDoc.set({
+        ended:true
+      },{merge:true});
+    }
   }
 };
 let localStream = null;
@@ -330,11 +346,27 @@ document.getElementById("endBtn").onclick = async () => {
       ended: true
     }, { merge: true });
   }
+  if(adminCallDoc){
+    await adminCallDoc.set({
+        ended:true
+    },{merge:true});
+  }
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
   }
   if (pc) {
     pc.close();
+  }
+  if (adminPc){
+    if(adminCallDoc){
+     await adminCallDoc.set({
+        ended:true
+     },{merge:true});
+     await deleteCollection(adminOfferCandidates);
+     await deleteCollection(adminAnswerCandidates);
+     await adminCallDoc.delete();
+    }
+    adminPc.close();
   }
   location.href = "profiles.html";
 };
@@ -365,6 +397,18 @@ async function switchCameraFunc() {
   );
   if (sender) {
     sender.replaceTrack(localStream.getVideoTracks()[0]);
+  }
+  const adminSender = adminPc?.getSenders().find(
+    s => s.track && s.track.kind === "video"
+  );
+  if (adminSender) {
+    adminSender.replaceTrack(localStream.getVideoTracks()[0]);
+  }
+  const adminAudioSender = adminPc?.getSenders().find(
+    s => s.track && s.track.kind === "audio"
+  );
+  if (adminAudioSender) {
+    adminAudioSender.replaceTrack(localStream.getAudioTracks()[0]);
   }
   selfVideo.srcObject = localStream;
   selfVideo.onloadedmetadata = () => {
