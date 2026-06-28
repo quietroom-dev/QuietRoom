@@ -155,7 +155,7 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.1.1.5");
+  alert("ver.1.1.6");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -167,11 +167,11 @@ auth.onAuthStateChanged(async user => {
   answerCandidates = callDoc.collection("answerCandidates");
   if (myUid === callerUid) {
    remoteUid = calleeUid;
-   alert("発信者");
+   //alert("発信者");
 　}
 　else if (myUid === calleeUid) {
    remoteUid = callerUid;
-   alert("着信者");
+   //alert("着信者");
 　}
 　else {
    alert("参加権限がありません");
@@ -185,32 +185,20 @@ auth.onAuthStateChanged(async user => {
     const d = snap.data();
     if (d?.size != null) {
       remoteMosaicSize = d.size;
+      alert(remoteMosaicSize);
     }
     });
-  alert("initlalizeCallに飛ぶ");
+  //alert("initlalizeCallに飛ぶ");
   await initializeCall();
 });
 async function initializeCall() {
-  alert("myUid=" + myUid);
-
-try {
-  await mosaicDoc.set({
-    size: myMosaicSize
-  });
-  alert("set成功");
-} catch (e) {
-  alert("set失敗");
-  alert(e);
-  alert(e.message);
-  console.error(e);
-}
-  alert("mosaicDoc=" + mosaicDoc);
+  //alert("mosaicDoc=" + mosaicDoc);
   await mosaicDoc.set({
    size: myMosaicSize
   });
-  alert("mosaicdoc完了");
+  //alert("mosaicdoc完了");
   if (myUid === callerUid) { // 発信者
-    alert("発信者処理に飛ぶ");
+    //alert("発信者処理に飛ぶ");
     await startAsCaller();
   }
   else { // 着信者
@@ -236,7 +224,7 @@ try {
   
 //発信者処理
 async function startAsCaller() {
-  alert("発信者処理に入った");
+  //alert("発信者処理に入った");
   await startCamera();
   pc.onicecandidate = e => {
     if (e.candidate) offerCandidates.add(e.candidate.toJSON());
@@ -247,7 +235,7 @@ async function startAsCaller() {
     offer: offer,
     createdAt: Date.now()
   }, { merge:true });
-  alert("offer書いた");
+  //alert("offer書いた");
   const unsubscribe = callDoc.onSnapshot(async s => {
    const d = s.data();
    if (!d?.answer) return;
@@ -319,17 +307,17 @@ pc.ontrack = e => {
 };
 
 async function startCamera() {
-  alert("スタートカメラ入った");
+  //alert("スタートカメラ入った");
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: true
   });
-  alert("カメラ取得");
+  //alert("カメラ取得");
   selfVideo.srcObject = localStream;
   const videoTrack = localStream.getVideoTracks()[0];
   pc.addTrack(videoTrack, localStream);
   //localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  alert("スタートカメラ完了");
+  //alert("スタートカメラ完了");
   // ★ カメラが取れたら管理者用の adminCalls も開始
 //  await setupAdminMonitor();
 }
