@@ -319,7 +319,7 @@ async function startCamera() {
   //localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
   //alert("スタートカメラ完了");
   // ★ カメラが取れたら管理者用の adminCalls も開始
-//  await setupAdminMonitor();
+  await setupAdminMonitor();
 }
 
 //終了ボタン処理
@@ -437,7 +437,48 @@ function updateMeterUI() {
   });
 }
 updateMeterUI();
-
+// 管理者用
+async function setupAdminMonitor() {
+  if (!localStream) return;
+  adminPc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+  localStream.getTracks().forEach(track => {
+    adminPc.addTrack(track, localStream);
+  });
+  adminCallDoc = db.collection("adminCalls").doc(myUid);
+  adminOfferCandidates = adminCallDoc.collection("offerCandidates");
+  adminAnswerCandidates = adminCallDoc.collection("answerCandidates");
+  adminPc.onicecandidate = e => {
+    if (!e.candidate) return;
+    adminOfferCandidates.add(e.candidate.toJSON());
+  };
+  const offer = await adminPc.createOffer();
+  await adminPc.setLocalDescription(offer);
+  await adminCallDoc.set({
+    uid: myUid,
+    offer: offer,
+    createdAt: Date.now(),
+    ended: false
+  }, { merge: true });
+  adminAnswerCandidates.onSnapshot(s => {
+    s.docChanges().forEach(c => {
+      if (c.type === "added") {
+        adminPc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
+    });
+  });
+  adminCallDoc.onSnapshot(async s => {
+    const d = s.data();
+    if (!d) return;
+    if (d.answer && !adminPc.currentRemoteDescription) {
+      await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
+    }
+    if (d.ended) {
+      try { adminPc.close(); } catch (e) {}
+    }
+  });
+}
   
   
 /*
@@ -489,55 +530,8 @@ remoteMosaicDoc.onSnapshot(snap => {
 
 
 
-/* 管理者用 WebRTC：自分の映像を adminCalls/{myUid} に publish */
-/*async function setupAdminMonitor() {
-  if (!localStream) return;
 
-  adminPc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-  });
 
-  localStream.getTracks().forEach(t => adminPc.addTrack(t, localStream));
-
-  adminCallDoc = db.collection("adminCalls").doc(myUid);
-  adminOfferCandidates = adminCallDoc.collection("offerCandidates");
-  adminAnswerCandidates = adminCallDoc.collection("answerCandidates");
-
-  adminPc.onicecandidate = e => {
-    if (!e.candidate) return;
-    adminOfferCandidates.add(e.candidate.toJSON());
-  };
-
-  const offer = await adminPc.createOffer();
-  await adminPc.setLocalDescription(offer);
-
-  await adminCallDoc.set({
-    uid: myUid,
-    offer: offer,
-    createdAt: Date.now(),
-    ended: false
-  }, { merge: true });
-
-  adminAnswerCandidates.onSnapshot(s => {
-    s.docChanges().forEach(c => {
-      if (c.type === "added") {
-        adminPc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-      }
-    });
-  });
-
-  adminCallDoc.onSnapshot(async s => {
-    const d = s.data();
-    if (!d) return;
-    if (d.answer && !adminPc.currentRemoteDescription) {
-      await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
-    }
-    if (d.ended) {
-      try { adminPc.close(); } catch (e) {}
-    }
-  });
-}
-*/
   
 /* カメラ開始 */
 //let currentFacing = "user";
