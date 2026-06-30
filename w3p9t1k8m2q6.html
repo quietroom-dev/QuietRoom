@@ -178,40 +178,30 @@ let latestCallDocs = [];
 let page = 0;
 const pageSize = 8;
 let allVideoItems = [];
-
 function renderPagedGrid() {
   const wrap = document.getElementById("gridView");
   wrap.innerHTML = "";
-
   const start = page * pageSize;
   const end = start + pageSize;
   const items = allVideoItems.slice(start, end);
-
   items.forEach(item => wrap.appendChild(item.videoBox));
 }
-
 async function rebuildVideoList() {
   allVideoItems = [];
-
   for (const doc of latestCallDocs) {
     const userUid = doc.id;
-
     const [prof, rep] = await Promise.all([
       getProfile(userUid),
       getReportCount(userUid)
     ]);
-
     const box = document.createElement("div");
     box.className = "videoBox";
-
     const v = document.createElement("video");
     v.autoplay = true;
     v.playsInline = true;
     v.muted = true;
-
     const profDiv = document.createElement("div");
     profDiv.className = "profileBox";
-
     if (prof) {
       profDiv.innerHTML = `
         <b>${prof.nickname}</b><br>
@@ -220,24 +210,44 @@ async function rebuildVideoList() {
         都道府県：${prof.prefecture}<br>
         ひとこと：${prof.comment}<br>
         通報数：${rep}<br>
-        <span style="opacity:0.6;">user</span>
+        <span style="opacity:0.6;">${userUid}</span>
       `;
     } else {
-      profDiv.textContent = "プロフィールなし";
+      profDiv.innerHTML = `
+        プロフィールなし<br>
+        <span style="opacity:0.6;">${userUid}</span>
+      `;
     }
-
     box.appendChild(v);
     box.appendChild(profDiv);
-
-    allVideoItems.push({ userUid, videoBox: box, videoEl: v });
-    createAdminPC(userUid, v);
-
+    allVideoItems.push({
+      userUid,
+      videoBox: box,
+      videoEl: v
+    });
+    // 接続がまだ無い時だけ作成
+    if (!pcMap.has(userUid)) {
+      createAdminPC(userUid, v);
+    } else {
+  const pc = pcMap.get(userUid);
+  pc.videoElement = v;
+  if (pc.getReceivers().length > 0) {
+    const streams = pc.getReceivers()
+      .map(r => r.track)
+      .filter(t => t)
+      .map(t => new MediaStream([t]));
+    if (streams.length > 0) {
+      v.srcObject = streams[0];
+    }
+  }
+}
     box.onclick = () => openFullscreen(userUid);
   }
-
-  const maxPage = allVideoItems.length > 0 ? Math.floor((allVideoItems.length - 1) / pageSize) : 0;
+  const maxPage =
+    allVideoItems.length > 0
+      ? Math.floor((allVideoItems.length - 1) / pageSize)
+      : 0;
   if (page > maxPage) page = maxPage;
-
   renderPagedGrid();
 }
 
@@ -261,126 +271,140 @@ document.addEventListener("touchend", e => {
 });
 /* ▲▲▲ 一覧 ▲▲▲ */
 
-
-/* ▼▼▼ WebRTC（管理者用 adminCalls） ▼▼▼ */
+/* ▼▼▼ WebRTC（管理者用：adminCalls）▼▼▼ */
+const pcMap = new Map();
 function createAdminPC(userUid, videoEl) {
-  const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
-  pc.addTransceiver("video", { direction:"recvonly" });
-  pc.ontrack = e => videoEl.srcObject = e.streams[0];
-
+  // 既に接続済みなら何もしない
+  if (pcMap.has(userUid)) {
+    return;
+  }
+  const pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" }
+    ]
+  });
+  pcMap.set(userUid, pc);
+  pc.onconnectionstatechange = () => {
+  console.log(userUid, pc.connectionState);
+  if (
+    pc.connectionState === "closed" ||
+    pc.connectionState === "failed" ||
+    pc.connectionState === "disconnected"
+  ) {
+    pc.close();
+    pcMap.delete(userUid);
+  }
+};
+  pc.addTransceiver("video", {
+    direction: "recvonly"
+  });
+  pc.addTransceiver("audio", {
+    direction: "recvonly"
+  });
+  pc.videoElement = videoEl;
+  pc.ontrack = e => {
+   if (pc.videoElement) {
+    pc.videoElement.srcObject = e.streams[0];
+   }
+  };
   const callDoc = db.collection("adminCalls").doc(userUid);
-  const offerCandidates = callDoc.collection("offerCandidates");
-  const answerCandidates = callDoc.collection("answerCandidates");
-
+  const offerCandidates =
+    callDoc.collection("offerCandidates");
+  const answerCandidates =
+    callDoc.collection("answerCandidates");
   pc.onicecandidate = e => {
     if (!e.candidate) return;
-    answerCandidates.add(e.candidate.toJSON());
+    answerCandidates.add(
+      e.candidate.toJSON()
+    );
   };
-
   callDoc.onSnapshot(async snap => {
     const d = snap.data();
-    if (!d || !d.offer || d.ended) return;
-
+    if (!d) return;
+    if (!d.offer) return;
+    if (d.ended) {
+      pc.close();
+      pcMap.delete(userUid);
+      return;
+    }
     if (!pc.currentRemoteDescription) {
-      await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
-      const answer = await pc.createAnswer();
+      await pc.setRemoteDescription(
+        new RTCSessionDescription(d.offer)
+      );
+      const answer =
+        await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await callDoc.update({ answer });
+      await callDoc.update({
+        answer: answer
+      });
     }
   });
-
   offerCandidates.onSnapshot(snap => {
-    snap.docChanges().forEach(c => {
-      if (c.type === "added") {
-        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-      }
+    snap.docChanges().forEach(change => {
+      if (change.type !== "added") return;
+      pc.addIceCandidate(
+        new RTCIceCandidate(change.doc.data())
+      );
     });
   });
 }
 /* ▲▲▲ WebRTC ▲▲▲ */
 
-
-/* ▼▼▼ 全画面（adminCalls 用） ▼▼▼ */
-let fsPC = null;
-
-async function openFullscreen(userUid) {
-  if (fsPC) fsPC.close();
-
-  const videoEl = document.getElementById("fullscreenVideo");
-  videoEl.srcObject = null;
-
-  const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
-  pc.addTransceiver("video", { direction:"recvonly" });
-  pc.addTransceiver("audio", { direction:"recvonly" });
-  pc.ontrack = e => videoEl.srcObject = e.streams[0];
-
-  const callDoc = db.collection("adminCalls").doc(userUid);
-  const offerCandidates = callDoc.collection("offerCandidates");
-  const answerCandidates = callDoc.collection("answerCandidates");
-
-  pc.onicecandidate = e => {
-    if (!e.candidate) return;
-    answerCandidates.add(e.candidate.toJSON());
-  };
-
-  callDoc.onSnapshot(async snap => {
-    const d = snap.data();
-    if (!d || !d.offer || d.ended) return;
-
-    if (!pc.currentRemoteDescription) {
-      await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      await callDoc.update({ answer });
-    }
-  });
-
-  offerCandidates.onSnapshot(snap => {
-    snap.docChanges().forEach(c => {
-      if (c.type === "added") {
-        pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
-      }
-    });
-  });
-
-  fsPC = pc;
-
-  videoEl.muted = true;
+/* ▼▼▼ 全画面 ▼▼▼ */
+let fullscreenUid = null;
+function openFullscreen(userUid) {
+  fullscreenUid = userUid;
+  const item = allVideoItems.find(v => v.userUid === userUid);
+  if (!item) return;
+  const listVideo = item.videoEl;
+  const fsVideo = document.getElementById("fullscreenVideo");
+  // 一覧で受信しているStreamをそのまま使う
+  fsVideo.srcObject = listVideo.srcObject;
+  fsVideo.muted = true;
   document.getElementById("audioToggle").textContent = "🔇";
-
   document.getElementById("gridView").style.display = "none";
   document.getElementById("fullscreenView").style.display = "flex";
 }
-
 document.getElementById("audioToggle").onclick = () => {
   const v = document.getElementById("fullscreenVideo");
   v.muted = !v.muted;
-  document.getElementById("audioToggle").textContent = v.muted ? "🔇" : "🔈";
+  document.getElementById("audioToggle").textContent =
+    v.muted ? "🔇" : "🔈";
 };
-
 document.getElementById("backToList").onclick = () => {
-  if (fsPC) fsPC.close();
-  fsPC = null;
+  const fsVideo = document.getElementById("fullscreenVideo");
+  fsVideo.pause();
+  fsVideo.srcObject = null;
+  fullscreenUid = null;
   document.getElementById("fullscreenView").style.display = "none";
   document.getElementById("gridView").style.display = "grid";
 };
 /* ▲▲▲ 全画面 ▲▲▲ */
 
-
-/* ▼▼▼ adminCalls 監視 ▼▼▼ */
-db.collection("adminCalls").onSnapshot(snap => {
+/* ▼▼▼ adminCalls監視 ▼▼▼ */
+db.collection("adminCalls").onSnapshot(snapshot => {
+  const alive = new Set();
   const docs = [];
-  snap.forEach(doc => {
+  snapshot.forEach(doc => {
     const d = doc.data();
     if (!d) return;
     if (!d.offer) return;
     if (d.ended) return;
+    alive.add(doc.id);
     docs.push(doc);
   });
+  // 終了した接続を閉じる
+  for (const [uid, pc] of pcMap.entries()) {
+    if (alive.has(uid)) continue;
+    try {
+      pc.close();
+    } catch(e){}
+    pcMap.delete(uid);
+  }
   latestCallDocs = docs;
   rebuildVideoList();
 });
-/* ▲▲▲ adminCalls 監視 ▲▲▲ */
+/* ▲▲▲ adminCalls監視 ▲▲▲ */
 
 </script>
 </body>
