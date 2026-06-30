@@ -274,87 +274,71 @@ document.addEventListener("touchend", e => {
 /* ▼▼▼ WebRTC（管理者用：adminCalls）▼▼▼ */
 const pcMap = new Map();
 function createAdminPC(userUid, videoEl) {
-  // 既に接続済みなら何もしない
-  if (pcMap.has(userUid)) {
-    return;
-  }
+  // 既に作成済みなら何もしない
+  if (pcMap.has(userUid)) return;
   const pc = new RTCPeerConnection({
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" }
     ]
   });
-  pcMap.set(userUid, pc);
-  pc.onconnectionstatechange = () => {
-  console.log(userUid, pc.connectionState);
-  if (
-    pc.connectionState === "closed" ||
-    pc.connectionState === "failed" ||
-    pc.connectionState === "disconnected"
-  ) {
-    pc.close();
-    pcMap.delete(userUid);
-  }
-};
-  pc.addTransceiver("video", {
-    direction: "recvonly"
-  });
-  pc.addTransceiver("audio", {
-    direction: "recvonly"
-  });
-  pc.videoElement = videoEl;
+  pc.addTransceiver("video", { direction: "recvonly" });
   pc.ontrack = e => {
-   if (pc.videoElement) {
-    pc.videoElement.srcObject = e.streams[0];
-   }
+    videoEl.srcObject = e.streams[0];
   };
   const callDoc = db.collection("adminCalls").doc(userUid);
-  const offerCandidates =
-    callDoc.collection("offerCandidates");
-  const answerCandidates =
-    callDoc.collection("answerCandidates");
+  const offerCandidates = callDoc.collection("offerCandidates");
+  const answerCandidates = callDoc.collection("answerCandidates");
   pc.onicecandidate = e => {
     if (!e.candidate) return;
     answerCandidates.add(
       e.candidate.toJSON()
     );
   };
-callDoc.onSnapshot(async snap => {
-    if (!snap.exists) {
-        pc.close();
-        return;
-    }
+  const unsubscribeCall = callDoc.onSnapshot(async snap => {
     const d = snap.data();
+    if (!d) return;
     if (d.ended) {
-        await deleteCollection(offerCandidates);
-        await deleteCollection(answerCandidates);
+      const watcher = watcherMap.get(userUid);
+      if (watcher) {
         try {
-            await callDoc.delete();
-        } catch(e){}
-        pc.close();
-        return;
+          watcher.unsubscribeCall();
+        } catch (e) {}
+        try {
+          watcher.unsubscribeOffer();
+        } catch (e) {}
+        try {
+          watcher.pc.close();
+        } catch (e) {}
+        watcherMap.delete(userUid);
+      }
+      pcMap.delete(userUid);
+      return;
     }
     if (!d.offer) return;
     if (!pc.currentRemoteDescription) {
-        await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        await callDoc.update({
-            answer: pc.localDescription.toJSON()
-        });
+      await pc.setRemoteDescription(
+        new RTCSessionDescription(d.offer)
+      );
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await callDoc.update({
+        answer
+      });
     }
-});
-  offerCandidates.onSnapshot(snap => {
-    snap.docChanges().forEach(change => {
-      if (change.type !== "added") return;
+  });
+  const unsubscribeOffer = offerCandidates.onSnapshot(snap => {
+    snap.docChanges().forEach(c => {
+      if (c.type !== "added") return;
       pc.addIceCandidate(
-        new RTCIceCandidate(change.doc.data())
+        new RTCIceCandidate(c.doc.data())
       );
     });
   });
+  pcMap.set(userUid, pc);
   watcherMap.set(userUid, {
     pc,
-    stopCallWatcher: callDoc.onSnapshot(() => {}),
-    stopOfferWatcher: offerCandidates.onSnapshot(() => {})
+    unsubscribeCall,
+    unsubscribeOffer
   });
 }
 /* ▲▲▲ WebRTC ▲▲▲ */
@@ -393,52 +377,50 @@ document.getElementById("backToList").onclick = () => {
 /* ▼▼▼ adminCalls監視 ▼▼▼ */
 const watcherMap = new Map();
 const pcMap = new Map();
-db.collection("adminCalls").onSnapshot(async snapshot => {
-  for (const change of snapshot.docChanges()) {
-    const userUid = change.doc.id;
-    const data = change.doc.data();
-    // -----------------------------
-    // 通話開始
-    // -----------------------------
-    if (change.type === "added") {
-      if (!data.offer || data.ended) continue;
-      if (pcMap.has(userUid)) continue;
-      const [prof, rep] = await Promise.all([
-        getProfile(userUid),
-        getReportCount(userUid)
-      ]);
-      const box = document.createElement("div");
-      box.className = "videoBox";
-      const video = document.createElement("video");
-      video.autoplay = true;
-      video.playsInline = true;
-      video.muted = true;
-      const profile = document.createElement("div");
-      profile.className = "profileBox";
-      if (prof) {
-        profile.innerHTML = `
-          <b>${prof.nickname}</b><br>
-          性別：${prof.gender}<br>
-          年齢：${prof.age}<br>
-          都道府県：${prof.prefecture}<br>
-          ひとこと：${prof.comment}<br>
-          通報数：${rep}
-        `;
-      } else {
-        profile.textContent = "プロフィールなし";
-      }
-      box.appendChild(video);
-      box.appendChild(profile);
-      allVideoItems.push({
-        userUid,
-        videoBox: box,
-        videoEl: video
-      });
-      createAdminPC(userUid, video);
-      box.onclick = () => openFullscreen(userUid);
-      pcMap.set(userUid, true);
-      renderPagedGrid();
-    }
+db.collection("adminCalls").onSnapshot(snap => {
+
+  const aliveUsers = new Set();
+  const docs = [];
+
+  snap.forEach(doc => {
+
+    const d = doc.data();
+
+    if (!d) return;
+    if (!d.offer) return;
+    if (d.ended) return;
+
+    aliveUsers.add(doc.id);
+    docs.push(doc);
+
+  });
+
+  // 消えたユーザーの PeerConnection を閉じる
+  for (const [uid, watcher] of watcherMap.entries()) {
+
+    if (aliveUsers.has(uid)) continue;
+
+    try {
+      watcher.unsubscribeCall();
+    } catch (e) {}
+
+    try {
+      watcher.unsubscribeOffer();
+    } catch (e) {}
+
+    try {
+      watcher.pc.close();
+    } catch (e) {}
+
+    watcherMap.delete(uid);
+    pcMap.delete(uid);
+
+  }
+
+  latestCallDocs = docs;
+  rebuildVideoList();
+
+});
     // -----------------------------
     // 通話終了
     // -----------------------------
@@ -475,7 +457,36 @@ async function deleteCollection(collectionRef) {
   });
   await Promise.all(promises);
 }
-  
+window.addEventListener("beforeunload", async () => {
+
+  // 一覧の監視を終了
+  for (const watcher of watcherMap.values()) {
+
+    try {
+      watcher.unsubscribeCall();
+    } catch(e){}
+
+    try {
+      watcher.unsubscribeOffer();
+    } catch(e){}
+
+    try {
+      watcher.pc.close();
+    } catch(e){}
+  }
+
+  watcherMap.clear();
+  pcMap.clear();
+
+  // 全画面を閉じる
+  if (fsPC) {
+    try {
+      fsPC.close();
+    } catch(e){}
+    fsPC = null;
+  }
+
+});
 </script>
 </body>
 </html>
