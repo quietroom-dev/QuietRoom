@@ -1,4 +1,4 @@
-は<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -351,6 +351,11 @@ callDoc.onSnapshot(async snap => {
       );
     });
   });
+  watcherMap.set(userUid, {
+    pc,
+    stopCallWatcher: callDoc.onSnapshot(() => {}),
+    stopOfferWatcher: offerCandidates.onSnapshot(() => {})
+  });
 }
 /* ▲▲▲ WebRTC ▲▲▲ */
 
@@ -386,6 +391,7 @@ document.getElementById("backToList").onclick = () => {
 /* ▲▲▲ 全画面 ▲▲▲ */
 
 /* ▼▼▼ adminCalls監視 ▼▼▼ */
+const watcherMap = new Map();
 const pcMap = new Map();
 db.collection("adminCalls").onSnapshot(async snapshot => {
   for (const change of snapshot.docChanges()) {
@@ -441,8 +447,21 @@ db.collection("adminCalls").onSnapshot(async snapshot => {
       if (index >= 0) {
         allVideoItems.splice(index, 1);
       }
-      pcMap.delete(userUid);
-      renderPagedGrid();
+      const watcher = watcherMap.get(userUid);
+    if (watcher) {
+      try {
+        watcher.stopCallWatcher();
+      } catch(e){}
+      try {
+        watcher.stopOfferWatcher();
+      } catch(e){}
+      try {
+        watcher.pc.close();
+      } catch(e){}
+    watcherMap.delete(userUid);
+    }
+    pcMap.delete(userUid);
+    renderPagedGrid();
     }
   }
 });
