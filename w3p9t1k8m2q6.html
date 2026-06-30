@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+は<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -318,27 +318,44 @@ function createAdminPC(userUid, videoEl) {
       e.candidate.toJSON()
     );
   };
-  callDoc.onSnapshot(async snap => {
+callDoc.onSnapshot(async snap => {
+
+    if (!snap.exists) {
+        pc.close();
+        return;
+    }
+
     const d = snap.data();
-    if (!d) return;
-    if (!d.offer) return;
+
     if (d.ended) {
-      pc.close();
-      pcMap.delete(userUid);
-      return;
+
+        await deleteCollection(offerCandidates);
+        await deleteCollection(answerCandidates);
+
+        try {
+            await callDoc.delete();
+        } catch(e){}
+
+        pc.close();
+        return;
     }
+
+    if (!d.offer) return;
+
     if (!pc.currentRemoteDescription) {
-      await pc.setRemoteDescription(
-        new RTCSessionDescription(d.offer)
-      );
-      const answer =
-        await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      await callDoc.update({
-        answer: answer
-      });
+
+        await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+
+        const answer = await pc.createAnswer();
+
+        await pc.setLocalDescription(answer);
+
+        await callDoc.update({
+            answer: pc.localDescription.toJSON()
+        });
     }
-  });
+
+});
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(change => {
       if (change.type !== "added") return;
@@ -406,6 +423,15 @@ db.collection("adminCalls").onSnapshot(snapshot => {
 });
 /* ▲▲▲ adminCalls監視 ▲▲▲ */
 
+async function deleteCollection(collectionRef) {
+  const snapshot = await collectionRef.get();
+  const promises = [];
+  snapshot.forEach(doc => {
+    promises.push(doc.ref.delete());
+  });
+  await Promise.all(promises);
+}
+  
 </script>
 </body>
 </html>
