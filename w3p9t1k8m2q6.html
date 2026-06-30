@@ -281,6 +281,33 @@ function createAdminPC(userUid, videoEl) {
       { urls: "stun:stun.l.google.com:19302" }
     ]
   });
+  pc.onconnectionstatechange = async () => {
+
+  if (
+    pc.connectionState === "closed" ||
+    pc.connectionState === "failed" ||
+    pc.connectionState === "disconnected"
+  ) {
+
+    try {
+
+      const offer = await offerCandidates.get();
+      for (const d of offer.docs) {
+        await d.ref.delete();
+      }
+
+      const answer = await answerCandidates.get();
+      for (const d of answer.docs) {
+        await d.ref.delete();
+      }
+
+      await callDoc.delete();
+
+    } catch(e) {
+      console.log(e);
+    }
+  }
+};
   pc.addTransceiver("video", { direction: "recvonly" });
   pc.ontrack = e => {
     videoEl.srcObject = e.streams[0];
@@ -354,10 +381,16 @@ function openFullscreen(userUid) {
   // 一覧で受信しているStreamをそのまま使う
   fsVideo.srcObject = listVideo.srcObject;
   fsVideo.muted = true;
-  document.getElementById("audioToggle").textContent = "🔇";
-  document.getElementById("gridView").style.display = "none";
-  document.getElementById("fullscreenView").style.display = "flex";
-}
+  document.getElementById("backToList").onclick = () => {
+  const fsVideo = document.getElementById("fullscreenVideo");
+  fsVideo.pause();
+  fsVideo.srcObject = null;
+
+  fullscreenUid = null;
+
+  document.getElementById("fullscreenView").style.display = "none";
+  document.getElementById("gridView").style.display = "grid";
+};
 document.getElementById("audioToggle").onclick = () => {
   const v = document.getElementById("fullscreenVideo");
   v.muted = !v.muted;
