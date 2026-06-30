@@ -319,42 +319,29 @@ function createAdminPC(userUid, videoEl) {
     );
   };
 callDoc.onSnapshot(async snap => {
-
     if (!snap.exists) {
         pc.close();
         return;
     }
-
     const d = snap.data();
-
     if (d.ended) {
-
         await deleteCollection(offerCandidates);
         await deleteCollection(answerCandidates);
-
         try {
             await callDoc.delete();
         } catch(e){}
-
         pc.close();
         return;
     }
-
     if (!d.offer) return;
-
     if (!pc.currentRemoteDescription) {
-
         await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
-
         const answer = await pc.createAnswer();
-
         await pc.setLocalDescription(answer);
-
         await callDoc.update({
             answer: pc.localDescription.toJSON()
         });
     }
-
 });
   offerCandidates.onSnapshot(snap => {
     snap.docChanges().forEach(change => {
@@ -399,27 +386,65 @@ document.getElementById("backToList").onclick = () => {
 /* ▲▲▲ 全画面 ▲▲▲ */
 
 /* ▼▼▼ adminCalls監視 ▼▼▼ */
-db.collection("adminCalls").onSnapshot(snapshot => {
-  const alive = new Set();
-  const docs = [];
-  snapshot.forEach(doc => {
-    const d = doc.data();
-    if (!d) return;
-    if (!d.offer) return;
-    if (d.ended) return;
-    alive.add(doc.id);
-    docs.push(doc);
-  });
-  // 終了した接続を閉じる
-  for (const [uid, pc] of pcMap.entries()) {
-    if (alive.has(uid)) continue;
-    try {
-      pc.close();
-    } catch(e){}
-    pcMap.delete(uid);
+const pcMap = new Map();
+db.collection("adminCalls").onSnapshot(async snapshot => {
+  for (const change of snapshot.docChanges()) {
+    const userUid = change.doc.id;
+    const data = change.doc.data();
+    // -----------------------------
+    // 通話開始
+    // -----------------------------
+    if (change.type === "added") {
+      if (!data.offer || data.ended) continue;
+      if (pcMap.has(userUid)) continue;
+      const [prof, rep] = await Promise.all([
+        getProfile(userUid),
+        getReportCount(userUid)
+      ]);
+      const box = document.createElement("div");
+      box.className = "videoBox";
+      const video = document.createElement("video");
+      video.autoplay = true;
+      video.playsInline = true;
+      video.muted = true;
+      const profile = document.createElement("div");
+      profile.className = "profileBox";
+      if (prof) {
+        profile.innerHTML = `
+          <b>${prof.nickname}</b><br>
+          性別：${prof.gender}<br>
+          年齢：${prof.age}<br>
+          都道府県：${prof.prefecture}<br>
+          ひとこと：${prof.comment}<br>
+          通報数：${rep}
+        `;
+      } else {
+        profile.textContent = "プロフィールなし";
+      }
+      box.appendChild(video);
+      box.appendChild(profile);
+      allVideoItems.push({
+        userUid,
+        videoBox: box,
+        videoEl: video
+      });
+      createAdminPC(userUid, video);
+      box.onclick = () => openFullscreen(userUid);
+      pcMap.set(userUid, true);
+      renderPagedGrid();
+    }
+    // -----------------------------
+    // 通話終了
+    // -----------------------------
+    if (change.type === "removed" || data.ended) {
+      const index = allVideoItems.findIndex(v => v.userUid === userUid);
+      if (index >= 0) {
+        allVideoItems.splice(index, 1);
+      }
+      pcMap.delete(userUid);
+      renderPagedGrid();
+    }
   }
-  latestCallDocs = docs;
-  rebuildVideoList();
 });
 /* ▲▲▲ adminCalls監視 ▲▲▲ */
 
