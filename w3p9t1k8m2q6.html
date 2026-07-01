@@ -108,37 +108,24 @@ const db = firebase.firestore();
 
 /* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
 async function login() {
+  const adminDoc = db.collection("admins").doc("password");   // ← passwordドキュメント
+  const snap = await adminDoc.get();                          // ← ドキュメント取得
+  const pw = snap.data().password;                          // ← passwordフィールドを変数pwへ
   const input = document.getElementById("pass").value;
-
-  // admins から password を探す
-  const snaps = await db.collection("admins").get();
   let ok = false;
-
-  for (const doc of snaps.docs) {
-    const d = doc.data();
-    if (input === d.password) {
-      ok = true;
-      break;
-    }
+  if (input === d.password) {
+    ok = true;
+    break;
   }
-
   if (!ok) {
     err.style.display = "block";
     return;
   }
-
   try {
     // 匿名ログイン（uid を得る）
     await auth.signInAnonymously();
-
-    // 匿名 uid を admins に登録（管理者化）
-    await db.collection("admins").doc(auth.currentUser.uid).set({
-      password: input
-    });
-
     loginBox.style.display = "none";
     gridView.style.display = "grid";
-
   } catch (e) {
     console.error("管理者ログイン失敗:", e);
     err.style.display = "block";
