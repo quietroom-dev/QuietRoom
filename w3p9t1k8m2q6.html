@@ -106,7 +106,7 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-alart("v1.0.0");
+alert("v1.0.0");
 
 /* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
 async function login() {
@@ -114,22 +114,12 @@ async function login() {
   const snap = await adminDoc.get();                          // ← ドキュメント取得
   const pw = snap.data().password;                          // ← passwordフィールドを変数pwへ
   const input = document.getElementById("pass").value;
-  let ok = false;
-  alart(pw+","+input);
+  alert(pw+","+input);
   if (input === pw) {
-    ok = true;
-  }
-  if (!ok) {
-    err.style.display = "block";
-    return;
-  }
-  try {
-    // 匿名ログイン（uid を得る）
-    await auth.signInAnonymously();
     loginBox.style.display = "none";
     gridView.style.display = "grid";
-  } catch (e) {
-    console.error("管理者ログイン失敗:", e);
+  }
+  else {
     err.style.display = "block";
   }
 }
