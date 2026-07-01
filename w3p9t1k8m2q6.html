@@ -106,6 +106,8 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+alarm("v1.0.0");
+
 /* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
 async function login() {
   const adminDoc = db.collection("admins").doc("password");   // ← passwordドキュメント
