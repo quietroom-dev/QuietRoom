@@ -106,7 +106,7 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-alarm("v1.0.0");
+alart("v1.0.0");
 
 /* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
 async function login() {
@@ -115,7 +115,7 @@ async function login() {
   const pw = snap.data().password;                          // ← passwordフィールドを変数pwへ
   const input = document.getElementById("pass").value;
   let ok = false;
-  alarm(pw+","+input);
+  alart(pw+","+input);
   if (input === pw) {
     ok = true;
   }
