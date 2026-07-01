@@ -118,7 +118,6 @@ async function login() {
   alarm(pw+","+input);
   if (input === pw) {
     ok = true;
-    break;
   }
   if (!ok) {
     err.style.display = "block";
@@ -262,7 +261,6 @@ document.addEventListener("touchend", e => {
 /* ▲▲▲ 一覧 ▲▲▲ */
 
 /* ▼▼▼ WebRTC（管理者用：adminCalls）▼▼▼ */
-const pcMap = new Map();
 function createAdminPC(userUid, videoEl) {
   // 既に作成済みなら何もしない
   if (pcMap.has(userUid)) return;
