@@ -112,7 +112,7 @@ alert("v1.0.0");
 auth.onAuthStateChanged(async user => {
   if (!user) return;
   myUid = user.uid;
-}
+});
 
 /* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
 async function login() {
