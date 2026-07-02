@@ -163,10 +163,7 @@ async function rebuildVideoList() {
   allVideoItems = [];
   for (const doc of latestCallDocs) {
     const userUid = doc.id;
-    const [prof, rep] = await Promise.all([
-      getProfile(userUid),
-      getReportCount(userUid)
-    ]);
+    const prof = await getProfile(userUid);
     const box = document.createElement("div");
     box.className = "videoBox";
     const v = document.createElement("video");
@@ -182,7 +179,6 @@ async function rebuildVideoList() {
         年齢：${prof.age}<br>
         都道府県：${prof.prefecture}<br>
         ひとこと：${prof.comment}<br>
-        通報数：${rep}<br>
         <span style="opacity:0.6;">${userUid}</span>
       `;
     } else {
