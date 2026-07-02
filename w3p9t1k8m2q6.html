@@ -131,10 +131,8 @@ async function login() {
 }
 /* ▲▲▲ 管理者ログイン ▲▲▲ */
 
-
 /* ▼▼▼ プロフィールキャッシュ ▼▼▼ */
-const profileCache = new Map();
-const reportCache  = new Map();
+const profileCache = new Map);
 
 async function getProfile(uid) {
   if (!uid) return null;
@@ -144,16 +142,6 @@ async function getProfile(uid) {
   const data = snap.exists ? snap.data() : null;
   profileCache.set(uid, data);
   return data;
-}
-
-async function getReportCount(uid) {
-  if (!uid) return 0;
-  if (reportCache.has(uid)) return reportCache.get(uid);
-
-  const snap = await db.collection("reports").doc(uid).get();
-  const count = snap.exists ? (snap.data().count || 0) : 0;
-  reportCache.set(uid, count);
-  return count;
 }
 /* ▲▲▲ プロフィールキャッシュ ▲▲▲ */
 
