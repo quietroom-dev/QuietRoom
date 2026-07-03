@@ -124,11 +124,11 @@ async function login() {
   const input = document.getElementById("pass").value;
   alert(pw+","+input);
   if (input === pw) {
-    loginBox.style.display = "none";
-    gridView.style.display = "grid";
+    document.getElementById("loginBox").style.display="none";
+    document.getElementById("gridView").style.display="grid";
   }
   else {
-    err.style.display = "block";
+    document.getElementById("err").style.display="block";
   }
 }
 /* ▲▲▲ 管理者ログイン ▲▲▲ */
