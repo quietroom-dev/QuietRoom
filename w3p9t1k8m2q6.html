@@ -261,34 +261,17 @@ async function rebuildVideoList() {
     });
     // 接続がまだ無い時だけ作成
     if (!pcMap.has(userUid)) {
-
   createAdminPC(userUid, v);
-
 } else {
-
   const pc = pcMap.get(userUid);
-
-  // 新しいvideoへ付け替え
-  pc.videoElement = v;
-
-  const tracks = pc.getReceivers()
-    .map(r => r.track)
-    .filter(track => track);
-
-  if (tracks.length > 0) {
-
-    const stream = new MediaStream(tracks);
-
-    v.srcObject = stream;
-
-    v.play().catch(err => {
-      console.log(err);
-    });
-
-  }
-
+// 新しいvideoへ付け替え
+pc.videoElement = v;
+// 既に映像が来ているなら再利用
+if (pc.remoteStream) {
+  v.srcObject = pc.remoteStream;
+  v.play().catch(console.log);
+}
 } // ← else はここで終わる
-
 box.onclick = () => openFullscreen(userUid);
   }
   const maxPage =
@@ -298,7 +281,6 @@ box.onclick = () => openFullscreen(userUid);
   if (page > maxPage) page = maxPage;
   renderPagedGrid();
 }
-
 /* 横スワイプ */
 let touchStartX = 0;
 document.addEventListener("touchstart", e => {
@@ -351,17 +333,21 @@ function createAdminPC(userUid, videoEl) {
 }; 
   pc.addTransceiver("video", { direction: "recvonly" });
 // 現在表示中のvideo要素
+// 現在表示中のvideo要素
 pc.videoElement = videoEl;
+
+// 映像ストリームを保持
+pc.remoteStream = null;
 pc.ontrack = e => {
   const stream = e.streams[0];
   if (!stream) return;
+  // 常に保存
+  pc.remoteStream = stream;
+  // 現在表示中のvideoへ表示
   if (pc.videoElement) {
-    pc.videoElement.srcObject = stream;
-    pc.videoElement.play().catch(err => {
-      console.log(err);
-    });
+    pc.videoElement.srcObject = pc.remoteStream;
+    pc.videoElement.play().catch(console.log);
   }
-
 };
   const callDoc = db.collection("adminCalls").doc(userUid);
   const offerCandidates = callDoc.collection("offerCandidates");
@@ -461,52 +447,35 @@ document.getElementById("backToList").onclick = () => {
 
 /* ▼▼▼ adminCalls監視 ▼▼▼ */
 db.collection("adminCalls").onSnapshot(snap => {
-
   const aliveUsers = new Set();
   const docs = [];
-
   snap.forEach(doc => {
-
     const d = doc.data();
-
     if (!d) return;
     if (!d.offer) return;
     if (d.ended) return;
-
     aliveUsers.add(doc.id);
     docs.push(doc);
-
   });
-
   // 消えたユーザーの PeerConnection を閉じる
   for (const [uid, watcher] of watcherMap.entries()) {
-
     if (aliveUsers.has(uid)) continue;
-
     try {
       watcher.unsubscribeCall();
     } catch (e) {}
-
     try {
       watcher.unsubscribeOffer();
     } catch (e) {}
-
     try {
       watcher.pc.close();
     } catch (e) {}
-
     watcherMap.delete(uid);
     pcMap.delete(uid);
-
   }
-
   latestCallDocs = docs;
   rebuildVideoList();
-
 });
-
 /* ▲▲▲ adminCalls監視 ▲▲▲ */
-
 async function deleteCollection(collectionRef) {
   const snapshot = await collectionRef.get();
   const promises = [];
@@ -516,26 +485,20 @@ async function deleteCollection(collectionRef) {
   await Promise.all(promises);
 }
 window.addEventListener("beforeunload", async () => {
-
   // 一覧の監視を終了
   for (const watcher of watcherMap.values()) {
-
     try {
       watcher.unsubscribeCall();
     } catch(e){}
-
     try {
       watcher.unsubscribeOffer();
     } catch(e){}
-
     try {
       watcher.pc.close();
     } catch(e){}
   }
-
   watcherMap.clear();
   pcMap.clear();
-
 });
 </script>
 </body>
