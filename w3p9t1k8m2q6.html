@@ -198,23 +198,35 @@ async function rebuildVideoList() {
     });
     // 接続がまだ無い時だけ作成
     if (!pcMap.has(userUid)) {
-      createAdminPC(userUid, v);
-    } else {
+
+  createAdminPC(userUid, v);
+
+} else {
+
   const pc = pcMap.get(userUid);
-// 新しいvideoへ付け替え
-pc.videoElement = v;
-const tracks = pc.getReceivers()
-  .map(r => r.track)
-  .filter(track => track);
-if (tracks.length > 0) {
-  const stream = new MediaStream(tracks);
-  v.srcObject = stream;
-  v.play().catch(err => {
-    console.log(err);
-  });
-}
-    box.onclick = () => openFullscreen(userUid);
+
+  // 新しいvideoへ付け替え
+  pc.videoElement = v;
+
+  const tracks = pc.getReceivers()
+    .map(r => r.track)
+    .filter(track => track);
+
+  if (tracks.length > 0) {
+
+    const stream = new MediaStream(tracks);
+
+    v.srcObject = stream;
+
+    v.play().catch(err => {
+      console.log(err);
+    });
+
   }
+
+} // ← else はここで終わる
+
+box.onclick = () => openFullscreen(userUid);
   const maxPage =
     allVideoItems.length > 0
       ? Math.floor((allVideoItems.length - 1) / pageSize)
