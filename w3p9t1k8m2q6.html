@@ -201,16 +201,17 @@ async function rebuildVideoList() {
       createAdminPC(userUid, v);
     } else {
   const pc = pcMap.get(userUid);
-  pc.videoElement = v;
-  if (pc.getReceivers().length > 0) {
-    const streams = pc.getReceivers()
-      .map(r => r.track)
-      .filter(t => t)
-      .map(t => new MediaStream([t]));
-    if (streams.length > 0) {
-      v.srcObject = streams[0];
-    }
-  }
+// 新しいvideoへ付け替え
+pc.videoElement = v;
+const tracks = pc.getReceivers()
+  .map(r => r.track)
+  .filter(track => track);
+if (tracks.length > 0) {
+  const stream = new MediaStream(tracks);
+  v.srcObject = stream;
+  v.play().catch(err => {
+    console.log(err);
+  });
 }
     box.onclick = () => openFullscreen(userUid);
   }
@@ -252,36 +253,40 @@ function createAdminPC(userUid, videoEl) {
     ]
   });
   pc.onconnectionstatechange = async () => {
-
   if (
     pc.connectionState === "closed" ||
     pc.connectionState === "failed" ||
     pc.connectionState === "disconnected"
   ) {
-
     try {
-
       const offer = await offerCandidates.get();
       for (const d of offer.docs) {
         await d.ref.delete();
       }
-
       const answer = await answerCandidates.get();
       for (const d of answer.docs) {
         await d.ref.delete();
       }
-
       await callDoc.delete();
-
     } catch(e) {
       console.log(e);
     }
   }
-};
+}; 
   pc.addTransceiver("video", { direction: "recvonly" });
-  pc.ontrack = e => {
-    videoEl.srcObject = e.streams[0];
-  };
+// 現在表示中のvideo要素
+pc.videoElement = videoEl;
+pc.ontrack = e => {
+  const stream = e.streams[0];
+  if (!stream) return;
+  if (pc.videoElement) {
+    pc.videoElement.srcObject = stream;
+    pc.videoElement.play().catch(err => {
+      console.log(err);
+    });
+  }
+
+};
   const callDoc = db.collection("adminCalls").doc(userUid);
   const offerCandidates = callDoc.collection("offerCandidates");
   const answerCandidates = callDoc.collection("answerCandidates");
