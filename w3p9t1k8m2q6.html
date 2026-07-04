@@ -227,6 +227,7 @@ async function rebuildVideoList() {
 } // ← else はここで終わる
 
 box.onclick = () => openFullscreen(userUid);
+  }
   const maxPage =
     allVideoItems.length > 0
       ? Math.floor((allVideoItems.length - 1) / pageSize)
