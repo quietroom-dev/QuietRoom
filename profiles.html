@@ -88,12 +88,25 @@ auth.onAuthStateChanged(async user => {
     location.href = "index.html";
     return;
   }
-
-  db.collection("user").doc(myUid).update({ online: true });
-
+  // 自分がBANされていないか確認
+const myReport = await db.collection("reports").doc(myUid).get();
+const reportCount =
+  myReport.exists ? (myReport.data().count || 0) : 0;
+if (reportCount >= 10) {
+  alert("通報が一定数を超えたため、このアカウントは利用できません。");
+  await auth.signOut();
+  location.href = "index.html";
+  return;
+}
+// BANされていなければオンライン
+await db.collection("user").doc(myUid).update({
+  online: true
+});
+  
   db.collection("user").orderBy("online", "desc").get().then(async snap => {
     for (const doc of snap.docs) {
       const d = doc.data();
+      if (d.banned) continue;
       const repSnap = await db.collection("reports").doc(doc.id).get();
       const rep = repSnap.exists ? repSnap.data().count || 0 : 0;
 
@@ -167,6 +180,19 @@ async function reportUser(targetUid) {
       { count: firebase.firestore.FieldValue.increment(1) },
       { merge: true }
     );
+  // 通報数確認
+const repSnap = await db.collection("reports").doc(targetUid).get();
+const count = repSnap.data()?.count || 0;
+
+// 10件以上ならBAN
+if (count >= 10) {
+  await db.collection("user").doc(targetUid).set(
+    {
+      banned: true
+    },
+    { merge: true }
+  );
+}
 
   await db.collection("user").doc(myUid)
     .collection("blocks").doc(targetUid)
