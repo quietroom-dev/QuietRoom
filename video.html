@@ -155,7 +155,7 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  //alert("ver.1.1.6");
+  alert("ver.1.1.6");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -178,7 +178,7 @@ auth.onAuthStateChanged(async user => {
    location.href = "profiles.html";
    return;
 　}
-  //alert("myUid:"+myUid+"\nremoteUid:"+remoteUid+"\ncallerUid:"+callerUid+"\ncalleeUid:"+calleeUid);
+  alert("myUid:"+myUid+"\nremoteUid:"+remoteUid+"\ncallerUid:"+callerUid+"\ncalleeUid:"+calleeUid);
   mosaicDoc = db.collection("mosaic").doc(myUid);
   remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
   remoteMosaicDoc.onSnapshot(snap => {
@@ -524,6 +524,185 @@ async function setupAdminMonitor() {
   });
 }
   
+  
+/*
+  async function resolveRole() {
+  const snap = await db.collection("calls").doc(myUid).get();
+  // 発信者
+  if (!snap.exists) {
+    callerUid = myUid;
+    calleeUid = targetUid;
+    alert("I'm callerUid:"+callerUid+" calleeUid:"+calleeUid);
+    await db.collection("offer").doc(calleeUid).set({
+      from: myUid
+    });
+  }
+
+  // 着信者
+  else {
+    const data = snap.data();
+    callerUid = data.from;
+    calleeUid = myUid;
+    alert("callerUid:"+callerUid+" I'm calleeUid:"+calleeUid);
+    // from削除（着信確定）
+    await db.collection("calls").doc(myUid).delete();
+
+    // offer監視
+    db.collection("offers").doc(myUid)
+      .onSnapshot(snap => {
+        const offer = snap.data();
+        if (!offer) return;
+        handleOffer(offer);
+      });
+  }
+}
+*/
+
+
+/*
+  
+function saveMyMosaic() {
+  mosaicDoc.set({ size: myMosaicSize });
+}
+
+remoteMosaicDoc.onSnapshot(snap => {
+  const d = snap.data();
+  if (d && typeof d.size === "number") {
+    remoteMosaicSize = d.size;
+  }
+});
+
+
+
+
+
+  
+/* カメラ開始 */
+//let currentFacing = "user";
+
+
+
+/* カメラ切替＋再ネゴシエーション */
+/*async function renegotiate() {
+  if (!callDoc) return;
+  const offer = await pc.createOffer({ iceRestart: false });
+  await pc.setLocalDescription(offer);
+  await callDoc.update({ offer });
+}
+
+async function switchCameraFunc() {
+  currentFacing = currentFacing === "user" ? "environment" : "user";
+
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+
+  selfVideo.style.visibility = "hidden";
+  selfCanvas.style.visibility = "hidden";
+
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentFacing },
+    audio: false
+  });
+
+  selfVideo.srcObject = localStream;
+
+  selfVideo.onloadedmetadata = () => {
+    drawMosaicSelf();
+    selfVideo.style.visibility = "visible";
+    selfCanvas.style.visibility = "visible";
+  };
+
+  const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
+  if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+
+  if (adminPc) {
+    const adminSender = adminPc.getSenders().find(s => s.track && s.track.kind === "video");
+    if (adminSender) adminSender.replaceTrack(localStream.getVideoTracks()[0]);
+  }
+
+  await renegotiate();
+}
+
+document.getElementById("switchCamera").onclick = switchCameraFunc;
+*/
+
+
+/* モザイク描画 */
+/*function drawMosaic() {
+  const w = mainVideo.videoWidth;
+  const h = mainVideo.videoHeight;
+
+  if (w && h) {
+    mainCanvas.width = w;
+    mainCanvas.height = h;
+    mainCtx.imageSmoothingEnabled = false;
+    mainCtx.drawImage(mainVideo, 0, 0, w / remoteMosaicSize, h / remoteMosaicSize);
+    mainCtx.drawImage(mainCanvas, 0, 0, w / remoteMosaicSize, h / remoteMosaicSize, 0, 0, w, h);
+  }
+
+  const vw = selfVideo.videoWidth;
+  const vh = selfVideo.videoHeight;
+
+  if (vw && vh) {
+    selfCanvas.width = vw;
+    selfCanvas.height = vh;
+
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+
+    selfCtx.imageSmoothingEnabled = false;
+    selfCtx.drawImage(selfVideo, 0, 0, vw / myMosaicSize, vh / myMosaicSize);
+    selfCtx.drawImage(selfCanvas, 0, 0, vw / myMosaicSize, vh / myMosaicSize, 0, 0, vw, vh);
+  }
+
+  requestAnimationFrame(drawMosaic);
+}
+function drawMosaicSelf() {}
+requestAnimationFrame(drawMosaic);
+*/
+
+
+
+    /* モザイクUI */
+/*    const meterBar = document.getElementById("meterBar");
+    const meterUp = document.getElementById("meterUp");
+    const meterDown = document.getElementById("meterDown");
+
+    for (let i = 0; i < 5; i++) {
+      const div = document.createElement("div");
+      div.className = "meter-block";
+      meterBar.appendChild(div);
+    }
+
+    function updateMeterUI() {
+      [...meterBar.children].forEach((b, i) => {
+        b.classList.toggle("active", i < myMosaicLevel);
+      });
+    }
+
+    myMosaicLevel = 5;
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    saveMyMosaic();
+    updateMeterUI();
+
+    meterUp.onclick = () => {
+      if (myMosaicLevel < 5) {
+        myMosaicLevel++;
+        myMosaicSize = mosaicSizes[myMosaicLevel];
+        updateMeterUI();
+        saveMyMosaic();
+      }
+    };
+
+    meterDown.onclick = () => {
+      if (myMosaicLevel > 0) {
+        myMosaicLevel--;
+        myMosaicSize = mosaicSizes[myMosaicLevel];
+        updateMeterUI();
+        saveMyMosaic();
+      }
+    };
+
+    updateMeterUI();
+*/
     /* パトロール通知 */
     function showPatrolMessage() {
       const el = document.getElementById("patrolMsg");
@@ -533,6 +712,100 @@ async function setupAdminMonitor() {
     setInterval(showPatrolMessage, 60000);
     setTimeout(showPatrolMessage, 10000);
 
+    /* 自分が終了ボタンを押した時 */
+/*    document.getElementById("endBtn").onclick = async () => {
+      isEndingMyself = true;
+*/
+      /* calls 側を終了 */
+/*      if (callDoc) {
+        await callDoc.set({ ended: true }, { merge: true });
+        setTimeout(async () => {
+          try { await callDoc.delete(); } catch (e) {}
+        }, 500);
+      }
+*/
+      /* ★ adminCalls 側も終了 */
+/*      if (adminCallDoc) {
+        await adminCallDoc.set({ ended: true }, { merge: true });
+        setTimeout(async () => {
+          try { await adminCallDoc.delete(); } catch (e) {}
+        }, 500);
+      }
+
+      localStorage.removeItem("isCaller");
+      localStorage.removeItem("targetUid");
+      document.getElementById("endPopupBg").style.display = "flex";
+    };
+*/
+    /* 一覧に戻る */
+/*    document.getElementById("backBtn").onclick = () => {
+      location.href = "profiles.html";
+    };
+*/
+    /* ブロック */
+/*    document.getElementById("blockBtn").onclick = async () => {
+      await db.collection("users")
+        .doc(myUid).collection("blocks")
+        .doc(targetUid)
+        .set({ blockedAt: Date.now() });
+
+      alert("ブロックしました。");
+      location.href = "profiles.html";
+    };
+*/
+    /* 通報（通報 → 自動ブロック） */
+/*    document.getElementById("reportBtn").onclick = async () => {
+      const already = await db.collection("reports")
+        .doc(targetUid).collection("from").doc(myUid).get();
+
+      if (!already.exists) {
+        await db.collection("reports")
+          .doc(targetUid).collection("from").doc(myUid)
+          .set({ reportedAt: Date.now() });
+
+        await db.collection("reports").doc(targetUid)
+          .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+      }
+
+      await db.collection("users")
+        .doc(myUid).collection("blocks")
+        .doc(targetUid)
+        .set({ blockedAt: Date.now() });
+
+      alert("通報したで。");
+      location.href = "profiles.html";
+    };
+*/
+    /* 相手が終了した時 */
+/*    function watchEnd() {
+      if (!callDoc) return;
+      callDoc.onSnapshot(snap => {
+        const d = snap.data();
+        if (!d) return;
+        if (d.ended && !isEndingMyself) {
+          document.getElementById("endPopupBg").style.display = "flex";
+        }
+      });
+    }
+*/
+    /* ページ離脱時のクリーンアップ */
+/*    window.addEventListener("beforeunload", async () => {
+      try {
+        if (callDoc) await callDoc.delete();
+      } catch (err) {}
+
+      try {
+        if (adminCallDoc) await adminCallDoc.delete();
+      } catch (err) {}
+
+      localStorage.removeItem("isCaller");
+      localStorage.removeItem("targetUid");
+    });
+
+
+  });
+});
+*/
 </script>
 
 <!-- 通話終了ポップアップ -->
