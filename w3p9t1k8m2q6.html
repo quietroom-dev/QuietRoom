@@ -418,6 +418,8 @@ function openFullscreen(userUid) {
   // 一覧で受信しているStreamをそのまま使う
   fsVideo.srcObject = listVideo.srcObject;
   fsVideo.muted = true;
+  document.getElementById("gridView").style.display = "none";
+  document.getElementById("fullscreenView").style.display = "flex";
   document.getElementById("backToList").onclick = () => {
   const fsVideo = document.getElementById("fullscreenVideo");
   fsVideo.pause();
