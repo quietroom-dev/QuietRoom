@@ -110,9 +110,7 @@ setInterval(async () => {
   });
 }, 30000);
   
-  db.collection("user")
-  .orderBy("lastSeen", "desc")
-  .onSnapshot(async snap => {
+  db.collection("user").onSnapshot(async snap => {
      userList.innerHTML = "";
     for (const doc of snap.docs) {
       const d = doc.data();
@@ -274,13 +272,7 @@ async function declineCall() {
   }, { merge: true });
   incomingCall.style.display = "none";
 }
-window.addEventListener("beforeunload", async () => {
-  if (!myUid) return;
 
-  await db.collection("user").doc(myUid).update({
-    online: false
-  });
-});
 </script>
 
 </body>
