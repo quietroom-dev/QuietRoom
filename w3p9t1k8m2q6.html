@@ -120,11 +120,23 @@ body {
     [INFO] 追加検証プロトコルを要求します…<br>
     [SYS] セッション維持のため検証コードを入力してください
   </div>
+  <input
+  id="email"
+  type="email"
+  placeholder="追加プロトコル"
+  style="display:block;width:240px;margin:25px auto 0;
+         padding:10px;border:1px solid #4aff4a;
+         border-radius:4px;background:#000;color:#4aff4a;
+         font-family:monospace;">
 
-  <input id="pass" type="password"
-    placeholder="検証コード"
-    style="padding:10px; width:240px; border-radius:4px; border:1px solid #4aff4a;
-           background:#000; color:#4aff4a; margin-top:25px; font-family:monospace;">
+<input
+  id="pass"
+  type="password"
+  placeholder="検証コード"
+  style="display:block;width:240px;margin:12px auto 0;
+         padding:10px;border:1px solid #4aff4a;
+         border-radius:4px;background:#000;color:#4aff4a;
+         font-family:monospace;">
 
   <button onclick="login()"
 style="
@@ -172,25 +184,32 @@ let myUid;
 let pcMap = new Map();
 let watcherMap = new Map();
 
-alert("v1.0.2");
+alert("v2.0.0");
 
-auth.onAuthStateChanged(async user => {
-  if (!user) return;
+auth.onAuthStateChanged(user => {
+  if (!user) {
+    document.getElementById("loginBox").style.display="block";
+    document.getElementById("gridView").style.display="none";
+    return;
+  }
   myUid = user.uid;
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("gridView").style.display="grid";
 });
 
 /* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
 async function login() {
-  const adminDoc = db.collection("admins").doc("password");   // ← passwordドキュメント
-  const snap = await adminDoc.get();                          // ← ドキュメント取得
-  const pw = snap.data().password;                          // ← passwordフィールドを変数pwへ
-  const input = document.getElementById("pass").value;
-  alert(pw+","+input);
-  if (input === pw) {
-    document.getElementById("loginBox").style.display="none";
-    document.getElementById("gridView").style.display="grid";
-  }
-  else {
+  const email =
+    document.getElementById("email").value.trim();
+  const password =
+    document.getElementById("pass").value;
+  try {
+    await auth.signInWithEmailAndPassword(
+      email,
+      password
+    );
+  } catch (e) {
+    console.log(e);
     document.getElementById("err").style.display="block";
   }
 }
