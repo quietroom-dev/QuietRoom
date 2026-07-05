@@ -111,19 +111,29 @@ setInterval(async () => {
 }, 30000);
   
   db.collection("user").onSnapshot(async snap => {
-     userList.innerHTML = "";
-    for (const doc of snap.docs) {
+  userList.innerHTML = "";
+  const users = snap.docs.sort((a, b) => {
+    const aTime = a.data().lastSeen || 0;
+    const bTime = b.data().lastSeen || 0;
+    const aOnline = Date.now() - aTime < 60000;
+    const bOnline = Date.now() - bTime < 60000;
+    // 💡を上にする
+    if (aOnline !== bOnline) {
+      return Number(bOnline) - Number(aOnline);
+    }
+    // 同じ状態なら新しい順
+    return bTime - aTime;
+  });
+  for (const doc of users) {
       const d = doc.data();
       if (d.banned) continue;
       const repSnap = await db.collection("reports").doc(doc.id).get();
       const rep = repSnap.exists ? repSnap.data().count || 0 : 0;
-
       const card = document.createElement("div");
       card.className = "user-card";
       const online =
   d.lastSeen &&
   Date.now() - d.lastSeen < 60000;
-      
       card.innerHTML = `
         <h3>${online ? "💡" : "💤"} ${d.nickname}</h3>
         <p>性別：${d.gender}</p>
@@ -135,7 +145,6 @@ setInterval(async () => {
         <button onclick="reportUser('${doc.id}')">🚨 通報</button>
         <button onclick="blockUser('${doc.id}')">⛔ ブロック</button>
       `;
-
       userList.appendChild(card);
     }
   });
