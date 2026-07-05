@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  v1.1.5
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>誰かわからん通話 プロフィール一覧</title>
@@ -83,7 +82,7 @@ auth.signInAnonymously();
 auth.onAuthStateChanged(async user => {
   if (!user) return;
   myUid = user.uid;
-  alert(myUid);
+//  alert(myUid);
   if (!myUid) {
     alert("プロフィール作成からやり直してな。");
     location.href = "index.html";
@@ -123,7 +122,7 @@ auth.onAuthStateChanged(async user => {
     if (d.from === myUid) return;
    // if (d.from) showIncomingCall(d.from);
     if (d.from) {
-  alert("着信検知");
+//  alert("着信検知");
   showIncomingCall(d.from);
 }
   });
