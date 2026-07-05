@@ -100,10 +100,20 @@ if (reportCount >= 10) {
 }
 // BANされていなければオンライン
 await db.collection("user").doc(myUid).update({
-  online: true
+  lastSeen: Date.now()
 });
+setInterval(async () => {
+  if (!myUid) return;
+
+  await db.collection("user").doc(myUid).update({
+    lastSeen: Date.now()
+  });
+}, 30000);
   
-  db.collection("user").orderBy("online", "desc").get().then(async snap => {
+  db.collection("user")
+  .orderBy("lastSeen", "desc")
+  .onSnapshot(async snap => {
+     userList.innerHTML = "";
     for (const doc of snap.docs) {
       const d = doc.data();
       if (d.banned) continue;
@@ -112,9 +122,12 @@ await db.collection("user").doc(myUid).update({
 
       const card = document.createElement("div");
       card.className = "user-card";
-
+      const online =
+  d.lastSeen &&
+  Date.now() - d.lastSeen < 60000;
+      
       card.innerHTML = `
-        <h3>${d.online ? "💡" : "💤"} ${d.nickname}</h3>
+        <h3>${online ? "💡" : "💤"} ${d.nickname}</h3>
         <p>性別：${d.gender}</p>
         <p>年齢：${d.age}</p>
         <p>都道府県：${d.prefecture}</p>
@@ -261,6 +274,13 @@ async function declineCall() {
   }, { merge: true });
   incomingCall.style.display = "none";
 }
+window.addEventListener("beforeunload", async () => {
+  if (!myUid) return;
+
+  await db.collection("user").doc(myUid).update({
+    online: false
+  });
+});
 </script>
 
 </body>
