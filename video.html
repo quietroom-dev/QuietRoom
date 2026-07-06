@@ -341,6 +341,9 @@ async function startCamera() {
 //終了ボタン処理
 document.getElementById("endBtn").onclick = async () => {
   isEndingMyself = true;
+  if (myUid === callerUid) {
+  await db.collection("calls").doc(calleeUid).delete();
+}
   if (callDoc) {
     await callDoc.set({
       ended: true
