@@ -420,7 +420,6 @@ async function switchCameraFunc() {
 }
 //モザイク処理
 function drawMosaic() {
-  console.log(remoteMosaicSize);
   const mw = mainVideo.videoWidth;
   const mh = mainVideo.videoHeight;
   if (mw && mh) {
@@ -442,11 +441,10 @@ function drawMosaic() {
   if (sw && sh) {
     selfCanvas.width = sw;
     selfCanvas.height = sh;
-    const s = myMosaicSize;
+    const s = myMosaicSize + 2;
     if (myMosaicSize === 1) {
      selfCtx.drawImage(selfVideo, 0, 0, sw, sh);
     } else {
-     s = myMosaicSize+2;
      selfCtx.clearRect(0,0,sw,sh);
      selfCtx.imageSmoothingEnabled = false;
      selfCtx.drawImage(selfVideo,0,0,sw/s,sh/s);
