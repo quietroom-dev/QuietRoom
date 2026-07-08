@@ -420,6 +420,7 @@ async function switchCameraFunc() {
 }
 //モザイク処理
 function drawMosaic() {
+  console.log(remoteMosaicSize);
   const mw = mainVideo.videoWidth;
   const mh = mainVideo.videoHeight;
   if (mw && mh) {
