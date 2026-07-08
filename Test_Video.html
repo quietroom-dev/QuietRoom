@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>誰かわからん通話</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:sans-serif; }
+
+#mainVideo { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:#000; z-index:1; }
+#mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:2; pointer-events:none; }
+
+#selfVideo { position:fixed; top:16px; right:16px; height:24vh; width:auto;
+  min-width:120px; min-height:120px; object-fit:contain; background:#000;
+  border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); }
+
+#selfCanvas { position:fixed; top:16px; right:16px; height:24vh; width:auto;
+  min-width:120px; min-height:120px; z-index:11; pointer-events:none; border-radius:12px; }
+
+.top-ui { position:fixed; top:16px; left:16px; display:flex; gap:10px; z-index:30; }
+.icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
+  font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
+
+.mosaic-meter { position:fixed; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column;
+  align-items:center; z-index:40; color:#fff; }
+.meter-bar { width:42px; height:28vh; display:flex; flex-direction:column-reverse; gap:4px; }
+.meter-block { flex:1; width:100%; border-radius:8px; border:2px solid rgba(255,255,255,0.7);
+  background:rgba(255,255,255,0.2); transition:0.15s; }
+.meter-block.active { background:rgba(255,255,255,1); }
+.meter-top, .meter-bottom { margin:8px 0; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.55);
+  cursor:pointer; user-select:none; }
+
+#patrolMsg {
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,0.6); color:#fff; padding:10px 16px;
+  border-radius:8px; font-size:14px; display:none; z-index:50;
+}
+
+/* 終了ポップアップ */
+#endPopupBg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+#endPopupBox {
+  background: #222;
+  padding: 20px 26px;
+  border-radius: 12px;
+  text-align: center;
+  color: #fff;
+  width: 260px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.5);
+}
+#endPopupBox p {
+  margin-bottom: 18px;
+  font-size: 16px;
+}
+.main-btn {
+  width: 100%;
+  padding: 12px 0;
+  background: #4a8cff;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+.sub-btns {
+  display: flex;
+  justify-content: space-between;
+}
+.sub-btn {
+  width: 48%;
+  padding: 8px 0;
+  background: #444;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<video id="mainVideo" autoplay playsinline></video>
+<canvas id="mainCanvas"></canvas>
+
+<video id="selfVideo" autoplay muted playsinline></video>
+<canvas id="selfCanvas"></canvas>
+
+<div class="top-ui">
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
+  <button class="icon-btn" id="endBtn">✕</button>
+</div>
+
+<div class="mosaic-meter">
+  <div class="meter-top" id="meterUp">▲モザイク</div>
+  <div class="meter-bar" id="meterBar"></div>
+  <div class="meter-bottom" id="meterDown">▼クリア</div>
+</div>
+
+<div id="patrolMsg">管理人がたまに見回りしとるで。安全に使ってな。</div>
+
+<script>
+
+/* Firebase */
+firebase.initializeApp({
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  projectId: "roomvideo",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let myUid = null;
+let remoteUid = null;
+let callerUid = null;
+let calleeUid = null;
+let callDoc = null;
+let offerCandidates = null;
+let answerCandidates = null;
+
+/* 管理者用 adminCalls */
+let adminPc = null;
+let adminCallDoc = null;
+let adminOfferCandidates = null;
+let adminAnswerCandidates = null;
+
+/* モザイク同期 */
+let myMosaicLevel = 5;
+let myMosaicSize = 25;
+let remoteMosaicSize = 25;
+const mosaicSizes = [1, 10, 13, 16, 19, 25];
+
+let mosaicDoc;
+let remoteMosaicDoc;
+let currentFacing = "user";
+
+let callId = null;
+let isEndingMyself = false;
+
+auth.onAuthStateChanged(async user => {
+//  alert("ver.1.1.6");
+  if (!user) return;
+  myUid = user.uid;
+  const params = new URLSearchParams(location.search);
+  callerUid = params.get("callerUid");
+  calleeUid = params.get("calleeUid");
+  callId = callerUid + "_" + calleeUid;
+  callDoc = db.collection("calls").doc(callId);
+  offerCandidates = callDoc.collection("offerCandidates");
+  answerCandidates = callDoc.collection("answerCandidates");
+  if (myUid === callerUid) {
+   remoteUid = calleeUid;
+   //alert("発信者");
+　}
+　else if (myUid === calleeUid) {
+   remoteUid = callerUid;
+   //alert("着信者");
+　}
+　else {
+   alert("参加権限がありません");
+   location.href = "profiles.html";
+   return;
+　}
+//  alert("myUid:"+myUid+"\nremoteUid:"+remoteUid+"\ncallerUid:"+callerUid+"\ncalleeUid:"+calleeUid);
+  mosaicDoc = db.collection("mosaic").doc(myUid);
+  remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
+  remoteMosaicDoc.onSnapshot(snap => {
+    const d = snap.data();
+    if (d?.size != null) {
+      remoteMosaicSize = d.size;
+      //alert(remoteMosaicSize);
+    }
+    });
+  //alert("initlalizeCallに飛ぶ");
+  await initializeCall();
+});
+async function initializeCall() {
+  //alert("mosaicDoc=" + mosaicDoc);
+  await mosaicDoc.set({
+   size: myMosaicSize
+  });
+  //alert("mosaicdoc完了");
+  if (myUid === callerUid) { // 発信者
+    //alert("発信者処理に飛ぶ");
+    await startAsCaller();
+  }
+  else { // 着信者
+    await startAsCallee();
+  }
+  callDoc.onSnapshot(async snap => {
+   const d = snap.data();
+   if (!d?.ended) return;
+   if (isEndingMyself) return;
+   alert("通話終わったで");
+   if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+   }
+   if (pc) {
+     pc.close();
+   }
+   if (adminPc){
+    if(adminCallDoc){
+     await adminCallDoc.set({
+        ended:true
+     },{merge:true});
+     await deleteCollection(adminOfferCandidates);
+     await deleteCollection(adminAnswerCandidates);
+     await adminCallDoc.delete();
+    }
+    adminPc.close();
+   }
+   await deleteCollection(offerCandidates);
+   await deleteCollection(answerCandidates);
+   await callDoc.delete();
+   location.href = "profiles.html";
+  });
+}
+  
+//発信者処理
+async function startAsCaller() {
+  //alert("発信者処理に入った");
+  await startCamera();
+  pc.onicecandidate = e => {
+    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
+  };
+  const offer = await pc.createOffer(); 
+  await pc.setLocalDescription(offer);
+  await callDoc.set({
+    offer: offer,
+    createdAt: Date.now()
+  }, { merge:true });
+  //alert("offer書いた");
+  const unsubscribe = callDoc.onSnapshot(async s => {
+   const d = s.data();
+   if (!d?.answer) return;
+   unsubscribe();
+   if (!pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+   }
+  });
+  answerCandidates.onSnapshot(s => {
+   s.docChanges().forEach(c => {
+    if (c.type === "added") {pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));}
+   });
+  });
+ }
+
+ //着信者処理
+ async function startAsCallee() {
+  await startCamera();
+  const unsubscribe = callDoc.onSnapshot(async snap => {
+   const data = snap.data();
+   if (!data?.offer) return;
+   unsubscribe();
+   if (pc.currentRemoteDescription) return;
+   pc.onicecandidate = e => {
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+   };
+   await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+   const answer = await pc.createAnswer();
+   await pc.setLocalDescription(answer);
+   await callDoc.update({ answer });
+   offerCandidates.onSnapshot(s => {
+    s.docChanges().forEach(c => {
+     if (c.type === "added") {
+      pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+     }
+    });
+   });
+  });
+ };
+
+/* WebRTC（相手用） */
+let pc = new RTCPeerConnection({
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+});
+pc.onconnectionstatechange = async () => {
+  console.log("connectionState =", pc.connectionState);
+  if (
+    pc.connectionState === "failed" ||
+    pc.connectionState === "closed"
+  ) {
+    if (callDoc) {
+      await callDoc.set({
+        ended: true
+      }, { merge: true });
+    }
+    if(adminCallDoc){
+      await adminCallDoc.set({
+        ended:true
+      },{merge:true});
+    }
+  }
+};
+let localStream = null;
+
+/* 相手映像受信 */
+const mainVideo = document.getElementById("mainVideo");
+const mainCanvas = document.getElementById("mainCanvas");
+const mainCtx = mainCanvas.getContext("2d");
+const selfVideo = document.getElementById("selfVideo");
+const selfCanvas = document.getElementById("selfCanvas");
+const selfCtx = selfCanvas.getContext("2d");
+pc.ontrack = e => {
+  mainVideo.srcObject = e.streams[0];
+};
+
+async function startCamera() {
+  //alert("スタートカメラ入った");
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentFacing },
+    audio: true
+  });
+  //alert("カメラ取得");
+  selfVideo.srcObject = localStream;
+  const videoTrack = localStream.getVideoTracks()[0];
+  pc.addTrack(videoTrack, localStream);
+  //localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  //alert("スタートカメラ完了");
+  // ★ カメラが取れたら管理者用の adminCalls も開始
+  await setupAdminMonitor();
+}
+
+//終了ボタン処理
+document.getElementById("endBtn").onclick = async () => {
+  isEndingMyself = true;
+  if (myUid === callerUid) {
+  await db.collection("calls").doc(calleeUid).delete();
+}
+  if (callDoc) {
+    await callDoc.set({
+      ended: true
+    }, { merge: true });
+  }
+  if(adminCallDoc){
+    await adminCallDoc.set({
+        ended:true
+    },{merge:true});
+  }
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+  }
+  if (pc) {
+    pc.close();
+  }
+  if (adminPc){
+    if(adminCallDoc){
+     await adminCallDoc.set({
+        ended:true
+     },{merge:true});
+     await deleteCollection(adminOfferCandidates);
+     await deleteCollection(adminAnswerCandidates);
+     await adminCallDoc.delete();
+    }
+    adminPc.close();
+  }
+  location.href = "profiles.html";
+};
+async function deleteCollection(collectionRef) {
+  const snapshot = await collectionRef.get();
+  const promises = [];
+  snapshot.forEach(doc => {
+    promises.push(doc.ref.delete());
+  });
+  await Promise.all(promises);
+}
+//カメラ切替え
+document.getElementById("switchCamera").onclick = switchCameraFunc;
+async function switchCameraFunc() {
+  currentFacing = currentFacing === "user"
+    ? "environment"
+    : "user";
+  selfVideo.style.visibility = "hidden";
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+  }
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentFacing },
+    audio: true
+  });
+  const sender = pc.getSenders().find(s =>
+    s.track && s.track.kind === "video"
+  );
+  if (sender) {
+    sender.replaceTrack(localStream.getVideoTracks()[0]);
+  }
+  const adminSender = adminPc?.getSenders().find(
+    s => s.track && s.track.kind === "video"
+  );
+  if (adminSender) {
+    adminSender.replaceTrack(localStream.getVideoTracks()[0]);
+  }
+  const adminAudioSender = adminPc?.getSenders().find(
+    s => s.track && s.track.kind === "audio"
+  );
+  if (adminAudioSender) {
+    adminAudioSender.replaceTrack(localStream.getAudioTracks()[0]);
+  }
+  selfVideo.srcObject = localStream;
+  selfVideo.onloadedmetadata = () => {
+    selfVideo.style.visibility = "visible";
+  };
+}
+//モザイク処理
+function drawMosaic() {
+  const mw = mainVideo.videoWidth;
+  const mh = mainVideo.videoHeight;
+  if (mw && mh) {
+    mainCanvas.width = mw;
+    mainCanvas.height = mh;
+    if (remoteMosaicSize === 1) {
+      // モザイクなし
+      mainCtx.drawImage(mainVideo, 0, 0, mw, mh);
+    } else {
+      const s = remoteMosaicSize;
+      mainCtx.clearRect(0, 0, mw, mh);
+      mainCtx.imageSmoothingEnabled = false;
+      mainCtx.drawImage(mainVideo, 0, 0, mw / s, mh / s);
+      mainCtx.drawImage(mainCanvas,0, 0, mw / s, mh / s,0, 0, mw, mh);
+    }
+  }
+  const sw = selfVideo.videoWidth;
+  const sh = selfVideo.videoHeight;
+  if (sw && sh) {
+    selfCanvas.width = sw;
+    selfCanvas.height = sh;
+    const s = myMosaicSize + 2;
+    if (myMosaicSize === 1) {
+     selfCtx.drawImage(selfVideo, 0, 0, sw, sh);
+    } else {
+     selfCtx.clearRect(0,0,sw,sh);
+     selfCtx.imageSmoothingEnabled = false;
+     selfCtx.drawImage(selfVideo,0,0,sw/s,sh/s);
+     selfCtx.drawImage(selfCanvas,0,0,sw/s,sh/s,0,0,sw,sh);
+    }
+  }
+  requestAnimationFrame(drawMosaic);
+}
+requestAnimationFrame(drawMosaic);
+document.getElementById("meterUp").onclick = () => {
+  if (myMosaicLevel < mosaicSizes.length - 1) {
+    myMosaicLevel++;
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    mosaicDoc.set({ size: myMosaicSize });
+    updateMeterUI();
+  }
+};
+document.getElementById("meterDown").onclick = () => {
+  if (myMosaicLevel > 0) {
+    myMosaicLevel--;
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    mosaicDoc.set({ size: myMosaicSize });
+    updateMeterUI();
+  }
+};
+//バー
+const meterBar = document.getElementById("meterBar");
+for (let i = 0; i < 5; i++) {
+  const block = document.createElement("div");
+  block.className = "meter-block";
+  meterBar.appendChild(block);
+}
+updateMeterUI();
+function updateMeterUI() {
+  [...meterBar.children].forEach((b, i) => {
+    b.classList.toggle("active", i < myMosaicLevel);
+  });
+}
+updateMeterUI();
+// 管理者用
+async function setupAdminMonitor() {
+  if (!localStream) return;
+  adminPc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+  localStream.getTracks().forEach(track => {
+    adminPc.addTrack(track, localStream);
+  });
+  adminCallDoc = db.collection("adminCalls").doc(myUid);
+  adminOfferCandidates = adminCallDoc.collection("offerCandidates");
+  adminAnswerCandidates = adminCallDoc.collection("answerCandidates");
+  adminPc.onicecandidate = e => {
+    if (!e.candidate) return;
+    adminOfferCandidates.add(e.candidate.toJSON());
+  };
+  const offer = await adminPc.createOffer();
+  await adminPc.setLocalDescription(offer);
+  await adminCallDoc.set({
+    uid: myUid,
+    offer: offer,
+    createdAt: Date.now(),
+    ended: false
+  }, { merge: true });
+  adminAnswerCandidates.onSnapshot(s => {
+    s.docChanges().forEach(c => {
+      if (c.type === "added") {
+        adminPc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
+    });
+  });
+  adminCallDoc.onSnapshot(async s => {
+    const d = s.data();
+    if (!d) return;
+    if (d.answer && !adminPc.currentRemoteDescription) {
+      await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
+    }
+    if (d.ended) {
+      try { adminPc.close(); } catch (e) {}
+    }
+  });
+}
+    /* パトロール通知 */
+    function showPatrolMessage() {
+      const el = document.getElementById("patrolMsg");
+      el.style.display = "block";
+      setTimeout(() => { el.style.display = "none"; }, 3000);
+    }
+    setInterval(showPatrolMessage, 60000);
+    setTimeout(showPatrolMessage, 10000);
+
+</script>
+
+<!-- 通話終了ポップアップ -->
+<div id="endPopupBg">
+  <div id="endPopupBox">
+    <p>通話が終了しました。</p>
+    <button id="backBtn" class="main-btn">一覧に戻る</button>
+    <div class="sub-btns">
+      <button id="blockBtn" class="sub-btn">⛔ ブロック</button>
+      <button id="reportBtn" class="sub-btn">🚨 通報</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
