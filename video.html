@@ -442,9 +442,10 @@ function drawMosaic() {
     selfCanvas.width = sw;
     selfCanvas.height = sh;
     const s = myMosaicSize;
-    if (s === 1) {
+    if (myMosaicSize === 1) {
      selfCtx.drawImage(selfVideo, 0, 0, sw, sh);
     } else {
+     s = myMosaicSize+2;
      selfCtx.clearRect(0,0,sw,sh);
      selfCtx.imageSmoothingEnabled = false;
      selfCtx.drawImage(selfVideo,0,0,sw/s,sh/s);
