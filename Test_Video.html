@@ -204,6 +204,7 @@ async function initializeCall() {
   else { // 着信者
     await startAsCallee();
   }
+  /*
   callDoc.onSnapshot(async snap => {
    const d = snap.data();
    if (!d?.ended) return;
@@ -232,6 +233,7 @@ async function initializeCall() {
    location.href = "profiles.html";
   });
 }
+*/
   
 //発信者処理
 async function startAsCaller() {
