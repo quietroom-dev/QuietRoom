@@ -152,7 +152,6 @@ let remoteMosaicDoc;
 let currentFacing = "user";
 
 let callId = null;
-let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
 //  alert("ver.1.1.6");
@@ -299,16 +298,30 @@ pc.onconnectionstatechange = async () => {
     pc.connectionState === "failed" ||
     pc.connectionState === "closed"
   ) {
-    if (callDoc) {
-      await callDoc.set({
-        ended: true
-      }, { merge: true });
-    }
-    if(adminCallDoc){
-      await adminCallDoc.set({
-        ended:true
-      },{merge:true});
-    }
+    if (myUid === callerUid) {
+   await db.collection("calls").doc(calleeUid).delete();
+  }
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+  }
+  if (pc) {
+    pc.close();
+  }
+  if(callId){
+    await deleteCollection(offerCandidates);
+    await deleteCollection(answerCandidates);
+    await CallId.delete();
+  }
+  if (adminPc){
+    adminPc.close();
+  }
+  if(adminCallDoc){
+    await deleteCollection(adminOfferCandidates);
+    await deleteCollection(adminAnswerCandidates);
+    await adminCallDoc.delete();
+  }
+  alert("通話終わったで");
+  location.href = "profiles.html";
   }
 };
 let localStream = null;
@@ -342,19 +355,8 @@ async function startCamera() {
 
 //終了ボタン処理
 document.getElementById("endBtn").onclick = async () => {
-  isEndingMyself = true;
   if (myUid === callerUid) {
-  await db.collection("calls").doc(calleeUid).delete();
-}
-  if (callDoc) {
-    await callDoc.set({
-      ended: true
-    }, { merge: true });
-  }
-  if(adminCallDoc){
-    await adminCallDoc.set({
-        ended:true
-    },{merge:true});
+   await db.collection("calls").doc(calleeUid).delete();
   }
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
@@ -362,17 +364,20 @@ document.getElementById("endBtn").onclick = async () => {
   if (pc) {
     pc.close();
   }
+  if(callId){
+    await deleteCollection(offerCandidates);
+    await deleteCollection(answerCandidates);
+    await CallId.delete();
+  }
   if (adminPc){
-    if(adminCallDoc){
-     await adminCallDoc.set({
-        ended:true
-     },{merge:true});
-     await deleteCollection(adminOfferCandidates);
-     await deleteCollection(adminAnswerCandidates);
-     await adminCallDoc.delete();
-    }
     adminPc.close();
   }
+  if(adminCallDoc){
+    await deleteCollection(adminOfferCandidates);
+    await deleteCollection(adminAnswerCandidates);
+    await adminCallDoc.delete();
+  }
+  alert("通話終わったで");
   location.href = "profiles.html";
 };
 async function deleteCollection(collectionRef) {
