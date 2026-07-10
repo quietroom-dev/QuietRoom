@@ -203,6 +203,7 @@ async function initializeCall() {
   else { // 着信者
     await startAsCallee();
   }
+}
   /*
   callDoc.onSnapshot(async snap => {
    const d = snap.data();
@@ -296,7 +297,8 @@ pc.onconnectionstatechange = async () => {
   console.log("connectionState =", pc.connectionState);
   if (
     pc.connectionState === "failed" ||
-    pc.connectionState === "closed"
+    pc.connectionState === "closed" ||
+    pc.connectionState === "disconnected"
   ) {
     if (myUid === callerUid) {
    await db.collection("calls").doc(calleeUid).delete();
@@ -310,7 +312,7 @@ pc.onconnectionstatechange = async () => {
   if(callDoc){
     await deleteCollection(offerCandidates);
     await deleteCollection(answerCandidates);
-    await CallDoc.delete();
+    await callDoc.delete();
   }
   if (adminPc){
     adminPc.close();
@@ -367,7 +369,7 @@ document.getElementById("endBtn").onclick = async () => {
   if(callDoc){
     await deleteCollection(offerCandidates);
     await deleteCollection(answerCandidates);
-    await CallDoc.delete();
+    await callDoc.delete();
   }
   if (adminPc){
     adminPc.close();
