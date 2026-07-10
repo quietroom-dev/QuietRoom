@@ -311,7 +311,7 @@ pc.onconnectionstatechange = async () => {
   if(callDoc){
     await deleteCollection(offerCandidates);
     await deleteCollection(answerCandidates);
-    await CallDoc.delete();
+    await callDoc.delete();
   }
   if (adminPc){
     adminPc.close();
@@ -368,7 +368,7 @@ document.getElementById("endBtn").onclick = async () => {
   if(callDoc){
     await deleteCollection(offerCandidates);
     await deleteCollection(answerCandidates);
-    await CallDoc.delete();
+    await callDoc.delete();
   }
   if (adminPc){
     adminPc.close();
