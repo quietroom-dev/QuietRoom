@@ -308,10 +308,10 @@ pc.onconnectionstatechange = async () => {
   if (pc) {
     pc.close();
   }
-  if(callId){
+  if(callDoc){
     await deleteCollection(offerCandidates);
     await deleteCollection(answerCandidates);
-    await CallId.delete();
+    await CallDoc.delete();
   }
   if (adminPc){
     adminPc.close();
@@ -365,10 +365,10 @@ document.getElementById("endBtn").onclick = async () => {
   if (pc) {
     pc.close();
   }
-  if(callId){
+  if(callDoc){
     await deleteCollection(offerCandidates);
     await deleteCollection(answerCandidates);
-    await CallId.delete();
+    await CallDoc.delete();
   }
   if (adminPc){
     adminPc.close();
