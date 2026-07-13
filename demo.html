@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>誰かわからん通話 デモ</title>
+<style>
+  :root{
+    --bg:#0b0c0d; --card:#0f1113; --muted:#bfc6cc; --accent:#ff6b6b;
+    --glass: rgba(255,255,255,0.03);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; background:linear-gradient(180deg,#070708,#0b0c0d);
+    color:#eef2f5; font-family:Inter, "Helvetica Neue", Arial, sans-serif;
+    display:flex; align-items:center; justify-content:center; padding:28px;
+  }
+  .wrap{width:100%; max-width:980px}
+  .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    border-radius:14px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,0.6);
+  }
+
+  .hero{display:flex; gap:18px; align-items:flex-start; margin-bottom:16px}
+  .hero-left{flex:1}
+  h1{margin:0 0 6px 0; font-size:20px}
+  p.lead{margin:0 0 12px 0; color:var(--muted)}
+  .badges{display:flex; gap:8px; margin-bottom:12px}
+  .badge{background:var(--glass); padding:8px 10px; border-radius:999px; font-size:13px; color:var(--muted)}
+
+  .controls{display:flex; gap:10px; align-items:center}
+  button{cursor:pointer; border:none; padding:10px 14px; border-radius:10px; font-weight:700}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),#ff4b4b); color:#fff}
+  .btn-ghost{background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04)}
+
+  .stage{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px}
+  .call-card{background:#0b0d0f; border-radius:12px; padding:12px; text-align:center; position:relative}
+  .label{font-size:13px; color:var(--muted); margin-bottom:8px}
+  canvas, .avatar{
+    width:100%; height:260px; border-radius:10px; display:block; background:#111; object-fit:cover;
+  }
+  .avatar{display:flex; align-items:center; justify-content:center; font-size:40px; color:#fff}
+
+  .overlay{
+    position:absolute; left:12px; right:12px; top:12px; display:flex; justify-content:space-between; pointer-events:none;
+  }
+  .chip{background:rgba(0,0,0,0.45); color:#fff; padding:6px 8px; border-radius:8px; font-size:13px; pointer-events:auto}
+
+  .controls-bottom{display:flex; gap:10px; align-items:center; margin-top:12px}
+  .slider{width:100%}
+  .meta{color:var(--muted); font-size:13px; margin-top:10px}
+
+  .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:#111; color:#fff; padding:10px 14px; border-radius:10px; display:none}
+  @media(max-width:800px){
+    .stage{grid-template-columns:1fr; }
+    canvas, .avatar{height:200px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel hero">
+      <div class="hero-left">
+        <h1>まずは体験：誰かわからん通話（デモ）</h1>
+        <p class="lead">声を出さずに、モザイク越しで雰囲気だけ試せます。相手がいないときはデモ応答が返ります。</p>
+
+        <div class="badges">
+          <div class="badge">🔒 匿名</div>
+          <div class="badge">🎭 モザイク</div>
+          <div class="badge">🔇 無音</div>
+        </div>
+
+        <div class="controls">
+          <button id="connectBtn" class="btn-primary">体験を始める</button>
+          <button id="endBtn" class="btn-ghost" disabled>終了する</button>
+          <div style="margin-left:auto; color:var(--muted); font-size:13px" id="timer">00:00</div>
+        </div>
+
+        <div class="meta">※ このデモは音声を再生しません。実装時は音声ストリームを接続してください。</div>
+      </div>
+
+      <div style="width:320px">
+        <div class="panel" style="padding:12px">
+          <div style="font-size:13px; color:var(--muted); margin-bottom:8px">モザイク強度</div>
+          <input id="pixSlider" class="slider" type="range" min="2" max="40" value="12" />
+          <div style="font-size:13px; color:var(--muted); margin-top:8px">ピクセル数を下げるほど粗くなります</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="call-card" aria-live="polite">
+        <div class="overlay">
+          <div class="chip">あなた</div>
+          <div class="chip" id="micChip">🔇 無音</div>
+        </div>
+        <div class="label">自分の映像（プレビュー）</div>
+        <div class="avatar" id="selfAvatar" aria-hidden="true">
+          <!-- SVG avatar -->
+          <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <rect width="120" height="120" rx="16" fill="#2b6cb0"/>
+            <text x="50%" y="58%" fill="#fff" font-size="48" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle">Y</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="call-card" aria-live="polite">
+        <div class="overlay">
+          <div class="chip" id="partnerState">接続前</div>
+          <div class="chip">相手</div>
+        </div>
+        <div class="label">相手の映像（モザイク）</div>
+        <canvas id="partnerCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+  // 簡易デモロジック（実際の通話ではMediaStreamを使う）
+  const connectBtn = document.getElementById('connectBtn');
+  const endBtn = document.getElementById('endBtn');
+  const timerEl = document.getElementById('timer');
+  const pixSlider = document.getElementById('pixSlider');
+  const partnerCanvas = document.getElementById('partnerCanvas');
+  const partnerState = document.getElementById('partnerState');
+  const toast = document.getElementById('toast');
+
+  const ctx = partnerCanvas.getContext('2d');
+  let demoInterval = null;
+  let startTime = null;
+  let tickTimer = null;
+  let pixelSize = Number(pixSlider.value);
+
+  // サンプル相手画像（SVGデータURL）
+  const partnerImg = new Image();
+  partnerImg.crossOrigin = 'anonymous';
+  partnerImg.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="640" height="480">
+      <rect width="100%" height="100%" fill="#6b46c1"/>
+      <circle cx="320" cy="180" r="80" fill="#fff" opacity="0.12"/>
+      <text x="50%" y="60%" font-size="120" text-anchor="middle" fill="#fff" font-family="sans-serif" dy=".35em">?</text>
+    </svg>
+  `);
+
+  // canvasサイズをレスポンシブに設定
+  function resizeCanvas(){
+    const rect = partnerCanvas.getBoundingClientRect();
+    partnerCanvas.width = Math.max(320, Math.floor(rect.width));
+    partnerCanvas.height = Math.max(200, Math.floor(rect.height));
+    renderPartner(); // 再描画
+  }
+  window.addEventListener('resize', resizeCanvas);
+  pixSlider.addEventListener('input', () => {
+    pixelSize = Number(pixSlider.value);
+    renderPartner();
+  });
+
+  // パートナー画像をピクセル化して描画する関数
+  function renderPartner(){
+    if (!partnerImg.complete) return;
+    const w = partnerCanvas.width;
+    const h = partnerCanvas.height;
+
+    // 一時キャンバスで縮小→拡大してピクセル化
+    const tmp = document.createElement('canvas');
+    const tw = Math.max(2, Math.floor(w / pixelSize));
+    const th = Math.max(2, Math.floor(h / pixelSize));
+    tmp.width = tw;
+    tmp.height = th;
+    const tctx = tmp.getContext('2d');
+    // 画像を縮小して描画
+    tctx.drawImage(partnerImg, 0, 0, tw, th);
+
+    // 元キャンバスに拡大（補間なし）
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0,0,w,h);
+    ctx.drawImage(tmp, 0, 0, tw, th, 0, 0, w, h);
+
+    // モザイクの上に薄いグリッド（視覚的にモザイク感を強める）
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillRect(0, h - 36, w, 36);
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('モザイク中（相手の顔は見えません）', 12, h - 14);
+  }
+
+  partnerImg.onload = () => {
+    resizeCanvas();
+    renderPartner();
+  };
+
+  // タイマー表示
+  function startTimer(){
+    startTime = Date.now();
+    tickTimer = setInterval(()=> {
+      const s = Math.floor((Date.now() - startTime)/1000);
+      const mm = String(Math.floor(s/60)).padStart(2,'0');
+      const ss = String(s%60).padStart(2,'0');
+      timerEl.textContent = `${mm}:${ss}`;
+    }, 500);
+  }
+  function stopTimer(){
+    clearInterval(tickTimer);
+    timerEl.textContent = '00:00';
+  }
+
+  // トースト
+  function showToast(msg, ms=2000){
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    setTimeout(()=> toast.style.display = 'none', ms);
+  }
+
+  // デモ接続開始
+  connectBtn.addEventListener('click', () => {
+    connectBtn.disabled = true;
+    connectBtn.textContent = '接続中…';
+    partnerState.textContent = '接続中';
+    showToast('相手を探しています…');
+
+    // 擬似的に接続成功 or 不在をランダムでシミュレート
+    setTimeout(()=> {
+      const found = Math.random() > 0.35; // 65%で相手がいる
+      if (found){
+        partnerState.textContent = '接続完了';
+        connectBtn.textContent = '接続中';
+        endBtn.disabled = false;
+        startTimer();
+        // 60秒後に自動で終了（デモ）
+        demoInterval = setTimeout(()=> {
+          showToast('体験が終了しました');
+          endCall();
+        }, 60 * 1000);
+        // 描画を定期的に更新（モザイクの動き）
+        demoRenderLoop();
+      } else {
+        partnerState.textContent = '相手不在（デモ応答）';
+        connectBtn.textContent = '接続中';
+        endBtn.disabled = false;
+        startTimer();
+        demoBotConversation();
+      }
+    }, 900);
+  });
+
+  // デモの描画ループ（軽いアニメ）
+  let animId = null;
+  function demoRenderLoop(){
+    let t = 0;
+    function loop(){
+      t += 0.02;
+      // 少しだけ色を変化させて生っぽく
+      ctx.globalAlpha = 1;
+      renderPartner();
+      animId = requestAnimationFrame(loop);
+    }
+    if (!animId) loop();
+  }
+
+  // デモ：相手不在時のボット応答
+  function demoBotConversation(){
+    const messages = [
+      '（相手がいません。デモ応答を開始します）',
+      'こんにちは。雰囲気だけ試してみませんか？',
+      '声は出さなくて大丈夫です。モザイク越しでOKです。',
+      '体験を終えるとプロフィール画面に移動します。'
+    ];
+    let i = 0;
+    const iv = setInterval(()=> {
+      if (i >= messages.length){
+        clearInterval(iv);
+        // 自動終了まで待つ（30秒）
+        demoInterval = setTimeout(()=> {
+          showToast('体験が終了しました');
+          endCall();
+        }, 30 * 1000);
+        return;
+      }
+      // メッセージをキャンバス下部に表示（短時間）
+      const w = partnerCanvas.width;
+      const h = partnerCanvas.height;
+      renderPartner();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, h - 60, w, 60);
+      ctx.fillStyle = '#fff';
+      ctx.font = '14px sans-serif';
+      wrapText(ctx, messages[i], 12, h - 36, w - 24, 18);
+      i++;
+    }, 2200);
+  }
+
+  // テキスト折り返しヘルパー
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+    const words = text.split(' ');
+    let line = '';
+    let curY = y;
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      const testWidth = metrics.width;
+      if (testWidth > maxWidth && n > 0) {
+        ctx.fillText(line, x, curY);
+        line = words[n] + ' ';
+        curY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, x, curY);
+  }
+
+  // 終了処理
+  function endCall(){
+    connectBtn.disabled = false;
+    connectBtn.textContent = '体験を始める';
+    endBtn.disabled = true;
+    partnerState.textContent = '接続前';
+    cancelAnimationFrame(animId);
+    animId = null;
+    clearTimeout(demoInterval);
+    stopTimer();
+    showToast('体験を終了しました');
+    // 実運用ではここで profiles.html 等へ遷移
+    // window.location.href = 'profiles.html';
+  }
+
+  endBtn.addEventListener('click', () => {
+    endCall();
+  });
+
+  // 初期リサイズ
+  setTimeout(resizeCanvas, 120);
+</script>
+</body>
+</html>
