@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>誰かわからん通話</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root{
+      --bg:#0f1113;
+      --card:#121416;
+      --muted:#bfc6cc;
+      --accent:#ff6b6b;
+      --accent-2:#4caf50;
+      --glass: rgba(255,255,255,0.03);
+      --radius:12px;
+      --maxw:720px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:linear-gradient(180deg,#0b0c0d 0%, #0f1113 100%);
+      color:#eef2f5;
+      font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      padding:28px 16px;
+    }
+    .container{
+      width:100%;
+      max-width:var(--maxw);
+    }
+
+    /* Hero */
+    .hero{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      border-radius:var(--radius);
+      padding:28px;
+      display:flex;
+      gap:20px;
+      align-items:center;
+      box-shadow:0 8px 30px rgba(0,0,0,0.6);
+      margin-bottom:20px;
+    }
+    .hero-left{flex:1; min-width:220px}
+    .title{
+      font-size:22px;
+      font-weight:700;
+      margin:0 0 8px 0;
+      line-height:1.15;
+    }
+    .subtitle{
+      color:var(--muted);
+      margin:0 0 16px 0;
+      font-size:15px;
+    }
+    .badges{
+      display:flex;
+      gap:10px;
+      margin-bottom:18px;
+    }
+    .badge{
+      background:var(--glass);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:13px;
+      color:var(--muted);
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+    }
+    .cta{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .btn-primary{
+      background:linear-gradient(90deg,var(--accent),#ff4b4b);
+      color:white;
+      border:none;
+      padding:12px 18px;
+      border-radius:10px;
+      font-weight:700;
+      cursor:pointer;
+      font-size:15px;
+      box-shadow:0 6px 18px rgba(255,107,107,0.12);
+    }
+    .btn-ghost{
+      background:transparent;
+      color:var(--muted);
+      border:1px solid rgba(255,255,255,0.04);
+      padding:10px 14px;
+      border-radius:10px;
+      cursor:pointer;
+      font-size:14px;
+    }
+
+    /* Hero right mock */
+    .mock{
+      width:220px;
+      flex-shrink:0;
+      border-radius:18px;
+      overflow:hidden;
+      background:linear-gradient(180deg,#0b0d10,#0f1215);
+      border:1px solid rgba(255,255,255,0.03);
+      box-shadow:0 10px 30px rgba(0,0,0,0.6);
+      padding:12px;
+    }
+    .mock img{width:100%; display:block; border-radius:12px}
+
+    /* Features */
+    .features{
+      display:flex;
+      gap:12px;
+      margin:18px 0 26px 0;
+      justify-content:space-between;
+    }
+    .feature{
+      flex:1;
+      background:rgba(255,255,255,0.02);
+      padding:12px;
+      border-radius:12px;
+      text-align:center;
+      font-size:13px;
+      color:var(--muted);
+    }
+    .feature strong{display:block; color:#fff; margin-bottom:6px; font-size:14px}
+
+    /* Profile card */
+    .card{
+      background:var(--card);
+      border-radius:12px;
+      padding:18px;
+      margin-bottom:18px;
+      box-shadow:0 6px 20px rgba(0,0,0,0.5);
+    }
+    label{display:block; text-align:left; font-size:13px; color:var(--muted); margin-bottom:6px}
+    input, select, textarea{
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.04);
+      background:transparent;
+      color:inherit;
+      font-size:14px;
+      margin-bottom:12px;
+    }
+    textarea{min-height:80px; resize:vertical}
+    .row{display:flex; gap:10px}
+    .row input{flex:1}
+
+    .small{
+      font-size:13px;
+      color:var(--muted);
+      margin-top:8px;
+    }
+
+    /* footer */
+    .footer{
+      text-align:center;
+      color:var(--muted);
+      font-size:13px;
+      margin-top:18px;
+    }
+
+    /* toast */
+    .toast{
+      position:fixed;
+      left:50%;
+      transform:translateX(-50%);
+      bottom:28px;
+      background:#111;
+      color:#fff;
+      padding:10px 16px;
+      border-radius:10px;
+      box-shadow:0 6px 20px rgba(0,0,0,0.6);
+      display:none;
+      z-index:999;
+    }
+
+    @media(max-width:720px){
+      .hero{flex-direction:column; align-items:flex-start}
+      .mock{width:100%}
+      .features{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="hero" role="region" aria-label="ヒーロー">
+      <div class="hero-left">
+        <h1 class="title">声を出さずに、気軽につながる</h1>
+        <p class="subtitle">顔はモザイク、音声は無音。匿名でまずは雰囲気だけ試せます。</p>
+
+        <div class="badges" aria-hidden="true">
+          <div class="badge">🔒 匿名</div>
+          <div class="badge">🎭 モザイク</div>
+          <div class="badge">🔇 無音</div>
+        </div>
+
+        <div class="cta">
+          <button id="startBtn" class="btn-primary">まずは雰囲気だけ試す</button>
+          <button id="registerBtn" class="btn-ghost">プロフィール登録</button>
+        </div>
+      </div>
+
+      <div class="mock" aria-hidden="true">
+        <!-- モック画像を差し替えてください -->
+        <img src="IMG_4596.png" alt="通話画面イメージ">
+      </div>
+    </div>
+
+    <div class="features" aria-hidden="true">
+      <div class="feature"><strong>匿名で安心</strong>電話番号や本名は不要</div>
+      <div class="feature"><strong>声なしで気楽</strong>文字や雰囲気でつながる</div>
+      <div class="feature"><strong>ワンクリック接続</strong>URLを開くだけでつながる</div>
+    </div>
+
+    <div id="profileCard" class="card" aria-live="polite">
+      <h2 style="margin-top:0">プロフィール（任意）</h2>
+      <p class="small">プロフィールはあとで編集できます。まずは体験してみてください。</p>
+
+      <label for="nickname">ニックネーム</label>
+      <input id="nickname" placeholder="ニックネーム">
+
+      <div class="row">
+        <div style="flex:1">
+          <label for="gender">性別</label>
+          <select id="gender">
+            <option value="">選択しない</option>
+            <option value="男性">男性</option>
+            <option value="女性">女性</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div style="width:120px">
+          <label for="age">年齢</label>
+          <input id="age" type="number" placeholder="年齢">
+        </div>
+      </div>
+
+      <label for="prefecture">都道府県</label>
+      <input id="prefecture" placeholder="都道府県">
+
+      <label for="comment">ひとこと</label>
+      <textarea id="comment" placeholder="ひとこと（任意）"></textarea>
+
+      <div style="display:flex; gap:10px; margin-top:8px">
+        <button id="saveBtn" class="btn-primary" style="flex:1">保存して次へ</button>
+        <button id="skipBtn" class="btn-ghost" style="flex:1">あとで設定する</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>運営者情報・プライバシーポリシー</div>
+      <div style="margin-top:8px; color:var(--muted)">※ 無料・広告なしで提供しています</div>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // Firebase 初期化
+    const firebaseConfig = {
+      apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+      authDomain: "roomvideo.firebaseapp.com",
+      databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "roomvideo",
+      storageBucket: "roomvideo.firebasestorage.app",
+      messagingSenderId: "1030429439546",
+      appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // UI要素
+    const startBtn = document.getElementById('startBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const toast = document.getElementById('toast');
+
+    function showToast(msg, ms = 2500){
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(()=> toast.style.display = 'none', ms);
+    }
+
+    // 匿名ログインを事前に行う
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        auth.signInAnonymously().catch(err => {
+          console.error('匿名ログイン失敗', err);
+          showToast('ログインに失敗しました');
+        });
+      }
+    });
+
+    // まずは体験だけするボタン
+    startBtn.addEventListener('click', async () => {
+      // 簡易なガイドを表示して体験ページへ遷移
+      showToast('まずは雰囲気だけ試します');
+      // ここで profiles.html ではなく体験用ページへ遷移する想定
+      // 例: demo.html を用意してデモ通話を体験させる
+      setTimeout(()=> {
+        window.location.href = 'demo.html';
+      }, 700);
+    });
+
+    // プロフィール登録画面へ
+    registerBtn.addEventListener('click', () => {
+      document.getElementById('profileCard').scrollIntoView({behavior:'smooth'});
+    });
+
+    // 保存処理
+    saveBtn.addEventListener('click', async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        showToast('ログイン中です。少し待ってください');
+        return;
+      }
+      saveBtn.disabled = true;
+      saveBtn.textContent = '保存中...';
+
+      const uid = user.uid;
+      const data = {
+        nickname: document.getElementById("nickname").value || '',
+        gender: document.getElementById("gender").value || '',
+        age: Number(document.getElementById("age").value) || null,
+        prefecture: document.getElementById("prefecture").value || '',
+        comment: document.getElementById("comment").value || '',
+        reportCount: 0,
+        blockedUsers: [],
+        friends: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        online: false
+      };
+
+      try {
+        await db.collection("user").doc(uid).set(data, {merge:true});
+        showToast('プロフィールを保存しました');
+        // プロフィール保存後は profiles.html へ
+        setTimeout(()=> window.location.href = 'profiles.html', 700);
+      } catch (e) {
+        console.error(e);
+        showToast('保存に失敗しました');
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存して次へ';
+      }
+    });
+
+    // スキップ
+    skipBtn.addEventListener('click', () => {
+      showToast('あとで設定できます');
+      setTimeout(()=> window.location.href = 'profiles.html', 700);
+    });
+  </script>
+</body>
+</html>
