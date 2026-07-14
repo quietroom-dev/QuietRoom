@@ -184,7 +184,7 @@ h2{
 <div id="userList"></div>
 
 <div id="incomingCall">
-  <h2>通話きとるで。誰か知らんけど。<br>無音・モザイクで安全や。</h2>
+  <h2>通話リクエストがきています。<br>音声オフ・モザイクなので安心してください。</h2>
   <div id="callerProfile"></div>
   <button onclick="acceptCall()">出る</button>
   <button onclick="declineCall()">出ない</button>
@@ -209,7 +209,7 @@ auth.onAuthStateChanged(async user => {
   myUid = user.uid;
 //  alert(myUid);
   if (!myUid) {
-    alert("プロフィール作成からやり直してな。");
+    alert("通話する場合はプロフィール作成からやり直してください。");
     location.href = "index.html";
     return;
   }
@@ -304,7 +304,7 @@ async function blockUser(targetUid) {
   await db.collection("user").doc(myUid)
     .collection("blocks").doc(targetUid)
     .set({ blockedAt: Date.now() });
-  alert("ブロックしたで。");
+  alert("ブロックしました。");
 }
 
 async function reportUser(targetUid) {
@@ -312,7 +312,7 @@ async function reportUser(targetUid) {
     .doc(targetUid).collection("from").doc(myUid).get();
 
   if (already.exists) {
-    alert("通報済みや。どんだけ嫌いやねん。");
+    alert("通報済みです。");
     return;
   }
 
@@ -343,16 +343,16 @@ if (count >= 10) {
     .collection("blocks").doc(targetUid)
     .set({ blockedAt: Date.now() });
 
-  alert("通報したで。");
+  alert("通報しました。");
 }
 
   async function startCall(targetUid) {
 if (await isBlocked(targetUid)) {
-  alert("ブロックしとる相手や。");
+  alert("ブロックしている相手です。");
   return;
 }
 if (await isBlockedBy(targetUid)) {
-  alert("ブロックされとるで。");
+  alert("ブロックされています。");
   return;
 }
   // ▼ calls/{targetUid} に発信情報を書き込む（これが必須）
