@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>誰かわからん通話 プロフィール登録</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>誰かわからん通話</title>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -11,112 +11,383 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body {
-      background-color: #111;
-      color: #eee;
-      font-family: sans-serif;
-      padding: 20px;
-      text-align: center;
-    }
-    input,
-select,
-textarea {
-  width: 80%;
-  padding: 10px;
-  margin: 10px 0;
-  border-radius: 5px;
-  border: none;
-  font-size: 16px;
-  box-sizing: border-box;
-}
-button {
-  width: 80%;
-  padding: 12px;
-  background-color: #4caf50;
-  border: none;
-  color: white;
-  border-radius: 5px;
-  font-size: 16px;
-  box-sizing: border-box;
-}
-    .desc {
-      line-height: 1.6;
-      margin-bottom: 25px;
-      font-size: 16px;
-    }
-.sample{
-  margin:30px auto 40px;
-  max-width:700px;
+    :root{
+  --bg:#f5f7fa;
+  --card:#ffffff;
+  --muted:#667085;
+  --accent:#5d7087;
+  --accent-2:#4caf50;
+  --glass: rgba(0,0,0,0.04);
+  --radius:16px;
+  --maxw:720px;
 }
 
-.sample h2{
-  margin-bottom:15px;
+body{
+  margin:0;
+  min-height:100vh;
+  background:var(--bg);
+  color:#334155;
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:20px 16px 28px;
 }
 
-.sample img{
+.container{
+  width:100%;
+  max-width:var(--maxw);
+}
+
+.logo-area{
+  text-align:center;
+  margin:0 0 18px 0;
+  line-height:0;
+}
+
+.logo-area img{
   display:block;
+  width:100%;
+  max-width:360px;
+  height:auto;
   margin:0 auto;
-  width:90%;
-  max-width:450px;
-  border-radius:12px;
-  border:1px solid #333;
-  box-shadow:0 4px 12px rgba(0,0,0,.4);
 }
 
-.sample p{
-  margin-top:15px;
-  line-height:1.7;
-  color:#ccc;
-  font-size:15px;
+.hero{
+  background:#fff;
+  border-radius:var(--radius);
+  padding:24px;
+  display:flex;
+  gap:20px;
+  align-items:center;
+  box-shadow:0 6px 24px rgba(15,23,42,0.08);
+  margin-bottom:18px;
+}
+
+.hero-left{
+  flex:1;
+  min-width:220px;
+}
+
+.title{
+  font-size:clamp(28px, 6vw, 36px);
+  font-weight:800;
+  margin:0 0 12px 0;
+  line-height:1.2;
+  letter-spacing:-0.03em;
+  color:#344054;
+  word-break:keep-all;
+}
+
+.subtitle{
+  color:var(--muted);
+  margin:0 0 16px 0;
+  font-size:16px;
+  line-height:1.75;
+}
+
+.badges{
+  display:flex;
+  gap:10px;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+
+.badge{
+  background:#f8fafc;
+  padding:8px 12px;
+  border-radius:999px;
+  font-size:13px;
+  color:#667085;
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  border:1px solid #e5e7eb;
+}
+
+.cta{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.btn-primary{
+  background:var(--accent);
+  color:white;
+  border:none;
+  padding:13px 18px;
+  border-radius:12px;
+  font-weight:700;
+  cursor:pointer;
+  font-size:16px;
+  box-shadow:0 6px 18px rgba(93,112,135,0.18);
+}
+
+.btn-ghost{
+  background:#fff;
+  color:#475467;
+  border:1px solid #d7dde5;
+  padding:12px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:16px;
+}
+
+.mock{
+  width:220px;
+  flex-shrink:0;
+  border-radius:18px;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  box-shadow:0 10px 24px rgba(15,23,42,0.06);
+  padding:10px;
+}
+
+.mock img{
+  width:100%;
+  display:block;
+  border-radius:12px;
+}
+
+.features{
+  display:flex;
+  gap:12px;
+  margin:16px 0 24px 0;
+  justify-content:space-between;
+}
+
+.feature{
+  flex:1;
+  background:#fff;
+  padding:14px;
+  border-radius:12px;
+  text-align:center;
+  font-size:13px;
+  color:#667085;
+  border:1px solid #e5e7eb;
+}
+
+.feature strong{
+  display:block;
+  color:#344054;
+  margin-bottom:6px;
+  font-size:14px;
+}
+
+.card{
+  background:#fff;
+  border-radius:12px;
+  padding:18px;
+  margin-bottom:18px;
+  box-shadow:0 6px 20px rgba(15,23,42,0.07);
+}
+
+label{
+  display:block;
+  text-align:left;
+  font-size:13px;
+  color:#667085;
+  margin-bottom:6px;
+}
+
+input, select, textarea{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #d7dde5;
+  background:#fff;
+  color:#334155;
+  font-size:16px; /* iPhoneの自動拡大対策 */
+  margin-bottom:12px;
+}
+
+textarea{
+  min-height:80px;
+  resize:vertical;
+}
+
+.small{
+  font-size:13px;
+  color:#667085;
+  margin-top:8px;
+}
+
+.footer{
+  text-align:center;
+  color:#667085;
+  font-size:13px;
+  margin-top:18px;
+}
+
+.toast{
+  position:fixed;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:28px;
+  background:#111827;
+  color:#fff;
+  padding:10px 16px;
+  border-radius:10px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.2);
+  display:none;
+  z-index:999;
+}
+.demo-note{
+  margin:0;
+  text-align:center;
+  font-size:14px;
+  line-height:1.6;
+  color:#667085;
+}
+
+@media(max-width:720px){
+  .hero{
+    flex-direction:column;
+    align-items:flex-start;
+    padding:20px;
+  }
+
+  .mock{
+    width:100%;
+  }
+
+  .features{
+    flex-direction:column;
+  }
+
+  .logo-area img{
+    max-width:300px;
+  }
+}
+
+body{
+  background:#f5f7fa !important;
+  color:#334155 !important;
+}
+
+.hero{
+  background:#ffffff !important;
+  box-shadow:0 6px 24px rgba(0,0,0,.08) !important;
+}
+
+.card{
+  background:#ffffff !important;
+  box-shadow:0 6px 24px rgba(0,0,0,.08) !important;
+}
+
+.feature{
+  background:#ffffff !important;
+  box-shadow:0 2px 12px rgba(0,0,0,.05);
+}
+
+.feature strong{
+  color:#334155 !important;
+}
+
+.btn-primary{
+  background:#5d7087 !important;
+}
+
+.btn-ghost{
+  background:#ffffff !important;
+  border:1px solid #d7dde5 !important;
+  color:#5d7087 !important;
+}
+
+input,
+select,
+textarea{
+  background:#ffffff !important;
+  border:1px solid #d7dde5 !important;
+  color:#334155 !important;
 }
   </style>
 </head>
-
 <body>
-
-  <div class="desc">
-    <h2>誰かわからん通話やで。</h2>
-    相手が誰か分からんまま<br>
-    ゆる〜くつながる通話アプリや。<br>
-    顔はモザイク、声は無音やから<br>
-    安心して使えるで。<br>
-    趣味で作ったから完全無料で広告も<br>
-    なしやし気軽に使ってな。<br>
-    <br>
-    【使い方】<br>
-    1.プロフィールを登録する。<br>
-    2.気になった相手にかける。<br>
-    以上！<br>
-    URL開いてるときだけ繋がる仕組みやから<br>
-    ちょこちょこ開いといてな。<br>
-  </div>
-
-
-<div class="sample">
-  <h2>📱 通話画面イメージ</h2>
-  <img src="IMG_4596.png" alt="通話画面サンプル">
-  <p>
-    最初はモザイク・無音でスタートします。<br>
-    モザイクはお互いに調整できます。
-  </p>
+  <div class="container">
+    <div class="logo-area">
+  <img src="IMG_4632.jpeg" alt="誰かわからん通話">
 </div>
 
-  <h2>プロフィール登録</h2>
+    <div class="hero" role="region" aria-label="ヒーロー">
+      <div class="hero-left">
+        <h1 class="title">誰かわからないから、<br>話しやすい。</h1>
+<p class="subtitle">
+  顔はモザイク、声はオフ。<br>
+  雰囲気だけでつながる匿名通話です。
+</p>
 
-  <input id="nickname" placeholder="ニックネーム">
-  <select id="gender">
-    <option value="">性別</option>
-    <option value="男性">男性</option>
-    <option value="女性">女性</option>
-    <option value="その他">その他</option>
-  </select>
-  <input id="age" type="number" placeholder="年齢">
-  <input id="prefecture" placeholder="都道府県">
-  <textarea id="comment" placeholder="ひとこと"></textarea>
+    <div class="features" aria-hidden="true">
+      <div class="feature"><strong>匿名で安心</strong>電話番号や本名は不要</div>
+      <div class="feature"><strong>顔出しなし 声なしで気楽</strong>分かるのは雰囲気だけ</div>
+      <div class="feature"><strong>見せ方は自由</strong>モザイク強さは自分で決める</div>
+    </div>
+        
+        <div class="cta">
+          <button id="startBtn" class="btn-primary">まずはこちら　通話画面チュートリアル</button>
+          <p class="demo-note">
+  デモ画面で操作を体験できます。<br>
+  通話相手とは接続されないので<br>
+            安心してお試しください。
+</p>
+          <button id="registerBtn" class="btn-ghost">プロフィール登録</button>
+        </div>
+      </div>
 
-  <button onclick="saveProfile()">登録</button>
+      <div class="mock" aria-hidden="true">
+        <!-- モック画像を差し替えてください -->
+        <img src="IMG_4596.png" alt="通話画面イメージ">
+      </div>
+    </div>
+
+
+    <div id="profileCard" class="card" aria-live="polite">
+      <h2 style="margin-top:0">プロフィール（任意）</h2>
+      <p class="small">プロフィールはあとで編集できます。まずは体験してみてください。</p>
+
+      <label for="nickname">ニックネーム</label>
+      <input id="nickname" placeholder="ニックネーム">
+
+      <div class="row">
+        <div style="flex:1">
+          <label for="gender">性別</label>
+          <select id="gender">
+            <option value="">選択しない</option>
+            <option value="男性">男性</option>
+            <option value="女性">女性</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div style="width:120px">
+          <label for="age">年齢</label>
+          <input id="age" type="number" placeholder="年齢">
+        </div>
+      </div>
+
+      <label for="prefecture">都道府県</label>
+      <input id="prefecture" placeholder="都道府県">
+
+      <label for="comment">ひとこと</label>
+      <textarea id="comment" placeholder="ひとこと（任意）"></textarea>
+
+      <div style="display:flex; gap:10px; margin-top:8px">
+        <button id="saveBtn" class="btn-primary" style="flex:1">保存して次へ</button>
+        <button id="skipBtn" class="btn-ghost" style="flex:1">あとで設定する</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div style="margin-top:8px; color:var(--muted)">※ 無料・広告なしで提供しています</div>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
 
   <script>
+    // Firebase 初期化
     const firebaseConfig = {
       apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
       authDomain: "roomvideo.firebaseapp.com",
@@ -126,45 +397,91 @@ button {
       messagingSenderId: "1030429439546",
       appId: "1:1030429439546:web:1481670cb78deb35e2a703"
     };
-
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // ▼ 匿名ログイン
-    auth.signInAnonymously().catch(err => {
-      console.error("匿名ログイン失敗:", err);
+    // UI要素
+    const startBtn = document.getElementById('startBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const toast = document.getElementById('toast');
+
+    function showToast(msg, ms = 2500){
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(()=> toast.style.display = 'none', ms);
+    }
+
+    // 匿名ログインを事前に行う
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        auth.signInAnonymously().catch(err => {
+          console.error('匿名ログイン失敗', err);
+          showToast('ログインに失敗しました');
+        });
+      }
     });
 
+    // まずは体験だけするボタン
+    startBtn.addEventListener('click', async () => {
+      // 簡易なガイドを表示して体験ページへ遷移
+      showToast('通話のデモ画面を表示します。');
+      // ここで profiles.html ではなく体験用ページへ遷移する想定
+      // 例: demo.html を用意してデモ通話を体験させる
+      setTimeout(()=> {
+        window.location.href = 'demo.html';
+      }, 700);
+    });
 
-    // ▼ プロフィール保存
-    function saveProfile() {
+    // プロフィール登録画面へ
+    registerBtn.addEventListener('click', () => {
+      document.getElementById('profileCard').scrollIntoView({behavior:'smooth'});
+    });
+
+    // 保存処理
+    saveBtn.addEventListener('click', async () => {
       const user = auth.currentUser;
       if (!user) {
-        alert("ログイン待ちやで。ちょっと待ってな。");
+        showToast('ログイン中です。少し待ってください');
         return;
       }
+      saveBtn.disabled = true;
+      saveBtn.textContent = '保存中...';
 
       const uid = user.uid;
-
       const data = {
-        nickname: document.getElementById("nickname").value,
-        gender: document.getElementById("gender").value,
-        age: Number(document.getElementById("age").value),
-        prefecture: document.getElementById("prefecture").value,
-        comment: document.getElementById("comment").value,
+        nickname: document.getElementById("nickname").value || '',
+        gender: document.getElementById("gender").value || '',
+        age: Number(document.getElementById("age").value) || null,
+        prefecture: document.getElementById("prefecture").value || '',
+        comment: document.getElementById("comment").value || '',
         reportCount: 0,
         blockedUsers: [],
         friends: [],
-        createdAt: new Date(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         online: false
       };
 
-      db.collection("user").doc(uid).set(data).then(() => {
-        window.location.href = "profiles.html";
-      });
-    }
-  </script>
+      try {
+        await db.collection("user").doc(uid).set(data, {merge:true});
+        showToast('プロフィールを保存しました');
+        // プロフィール保存後は profiles.html へ
+        setTimeout(()=> window.location.href = 'profiles.html', 700);
+      } catch (e) {
+        console.error(e);
+        showToast('保存に失敗しました');
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存して次へ';
+      }
+    });
 
+    // スキップ
+    skipBtn.addEventListener('click', () => {
+      showToast('あとで設定できます');
+      setTimeout(()=> window.location.href = 'profiles.html', 700);
+    });
+  </script>
 </body>
 </html>
