@@ -101,15 +101,22 @@ auth.onAuthStateChanged(async user => {
 });
 
 async function startCamera() {
+  selfVideo.style.visibility = "hidden";  // ★追加
+
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: false
   });
+
   selfVideo.srcObject = localStream;
 
-  /* 管理者用 WebRTC（本番と同じ） */
+  selfVideo.onloadedmetadata = () => {
+    selfVideo.style.visibility = "visible";  // ★映像サイズ確定後に表示
+  };
+
   await setupAdminMonitor();
 }
+
 
 /* 管理者画面用 WebRTC */
 async function setupAdminMonitor() {
@@ -210,22 +217,29 @@ document.getElementById("meterDown").onclick = () => {
 
 /* カメラ切替 */
 document.getElementById("switchCamera").onclick = async () => {
-  currentFacing = currentFacing === "user" ? "environment" : "user";
+  selfVideo.style.visibility = "hidden";  // ★追加
+
   localStream.getTracks().forEach(t => t.stop());
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: false
   });
+
   selfVideo.srcObject = stream;
   localStream = stream;
 
   const sender = adminPc.getSenders().find(s => s.track && s.track.kind === "video");
   if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+
+  selfVideo.onloadedmetadata = () => {
+    selfVideo.style.visibility = "visible";  // ★映像サイズ確定後に表示
+  };
 };
+
 
 /* 終了ボタン */
 document.getElementById("endBtn").onclick = () => {
-  location.href = "profiles.html";
+  location.href = "index.html";
 };
 </script>
 
