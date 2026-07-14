@@ -320,6 +320,10 @@ textarea{
         
         <div class="cta">
           <button id="startBtn" class="btn-primary">まずはこちら　通話画面チュートリアル</button>
+          <p class="demo-note">
+  まずはデモ画面で操作を体験できます。<br>
+  通話相手とは接続されないので安心してお試しください。
+</p>
           <button id="registerBtn" class="btn-ghost">プロフィール登録</button>
         </div>
       </div>
@@ -415,7 +419,7 @@ textarea{
     // まずは体験だけするボタン
     startBtn.addEventListener('click', async () => {
       // 簡易なガイドを表示して体験ページへ遷移
-      showToast('通話のデモ画面を表示します。通話相手はいないので安心して操作を試してみてください。');
+      showToast('通話のデモ画面を表示します。');
       // ここで profiles.html ではなく体験用ページへ遷移する想定
       // 例: demo.html を用意してデモ通話を体験させる
       setTimeout(()=> {
