@@ -218,11 +218,19 @@ document.getElementById("meterDown").onclick = () => {
 
 /* カメラ切替 */
 document.getElementById("switchCamera").onclick = async () => {
-  selfVideo.style.opacity = "0";  // ★変更：hidden → opacity
+  currentFacing =
+    currentFacing === "user"
+      ? "environment"
+      : "user";
+
+  selfVideo.style.opacity = "0";
 
   localStream.getTracks().forEach(t => t.stop());
+
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: currentFacing },
+    video: {
+      facingMode: { ideal: currentFacing }
+    },
     audio: false
   });
 
@@ -230,16 +238,15 @@ document.getElementById("switchCamera").onclick = async () => {
   localStream = stream;
 
   const videoTrack = localStream.getVideoTracks()[0];
-  const videoSender = adminPc.getSenders().find(s => s.track && s.track.kind === "video");
+  const videoSender = adminPc?.getSenders()
+    .find(s => s.track?.kind === "video");
 
   if (videoSender) {
-    videoSender.replaceTrack(videoTrack);
-  } else {
-    adminPc.addTrack(videoTrack, localStream);
+    await videoSender.replaceTrack(videoTrack);
   }
 
   selfVideo.onloadedmetadata = () => {
-    selfVideo.style.opacity = "1";  // ★表示
+    selfVideo.style.opacity = "1";
   };
 };
 
