@@ -217,7 +217,7 @@ document.getElementById("meterDown").onclick = () => {
 
 /* カメラ切替 */
 document.getElementById("switchCamera").onclick = async () => {
-  selfVideo.style.visibility = "hidden";  // ★追加
+  selfVideo.style.visibility = "hidden";
 
   localStream.getTracks().forEach(t => t.stop());
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -228,13 +228,23 @@ document.getElementById("switchCamera").onclick = async () => {
   selfVideo.srcObject = stream;
   localStream = stream;
 
-  const sender = adminPc.getSenders().find(s => s.track && s.track.kind === "video");
-  if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
+  // ★ sender を確実に取得する
+  const videoTrack = localStream.getVideoTracks()[0];
+  const senders = adminPc.getSenders();
+  const videoSender = senders.find(s => s.track && s.track.kind === "video");
+
+  if (videoSender) {
+    videoSender.replaceTrack(videoTrack);
+  } else {
+    // ★ sender がまだ無い場合は addTrack する
+    adminPc.addTrack(videoTrack, localStream);
+  }
 
   selfVideo.onloadedmetadata = () => {
-    selfVideo.style.visibility = "visible";  // ★映像サイズ確定後に表示
+    selfVideo.style.visibility = "visible";
   };
 };
+
 
 
 /* 終了ボタン */
