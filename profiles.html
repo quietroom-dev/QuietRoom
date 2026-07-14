@@ -10,50 +10,175 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-body {
-  background-color: #111;
-  color: #eee;
-  font-family: sans-serif;
-  padding: 20px;
+body{
+  margin:0;
+  background:#f5f7fa;
+  color:#334155;
+  font-family:Inter,"Helvetica Neue",Arial,sans-serif;
+  padding:20px;
 }
-.user-card {
-  background: #222;
-  padding: 15px;
-  margin-bottom: 15px;
-  border-radius: 8px;
+
+.top-actions{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
 }
-.user-card h3 {
-  margin: 0 0 5px 0;
+
+button{
+  border:none;
+  cursor:pointer;
+  font-size:15px;
+  border-radius:12px;
+  padding:12px 16px;
+  transition:.2s;
 }
-#incomingCall {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  color: #fff;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  z-index: 999;
-  text-align: center;
-  padding: 20px;
+
+button:hover{
+  opacity:.9;
 }
-#incomingCall button {
-  margin-top: 12px;
-  padding: 10px 20px;
-  background: #333;
-  border: 1px solid #666;
-  color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
+
+.action-btn{
+  background:#5d7087;
+  color:#fff;
+}
+
+.edit-btn{
+  background:#fff;
+  color:#5d7087;
+  border:1px solid #d7dde5;
+}
+
+h2{
+  margin:0 0 20px;
+  color:#344054;
+  font-size:28px;
+}
+
+.user-card{
+  background:#fff;
+  padding:18px;
+  margin-bottom:16px;
+  border-radius:16px;
+  box-shadow:0 4px 16px rgba(15,23,42,.08);
+  border:1px solid #eef2f6;
+}
+
+.user-card h3{
+  margin:0 0 12px;
+  color:#344054;
+  font-size:20px;
+}
+
+.user-card p{
+  margin:6px 0;
+  color:#667085;
+  line-height:1.5;
+}
+
+.user-card button{
+  margin-top:10px;
+  margin-right:8px;
+}
+
+.user-card button:nth-of-type(1){
+  background:#5d7087;
+  color:#fff;
+}
+
+.user-card button:nth-of-type(2){
+  background:#fff3cd;
+  color:#8a6d3b;
+  border:1px solid #ffe69c;
+}
+
+.user-card button:nth-of-type(3){
+  background:#ffe5e5;
+  color:#c62828;
+  border:1px solid #ffcaca;
+}
+
+#incomingCall{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.75);
+  backdrop-filter:blur(6px);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  z-index:999;
+  padding:24px;
+  text-align:center;
+}
+
+#incomingCall h2{
+  background:#fff;
+  color:#344054;
+  padding:24px;
+  border-radius:16px 16px 0 0;
+  margin:0;
+  width:min(500px,100%);
+}
+
+#callerProfile{
+  background:#fff;
+  color:#667085;
+  width:min(500px,100%);
+  padding:20px;
+}
+
+#incomingCall button{
+  width:250px;
+  margin-top:12px;
+}
+
+#incomingCall button:first-of-type{
+  background:#5d7087;
+  color:#fff;
+}
+
+#incomingCall button:last-of-type{
+  background:#fff;
+  color:#475467;
+  border:1px solid #d7dde5;
+}
+
+@media(max-width:700px){
+
+  body{
+    padding:16px;
+  }
+
+  h2{
+    font-size:24px;
+  }
+
+  .user-card{
+    padding:16px;
+  }
+
+  .user-card button{
+    width:100%;
+    margin-right:0;
+    margin-bottom:8px;
+  }
 }
 </style>
 </head>
 
 <body>
 
-<button onclick="location.reload()">🔄 更新</button>
-<button onclick="location.href='profile-edit.html'">✏️ プロフィール編集</button>
+<div class="top-actions">
+  <button class="action-btn" onclick="location.reload()">
+    🔄 更新
+  </button>
+
+  <button class="edit-btn"
+          onclick="location.href='profile-edit.html'">
+    ✏️ プロフィール編集
+  </button>
+</div>
 
 <h2>プロフィール一覧</h2>
 <div id="userList"></div>
