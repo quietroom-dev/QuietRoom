@@ -12,193 +12,247 @@
 
   <style>
     :root{
-      --bg:#0f1113;
-      --card:#121416;
-      --muted:#bfc6cc;
-      --accent:#ff6b6b;
-      --accent-2:#4caf50;
-      --glass: rgba(255,255,255,0.03);
-      --radius:12px;
-      --maxw:720px;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      min-height:100vh;
-      background:linear-gradient(180deg,#0b0c0d 0%, #0f1113 100%);
-      color:#eef2f5;
-      font-family: Inter, "Helvetica Neue", Arial, sans-serif;
-      display:flex;
-      align-items:flex-start;
-      justify-content:center;
-      padding:28px 16px;
-    }
-    .container{
-      width:100%;
-      max-width:var(--maxw);
-    }
+  --bg:#f5f7fa;
+  --card:#ffffff;
+  --muted:#667085;
+  --accent:#5d7087;
+  --accent-2:#4caf50;
+  --glass: rgba(0,0,0,0.04);
+  --radius:16px;
+  --maxw:720px;
+}
 
-    /* Hero */
-    .hero{
-      background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-      border-radius:var(--radius);
-      padding:28px;
-      display:flex;
-      gap:20px;
-      align-items:center;
-      box-shadow:0 8px 30px rgba(0,0,0,0.6);
-      margin-bottom:20px;
-    }
-    .hero-left{flex:1; min-width:220px}
-    .title{
-      font-size:22px;
-      font-weight:700;
-      margin:0 0 8px 0;
-      line-height:1.15;
-    }
-    .subtitle{
-      color:var(--muted);
-      margin:0 0 16px 0;
-      font-size:15px;
-    }
-    .badges{
-      display:flex;
-      gap:10px;
-      margin-bottom:18px;
-    }
-    .badge{
-      background:var(--glass);
-      padding:8px 12px;
-      border-radius:999px;
-      font-size:13px;
-      color:var(--muted);
-      display:inline-flex;
-      gap:8px;
-      align-items:center;
-    }
-    .cta{
-      display:flex;
-      gap:12px;
-      align-items:center;
-    }
-    .btn-primary{
-      background:linear-gradient(90deg,var(--accent),#ff4b4b);
-      color:white;
-      border:none;
-      padding:12px 18px;
-      border-radius:10px;
-      font-weight:700;
-      cursor:pointer;
-      font-size:15px;
-      box-shadow:0 6px 18px rgba(255,107,107,0.12);
-    }
-    .btn-ghost{
-      background:transparent;
-      color:var(--muted);
-      border:1px solid rgba(255,255,255,0.04);
-      padding:10px 14px;
-      border-radius:10px;
-      cursor:pointer;
-      font-size:14px;
-    }
+body{
+  margin:0;
+  min-height:100vh;
+  background:var(--bg);
+  color:#334155;
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:20px 16px 28px;
+}
 
-    /* Hero right mock */
-    .mock{
-      width:220px;
-      flex-shrink:0;
-      border-radius:18px;
-      overflow:hidden;
-      background:linear-gradient(180deg,#0b0d10,#0f1215);
-      border:1px solid rgba(255,255,255,0.03);
-      box-shadow:0 10px 30px rgba(0,0,0,0.6);
-      padding:12px;
-    }
-    .mock img{width:100%; display:block; border-radius:12px}
+.container{
+  width:100%;
+  max-width:var(--maxw);
+}
 
-    /* Features */
-    .features{
-      display:flex;
-      gap:12px;
-      margin:18px 0 26px 0;
-      justify-content:space-between;
-    }
-    .feature{
-      flex:1;
-      background:rgba(255,255,255,0.02);
-      padding:12px;
-      border-radius:12px;
-      text-align:center;
-      font-size:13px;
-      color:var(--muted);
-    }
-    .feature strong{display:block; color:#fff; margin-bottom:6px; font-size:14px}
-
-    /* Profile card */
-    .card{
-      background:var(--card);
-      border-radius:12px;
-      padding:18px;
-      margin-bottom:18px;
-      box-shadow:0 6px 20px rgba(0,0,0,0.5);
-    }
-    label{display:block; text-align:left; font-size:13px; color:var(--muted); margin-bottom:6px}
-    input, select, textarea{
-      width:100%;
-      padding:12px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,0.04);
-      background:transparent;
-      color:inherit;
-      font-size:14px;
-      margin-bottom:12px;
-    }
-    textarea{min-height:80px; resize:vertical}
-    .row{display:flex; gap:10px}
-    .row input{flex:1}
-
-    .small{
-      font-size:13px;
-      color:var(--muted);
-      margin-top:8px;
-    }
-
-    /* footer */
-    .footer{
-      text-align:center;
-      color:var(--muted);
-      font-size:13px;
-      margin-top:18px;
-    }
-
-    /* toast */
-    .toast{
-      position:fixed;
-      left:50%;
-      transform:translateX(-50%);
-      bottom:28px;
-      background:#111;
-      color:#fff;
-      padding:10px 16px;
-      border-radius:10px;
-      box-shadow:0 6px 20px rgba(0,0,0,0.6);
-      display:none;
-      z-index:999;
-    }
-
-    @media(max-width:720px){
-      .hero{flex-direction:column; align-items:flex-start}
-      .mock{width:100%}
-      .features{flex-direction:column}
-    }
-    .logo-area{
+.logo-area{
   text-align:center;
-  margin-bottom:30px;
+  margin:0 0 18px 0;
+  line-height:0;
 }
 
 .logo-area img{
+  display:block;
   width:100%;
-  max-width:420px;
+  max-width:360px;
   height:auto;
+  margin:0 auto;
+}
+
+.hero{
+  background:#fff;
+  border-radius:var(--radius);
+  padding:24px;
+  display:flex;
+  gap:20px;
+  align-items:center;
+  box-shadow:0 6px 24px rgba(15,23,42,0.08);
+  margin-bottom:18px;
+}
+
+.hero-left{
+  flex:1;
+  min-width:220px;
+}
+
+.title{
+  font-size:clamp(28px, 6vw, 36px);
+  font-weight:800;
+  margin:0 0 12px 0;
+  line-height:1.2;
+  letter-spacing:-0.03em;
+  color:#344054;
+  word-break:keep-all;
+}
+
+.subtitle{
+  color:var(--muted);
+  margin:0 0 16px 0;
+  font-size:16px;
+  line-height:1.75;
+}
+
+.badges{
+  display:flex;
+  gap:10px;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+
+.badge{
+  background:#f8fafc;
+  padding:8px 12px;
+  border-radius:999px;
+  font-size:13px;
+  color:#667085;
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  border:1px solid #e5e7eb;
+}
+
+.cta{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.btn-primary{
+  background:var(--accent);
+  color:white;
+  border:none;
+  padding:13px 18px;
+  border-radius:12px;
+  font-weight:700;
+  cursor:pointer;
+  font-size:16px;
+  box-shadow:0 6px 18px rgba(93,112,135,0.18);
+}
+
+.btn-ghost{
+  background:#fff;
+  color:#475467;
+  border:1px solid #d7dde5;
+  padding:12px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:16px;
+}
+
+.mock{
+  width:220px;
+  flex-shrink:0;
+  border-radius:18px;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  box-shadow:0 10px 24px rgba(15,23,42,0.06);
+  padding:10px;
+}
+
+.mock img{
+  width:100%;
+  display:block;
+  border-radius:12px;
+}
+
+.features{
+  display:flex;
+  gap:12px;
+  margin:16px 0 24px 0;
+  justify-content:space-between;
+}
+
+.feature{
+  flex:1;
+  background:#fff;
+  padding:14px;
+  border-radius:12px;
+  text-align:center;
+  font-size:13px;
+  color:#667085;
+  border:1px solid #e5e7eb;
+}
+
+.feature strong{
+  display:block;
+  color:#344054;
+  margin-bottom:6px;
+  font-size:14px;
+}
+
+.card{
+  background:#fff;
+  border-radius:12px;
+  padding:18px;
+  margin-bottom:18px;
+  box-shadow:0 6px 20px rgba(15,23,42,0.07);
+}
+
+label{
+  display:block;
+  text-align:left;
+  font-size:13px;
+  color:#667085;
+  margin-bottom:6px;
+}
+
+input, select, textarea{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #d7dde5;
+  background:#fff;
+  color:#334155;
+  font-size:16px; /* iPhoneの自動拡大対策 */
+  margin-bottom:12px;
+}
+
+textarea{
+  min-height:80px;
+  resize:vertical;
+}
+
+.small{
+  font-size:13px;
+  color:#667085;
+  margin-top:8px;
+}
+
+.footer{
+  text-align:center;
+  color:#667085;
+  font-size:13px;
+  margin-top:18px;
+}
+
+.toast{
+  position:fixed;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:28px;
+  background:#111827;
+  color:#fff;
+  padding:10px 16px;
+  border-radius:10px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.2);
+  display:none;
+  z-index:999;
+}
+
+@media(max-width:720px){
+  .hero{
+    flex-direction:column;
+    align-items:flex-start;
+    padding:20px;
+  }
+
+  .mock{
+    width:100%;
+  }
+
+  .features{
+    flex-direction:column;
+  }
+
+  .logo-area img{
+    max-width:300px;
+  }
 }
 
 body{
@@ -252,9 +306,10 @@ textarea{
 
     <div class="hero" role="region" aria-label="ヒーロー">
       <div class="hero-left">
-        <h1 class="title">誰かわからないから、話しやすい。</h1>
+        <h1 class="title">誰かわからないから、<br>話しやすい。</h1>
 <p class="subtitle">
-顔はモザイク、声はオフ。雰囲気だけでつながる匿名通話です。
+  顔はモザイク、声はオフ。<br>
+  雰囲気だけでつながる匿名通話です。
 </p>
 
         <div class="badges" aria-hidden="true">
