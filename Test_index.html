@@ -312,14 +312,14 @@ textarea{
   雰囲気だけでつながる匿名通話です。
 </p>
 
-        <div class="badges" aria-hidden="true">
-          <div class="badge">🔒 匿名</div>
-          <div class="badge">🎭 モザイク</div>
-          <div class="badge">🔇 無音</div>
-        </div>
-
+    <div class="features" aria-hidden="true">
+      <div class="feature"><strong>匿名で安心</strong>電話番号や本名は不要</div>
+      <div class="feature"><strong>声なしで気楽</strong>文字や雰囲気でつながる</div>
+      <div class="feature"><strong>ワンクリック接続</strong>URLを開くだけでつながる</div>
+    </div>
+        
         <div class="cta">
-          <button id="startBtn" class="btn-primary">まずは雰囲気だけ試す</button>
+          <button id="startBtn" class="btn-primary">通話画面の雰囲気を確認する（デモ）</button>
           <button id="registerBtn" class="btn-ghost">プロフィール登録</button>
         </div>
       </div>
@@ -330,11 +330,6 @@ textarea{
       </div>
     </div>
 
-    <div class="features" aria-hidden="true">
-      <div class="feature"><strong>匿名で安心</strong>電話番号や本名は不要</div>
-      <div class="feature"><strong>声なしで気楽</strong>文字や雰囲気でつながる</div>
-      <div class="feature"><strong>ワンクリック接続</strong>URLを開くだけでつながる</div>
-    </div>
 
     <div id="profileCard" class="card" aria-live="polite">
       <h2 style="margin-top:0">プロフィール（任意）</h2>
@@ -372,7 +367,6 @@ textarea{
     </div>
 
     <div class="footer">
-      <div>運営者情報・プライバシーポリシー</div>
       <div style="margin-top:8px; color:var(--muted)">※ 無料・広告なしで提供しています</div>
     </div>
 
@@ -421,7 +415,7 @@ textarea{
     // まずは体験だけするボタン
     startBtn.addEventListener('click', async () => {
       // 簡易なガイドを表示して体験ページへ遷移
-      showToast('まずは雰囲気だけ試します');
+      showToast('通話のデモ画面を表示します。通話相手はいないので安心して操作を試してみてください。');
       // ここで profiles.html ではなく体験用ページへ遷移する想定
       // 例: demo.html を用意してデモ通話を体験させる
       setTimeout(()=> {
