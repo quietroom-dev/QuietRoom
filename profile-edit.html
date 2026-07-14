@@ -10,64 +10,171 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-body {
-  background: #111;
-  color: #eee;
-  font-family: sans-serif;
-  padding: 20px;
+body{
+  margin:0;
+  background:#f5f7fa;
+  color:#334155;
+  font-family:Inter,"Helvetica Neue",Arial,sans-serif;
+  padding:20px;
 }
 
-input, select, textarea {
-  width: 100%;
-  padding: 10px;
-  margin: 8px 0;
-  border-radius: 6px;
-  border: 1px solid #444;
-  background: #222;
-  color: #fff;
+.page{
+  max-width:700px;
+  margin:0 auto;
 }
 
-button {
-  padding: 12px 20px;
-  background: #333;
-  border: 1px solid #666;
-  color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-top: 10px;
+.card{
+  background:#fff;
+  border-radius:16px;
+  padding:24px;
+  box-shadow:0 6px 24px rgba(15,23,42,.08);
 }
 
-/* ▼ 着信UI ▼ */
-#incomingCall {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  color: #fff;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  z-index: 999;
-  text-align: center;
-  padding: 20px;
+h2{
+  margin:0 0 24px;
+  color:#344054;
+  font-size:28px;
 }
-#incomingCall button {
-  margin-top: 12px;
-  padding: 10px 20px;
-  background: #333;
-  border: 1px solid #666;
-  color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
+
+label{
+  display:block;
+  margin-top:14px;
+  margin-bottom:6px;
+  font-size:14px;
+  font-weight:600;
+  color:#475467;
+}
+
+input,
+select,
+textarea{
+  width:100%;
+  box-sizing:border-box;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #d7dde5;
+  background:#fff;
+  color:#334155;
+  font-size:16px; /* iPhone拡大防止 */
+}
+
+textarea{
+  min-height:100px;
+  resize:vertical;
+}
+
+.button-row{
+  display:flex;
+  gap:12px;
+  margin-top:20px;
+  flex-wrap:wrap;
+}
+
+.primary-btn{
+  background:#5d7087;
+  color:#fff;
+  border:none;
+  padding:12px 18px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:16px;
+  font-weight:600;
+}
+
+.secondary-btn{
+  background:#fff;
+  color:#5d7087;
+  border:1px solid #d7dde5;
+  padding:12px 18px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:16px;
+  font-weight:600;
+}
+
+.primary-btn:hover,
+.secondary-btn:hover{
+  opacity:.9;
+}
+
+#incomingCall{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.75);
+  backdrop-filter:blur(6px);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  z-index:999;
+  padding:24px;
+  text-align:center;
+}
+
+#incomingCall h2{
+  background:#fff;
+  color:#344054;
+  padding:24px;
+  border-radius:16px 16px 0 0;
+  margin:0;
+  width:min(500px,100%);
+}
+
+#callerProfile{
+  background:#fff;
+  color:#667085;
+  width:min(500px,100%);
+  padding:20px;
+}
+
+#incomingCall button{
+  width:250px;
+  margin-top:12px;
+  border:none;
+  border-radius:12px;
+  padding:12px;
+  font-size:16px;
+  cursor:pointer;
+}
+
+#incomingCall button:first-of-type{
+  background:#5d7087;
+  color:#fff;
+}
+
+#incomingCall button:last-of-type{
+  background:#fff;
+  color:#475467;
+  border:1px solid #d7dde5;
+}
+
+@media(max-width:700px){
+
+  body{
+    padding:16px;
+  }
+
+  .button-row{
+    flex-direction:column;
+  }
+
+  .button-row button{
+    width:100%;
+  }
+
+  h2{
+    font-size:24px;
+  }
 }
 </style>
 </head>
 
 <body>
 
-<h2>プロフィール編集</h2>
+<div class="page">
+  <div class="card">
 
-<div>
+    <h2>プロフィール編集</h2>
   <label>ニックネーム</label>
   <input id="nickname">
 
@@ -87,13 +194,24 @@ button {
   <label>ひとこと</label>
   <textarea id="comment"></textarea>
 
-  <button id="saveBtn">保存する</button>
-  <button onclick="location.href='profiles.html'">一覧へ戻る</button>
+  <div class="button-row">
+  <button id="saveBtn" class="primary-btn">
+    保存する
+  </button>
+
+  <button
+    class="secondary-btn"
+    onclick="location.href='profiles.html'">
+    一覧へ戻る
+  </button>
+</div>
+
+  </div>
 </div>
 
 <!-- ▼ 着信UI ▼ -->
 <div id="incomingCall">
-  <h2>📞 通話きとるで。誰か知らんけど。</h2>
+  <h2>📞 通話リクエストがきています。</h2>
   <div id="callerProfile"></div>
   <button onclick="acceptCall()">出る</button>
   <button onclick="declineCall()">出ない</button>
@@ -158,7 +276,7 @@ auth.onAuthStateChanged(async user => {
       prefecture: prefecture.value,
       comment: comment.value
     });
-    alert("保存したで");
+    alert("プロフィールを保存しました");
   };
 
   /* =========================================
