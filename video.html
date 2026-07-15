@@ -112,7 +112,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">管理人がたまに見回りしとるで。安全に使ってな。</div>
+<div id="patrolMsg">管理人がたまに見回りしています。安全にご使用くださいね。</div>
 
 <script>
 
@@ -209,7 +209,7 @@ async function initializeCall() {
    const d = snap.data();
    if (!d?.ended) return;
    if (isEndingMyself) return;
-   alert("通話終わったで");
+   alert("通話が終了しました。");
    if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
    }
