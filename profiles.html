@@ -224,15 +224,15 @@ if (reportCount >= 10) {
   return;
 }
 // BANされていなければオンライン
-await db.collection("user").doc(myUid).update({
+await db.collection("user").doc(myUid).set({
   lastSeen: Date.now()
-});
+}, { merge:true });
 setInterval(async () => {
   if (!myUid) return;
 
-  await db.collection("user").doc(myUid).update({
-    lastSeen: Date.now()
-  });
+  await db.collection("user").doc(myUid).set({
+  lastSeen: Date.now()
+}, { merge:true });
 }, 30000);
   
   db.collection("user").onSnapshot(async snap => {
