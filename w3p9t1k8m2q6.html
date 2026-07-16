@@ -389,10 +389,10 @@ pc.ontrack = e => {
         try {
           watcher.unsubscribeOffer();
         } catch (e) {}
-        try {
+/*        try {
           watcher.pc.close();
         } catch (e) {}
-        watcherMap.delete(userUid);
+ */       watcherMap.delete(userUid);
       }
       pcMap.delete(userUid);
       return;
@@ -487,10 +487,10 @@ db.collection("adminCalls").onSnapshot(snap => {
     try {
       watcher.unsubscribeOffer();
     } catch (e) {}
-    try {
+/*    try {
       watcher.pc.close();
     } catch (e) {}
-    watcherMap.delete(uid);
+ */   watcherMap.delete(uid);
     pcMap.delete(uid);
   }
   latestCallDocs = docs;
@@ -514,10 +514,10 @@ window.addEventListener("beforeunload", async () => {
     try {
       watcher.unsubscribeOffer();
     } catch(e){}
-    try {
+/*    try {
       watcher.pc.close();
     } catch(e){}
-  }
+*/  }
   watcherMap.clear();
   pcMap.clear();
 });
