@@ -379,7 +379,7 @@ pc.ontrack = e => {
   };
   const unsubscribeCall = callDoc.onSnapshot(async snap => {
     const d = snap.data();
-//    if (!d) return;
+    if (!d) return;
     if (d.ended) {
       const watcher = watcherMap.get(userUid);
       if (watcher) {
@@ -472,9 +472,9 @@ db.collection("adminCalls").onSnapshot(snap => {
   const docs = [];
   snap.forEach(doc => {
     const d = doc.data();
-//    if (!d) return;
+    if (!d) return;
     if (!d.offer) return;
-    if (d.ended) return;
+//    if (d.ended) return;
     aliveUsers.add(doc.id);
     docs.push(doc);
   });
