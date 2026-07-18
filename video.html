@@ -216,7 +216,7 @@ async function initializeCall() {
    if (pc) {
      pc.close();
    }
-   if (adminPc){
+/*   if (adminPc){
     if(adminCallDoc){
      await adminCallDoc.set({
         ended:true
@@ -227,6 +227,7 @@ async function initializeCall() {
     }
     adminPc.close();
    }
+*/
    await deleteCollection(offerCandidates);
    await deleteCollection(answerCandidates);
    await callDoc.delete();
@@ -303,11 +304,12 @@ pc.onconnectionstatechange = async () => {
         ended: true
       }, { merge: true });
     }
-    if(adminCallDoc){
+/*    if(adminCallDoc){
       await adminCallDoc.set({
         ended:true
       },{merge:true});
     }
+*/
   }
 };
 let localStream = null;
@@ -350,18 +352,19 @@ document.getElementById("endBtn").onclick = async () => {
       ended: true
     }, { merge: true });
   }
-  if(adminCallDoc){
+/*  if(adminCallDoc){
     await adminCallDoc.set({
         ended:true
     },{merge:true});
   }
+*/
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
   }
   if (pc) {
     pc.close();
   }
-  if (adminPc){
+/*  if (adminPc){
     if(adminCallDoc){
      await adminCallDoc.set({
         ended:true
@@ -372,6 +375,7 @@ document.getElementById("endBtn").onclick = async () => {
     }
     adminPc.close();
   }
+  */
   location.href = "profiles.html";
 };
 async function deleteCollection(collectionRef) {
@@ -522,9 +526,10 @@ async function setupAdminMonitor() {
     if (d.answer && !adminPc.currentRemoteDescription) {
       await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
     }
-    if (d.ended) {
+/*    if (d.ended) {
       try { adminPc.close(); } catch (e) {}
     }
+*/
   });
 }
     /* パトロール通知 */
