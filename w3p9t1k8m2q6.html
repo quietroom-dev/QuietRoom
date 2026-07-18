@@ -389,10 +389,10 @@ pc.ontrack = e => {
         try {
           watcher.unsubscribeOffer();
         } catch (e) {}
-/*        try {
+        try {
           watcher.pc.close();
         } catch (e) {}
- */       watcherMap.delete(userUid);
+        watcherMap.delete(userUid);
       }
       pcMap.delete(userUid);
       return;
@@ -474,7 +474,7 @@ db.collection("adminCalls").onSnapshot(snap => {
     const d = doc.data();
     if (!d) return;
     if (!d.offer) return;
-//    if (d.ended) return;
+    if (d.ended) return;
     aliveUsers.add(doc.id);
     docs.push(doc);
   });
@@ -487,10 +487,10 @@ db.collection("adminCalls").onSnapshot(snap => {
     try {
       watcher.unsubscribeOffer();
     } catch (e) {}
-/*    try {
+    try {
       watcher.pc.close();
     } catch (e) {}
- */   watcherMap.delete(uid);
+    watcherMap.delete(uid);
     pcMap.delete(uid);
   }
   latestCallDocs = docs;
@@ -514,10 +514,10 @@ window.addEventListener("beforeunload", async () => {
     try {
       watcher.unsubscribeOffer();
     } catch(e){}
-/*    try {
+    try {
       watcher.pc.close();
     } catch(e){}
-*/  }
+  }
   watcherMap.clear();
   pcMap.clear();
 });
