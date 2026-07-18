@@ -474,9 +474,10 @@ db.collection("adminCalls").onSnapshot(snap => {
   const docs = [];
   snap.forEach(doc => {
     const d = doc.data();
-    if (!d) return;
+/*    if (!d) return;
     if (!d.offer) return;
     if (d.ended) return;
+*/
     aliveUsers.add(doc.id);
     docs.push(doc);
   });
