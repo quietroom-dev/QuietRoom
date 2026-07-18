@@ -327,12 +327,16 @@ pc.ontrack = e => {
 
 async function startCamera() {
   //alert("スタートカメラ入った");
+  selfVideo.style.visibility = "hidden";
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: true
   });
   //alert("カメラ取得");
   selfVideo.srcObject = localStream;
+  selfVideo.onloadedmetadata = () => {
+    selfVideo.style.visibility = "visible";
+  };
   const videoTrack = localStream.getVideoTracks()[0];
   pc.addTrack(videoTrack, localStream);
   //localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
