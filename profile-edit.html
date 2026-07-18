@@ -247,7 +247,7 @@ auth.signInAnonymously().catch(err => {
 auth.onAuthStateChanged(async user => {
   if (!user) return;
 
-  const myUid = localStorage.getItem("myUid");
+  const myUid = user.uid;
   if (!myUid) {
     alert("エラー：UID がありません。再ログインしてください。");
     location.href = "index.html";
