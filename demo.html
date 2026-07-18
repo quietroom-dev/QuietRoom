@@ -155,7 +155,7 @@ async function setupAdminMonitor() {
 
   adminCallDoc.onSnapshot(async s => {
     const d = s.data();
-    if (!d) return;
+//    if (!d) return;
     if (d.answer && !adminPc.currentRemoteDescription) {
       await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
     }
