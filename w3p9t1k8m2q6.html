@@ -329,7 +329,7 @@ function createAdminPC(userUid, videoEl) {
       { urls: "stun:stun.l.google.com:19302" }
     ]
   });
-  pc.onconnectionstatechange = async () => {
+/*  pc.onconnectionstatechange = async () => {
   if (
     pc.connectionState === "closed" ||
     pc.connectionState === "failed" ||
@@ -350,6 +350,8 @@ function createAdminPC(userUid, videoEl) {
     }
   }
 }; 
+*/
+
   pc.addTransceiver("video", { direction: "recvonly" });
 // 現在表示中のvideo要素
 // 現在表示中のvideo要素
