@@ -380,6 +380,9 @@ document.getElementById("endBtn").onclick = async () => {
     adminPc.close();
   }
   */
+  await deleteCollection(offerCandidates);
+   await deleteCollection(answerCandidates);
+   await callDoc.delete();
   location.href = "profiles.html";
 };
 async function deleteCollection(collectionRef) {
