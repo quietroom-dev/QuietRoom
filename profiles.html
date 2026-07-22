@@ -178,6 +178,9 @@ h2{
           onclick="location.href='profile-edit.html'">
     ✏️ プロフィール編集
   </button>
+  <button class="edit-btn" onclick="shareSite()">
+  📤 このサイトを紹介
+</button>
 </div>
 
 <h2>プロフィール一覧</h2>
@@ -405,6 +408,24 @@ async function declineCall() {
   ended: true
   }, { merge: true });
   incomingCall.style.display = "none";
+}
+async function shareSite() {
+  const url = "https://quietroom-dev.github.io/QuietRoom/";
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "誰かわからん通話",
+        text: "匿名・モザイクで安心して話せるビデオ通話です。よかったら使ってみてください！",
+        url: url
+      });
+    } catch (e) {
+      // キャンセル時は何もしない
+    }
+  } else {
+    await navigator.clipboard.writeText(url);
+    alert("サイトのリンクをコピーしました。");
+  }
 }
 
 </script>
