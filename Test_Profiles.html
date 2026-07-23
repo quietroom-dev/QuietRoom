@@ -199,6 +199,11 @@ h2{
 
 <h2>プロフィール一覧</h2>
 <div id="userList"></div>
+<div style="text-align:center;margin:20px;">
+    <button class="action-btn" onclick="loadUsers()">
+        ▼ もっと見る
+    </button>
+</div>
 
 <div id="incomingCall">
   <h2>通話リクエストがきています。<br>音声オフ・モザイクなので安心してください。</h2>
@@ -219,6 +224,8 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 let myUid = null;
+let lastDoc = null;
+const PAGE_SIZE = 20;
 auth.signInAnonymously();
 
 auth.onAuthStateChanged(async user => {
@@ -251,45 +258,63 @@ setInterval(async () => {
   lastSeen: Date.now()
 }, { merge:true });
 }, 30000);
-  
-  db.collection("user").onSnapshot(async snap => {
-  userList.innerHTML = "";
-  const users = snap.docs.sort((a, b) => {
-    const aTime = a.data().lastSeen || 0;
-    const bTime = b.data().lastSeen || 0;
-    const aOnline = Date.now() - aTime < 60000;
-    const bOnline = Date.now() - bTime < 60000;
-    // 💡を上にする
-    if (aOnline !== bOnline) {
-      return Number(bOnline) - Number(aOnline);
-    }
-    // 同じ状態なら新しい順
-    return bTime - aTime;
-  });
-  for (const doc of users) {
-      const d = doc.data();
-      if (d.banned) continue;
-      const repSnap = await db.collection("reports").doc(doc.id).get();
-      const rep = repSnap.exists ? repSnap.data().count || 0 : 0;
-      const card = document.createElement("div");
-      card.className = "user-card";
-      const online =
-  d.lastSeen &&
-  Date.now() - d.lastSeen < 60000;
-      card.innerHTML = `
-        <h3>${online ? "💡" : "💤"} ${d.nickname}</h3>
-        <p>性別：${d.gender}</p>
-        <p>年齢：${d.age}</p>
-        <p>都道府県：${d.prefecture}</p>
-        <p>ひとこと：${d.comment}</p>
-        <p>通報数：${rep}</p>
-        <button onclick="startCall('${doc.id}')">📞 通話する</button>
-        <button onclick="reportUser('${doc.id}')">🚨 通報</button>
-        <button onclick="blockUser('${doc.id}')">⛔ ブロック</button>
-      `;
-      userList.appendChild(card);
-    }
-  });
+  await loadUsers(true);
+  async function loadUsers(first = false) {
+
+  if (first) {
+    userList.innerHTML = "";
+    lastDoc = null;
+  }
+
+  let query = db.collection("user")
+    .orderBy("lastSeen", "desc")
+    .limit(PAGE_SIZE);
+
+  if (lastDoc) {
+    query = query.startAfter(lastDoc);
+  }
+
+  const snap = await query.get();
+
+  if (snap.empty) {
+    alert("これ以上ユーザーはいません。");
+    return;
+  }
+
+  lastDoc = snap.docs[snap.docs.length - 1];
+
+  for (const doc of snap.docs) {
+
+    const d = doc.data();
+
+    if (d.banned) continue;
+
+    const repSnap = await db.collection("reports").doc(doc.id).get();
+    const rep = repSnap.exists ? repSnap.data().count || 0 : 0;
+
+    const card = document.createElement("div");
+    card.className = "user-card";
+
+    const online =
+      d.lastSeen &&
+      Date.now() - d.lastSeen < 60000;
+
+    card.innerHTML = `
+      <h3>${online ? "💡" : "💤"} ${d.nickname}</h3>
+      <p>性別：${d.gender}</p>
+      <p>年齢：${d.age}</p>
+      <p>都道府県：${d.prefecture}</p>
+      <p>ひとこと：${d.comment}</p>
+      <p>通報数：${rep}</p>
+      <button onclick="startCall('${doc.id}')">📞 通話する</button>
+      <button onclick="reportUser('${doc.id}')">🚨 通報</button>
+      <button onclick="blockUser('${doc.id}')">⛔ ブロック</button>
+    `;
+
+    userList.appendChild(card);
+  }
+
+}
 
   window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
     const d = snap.data();
