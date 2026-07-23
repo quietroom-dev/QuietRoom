@@ -458,12 +458,49 @@ async function shareSite() {
         text: "匿名・モザイクで安心して話せるビデオ通話です。よかったら使ってみてください！",
         url: url
       });
+
+      // 共有成功時だけカウント
+      await db.collection("stats").doc("share").set({
+        count: firebase.firestore.FieldValue.increment(1)
+      }, { merge: true });
+
+      // 最新の紹介回数を取得
+      const snap = await db.collection("stats").doc("share").get();
+      const count = snap.data()?.count || 0;
+
+      alert(
+`😊 ご紹介ありがとうございます！
+
+このサービスは利用者が増えるほど楽しめます。
+
+皆さんのおかげで、
+このサイトは現在 ${count} 回紹介されています。`
+      );
+
     } catch (e) {
       // キャンセル時は何もしない
     }
   } else {
+
     await navigator.clipboard.writeText(url);
-    alert("サイトのリンクをコピーしました。");
+
+    // コピーしたらカウント
+    await db.collection("stats").doc("share").set({
+      count: firebase.firestore.FieldValue.increment(1)
+    }, { merge: true });
+
+    // 最新の紹介回数を取得
+    const snap = await db.collection("stats").doc("share").get();
+    const count = snap.data()?.count || 0;
+
+    alert(
+`😊 ご紹介ありがとうございます！
+
+サイトのリンクをコピーしました。
+
+皆さんのおかげで、
+このサイトは現在 ${count} 回紹介されています。`
+    );
   }
 }
 
