@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>誰かわからん通話 プロフィール一覧</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+body{
+  margin:0;
+  background:#f5f7fa;
+  color:#334155;
+  font-family:Inter,"Helvetica Neue",Arial,sans-serif;
+  padding:20px;
+}
+
+.top-actions{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
+}
+
+button{
+  border:none;
+  cursor:pointer;
+  font-size:15px;
+  border-radius:12px;
+  padding:12px 16px;
+  transition:.2s;
+}
+
+button:hover{
+  opacity:.9;
+}
+
+.action-btn{
+  background:#5d7087;
+  color:#fff;
+}
+
+.edit-btn{
+  background:#fff;
+  color:#5d7087;
+  border:1px solid #d7dde5;
+}
+
+h2{
+  margin:0 0 20px;
+  color:#344054;
+  font-size:28px;
+}
+
+.user-card{
+  background:#fff;
+  padding:18px;
+  margin-bottom:16px;
+  border-radius:16px;
+  box-shadow:0 4px 16px rgba(15,23,42,.08);
+  border:1px solid #eef2f6;
+}
+
+.user-card h3{
+  margin:0 0 12px;
+  color:#344054;
+  font-size:20px;
+}
+
+.user-card p{
+  margin:6px 0;
+  color:#667085;
+  line-height:1.5;
+}
+
+.user-card button{
+  margin-top:10px;
+  margin-right:8px;
+}
+
+.user-card button:nth-of-type(1){
+  background:#5d7087;
+  color:#fff;
+}
+
+.user-card button:nth-of-type(2){
+  background:#fff3cd;
+  color:#8a6d3b;
+  border:1px solid #ffe69c;
+}
+
+.user-card button:nth-of-type(3){
+  background:#ffe5e5;
+  color:#c62828;
+  border:1px solid #ffcaca;
+}
+
+#incomingCall{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.75);
+  backdrop-filter:blur(6px);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  z-index:999;
+  padding:24px;
+  text-align:center;
+}
+
+#incomingCall h2{
+  background:#fff;
+  color:#344054;
+  padding:24px;
+  border-radius:16px 16px 0 0;
+  margin:0;
+  width:min(500px,100%);
+}
+
+#callerProfile{
+  background:#fff;
+  color:#667085;
+  width:min(500px,100%);
+  padding:20px;
+}
+
+#incomingCall button{
+  width:250px;
+  margin-top:12px;
+}
+
+#incomingCall button:first-of-type{
+  background:#5d7087;
+  color:#fff;
+}
+
+#incomingCall button:last-of-type{
+  background:#fff;
+  color:#475467;
+  border:1px solid #d7dde5;
+}
+
+@media(max-width:700px){
+
+  body{
+    padding:16px;
+  }
+
+  h2{
+    font-size:24px;
+  }
+
+  .user-card{
+    padding:16px;
+  }
+
+  .user-card button{
+    width:100%;
+    margin-right:0;
+    margin-bottom:8px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="top-actions">
+  <button class="action-btn" onclick="location.reload()">
+    🔄 更新
+  </button>
+
+  <button class="edit-btn"
+          onclick="location.href='profile-edit.html'">
+    ✏️ プロフィール編集
+  </button>
+  <button class="edit-btn" onclick="shareSite()">
+  📤 このサイトを紹介
+</button>
+</div>
+<div style="
+  margin:16px 0 24px;
+  padding:14px;
+  background:#eef6ff;
+  border:1px solid #cfe2ff;
+  border-radius:12px;
+  color:#334155;
+  line-height:1.7;
+  font-size:14px;
+">
+  📢 <strong>このサービスは利用者が増えるほど楽しめます。</strong><br>
+  気に入っていただけたら、「このサイトを紹介」からお友達やSNSで紹介していただけると嬉しいです。<br>
+  皆さんのおかげで、もっと通話しやすいサービスになります。
+</div>
+
+<h2>プロフィール一覧</h2>
+<div id="userList"></div>
+
+<div id="incomingCall">
+  <h2>通話リクエストがきています。<br>音声オフ・モザイクなので安心してください。</h2>
+  <div id="callerProfile"></div>
+  <button onclick="acceptCall()">出る</button>
+  <button onclick="declineCall()">出ない</button>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  projectId: "roomvideo",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
+let myUid = null;
+auth.signInAnonymously();
+
+auth.onAuthStateChanged(async user => {
+  if (!user) return;
+  myUid = user.uid;
+//  alert(myUid);
+  if (!myUid) {
+    alert("通話する場合はプロフィール作成からやり直してください。");
+    location.href = "index.html";
+    return;
+  }
+  // 自分がBANされていないか確認
+const myReport = await db.collection("reports").doc(myUid).get();
+const reportCount =
+  myReport.exists ? (myReport.data().count || 0) : 0;
+if (reportCount >= 10) {
+  alert("通報が一定数を超えたため、このアカウントは利用できません。");
+  await auth.signOut();
+  location.href = "index.html";
+  return;
+}
+// BANされていなければオンライン
+await db.collection("user").doc(myUid).set({
+  lastSeen: Date.now()
+}, { merge:true });
+setInterval(async () => {
+  if (!myUid) return;
+
+  await db.collection("user").doc(myUid).set({
+  lastSeen: Date.now()
+}, { merge:true });
+}, 30000);
+  
+  db.collection("user").onSnapshot(async snap => {
+  userList.innerHTML = "";
+  const users = snap.docs.sort((a, b) => {
+    const aTime = a.data().lastSeen || 0;
+    const bTime = b.data().lastSeen || 0;
+    const aOnline = Date.now() - aTime < 60000;
+    const bOnline = Date.now() - bTime < 60000;
+    // 💡を上にする
+    if (aOnline !== bOnline) {
+      return Number(bOnline) - Number(aOnline);
+    }
+    // 同じ状態なら新しい順
+    return bTime - aTime;
+  });
+  for (const doc of users) {
+      const d = doc.data();
+      if (d.banned) continue;
+      const repSnap = await db.collection("reports").doc(doc.id).get();
+      const rep = repSnap.exists ? repSnap.data().count || 0 : 0;
+      const card = document.createElement("div");
+      card.className = "user-card";
+      const online =
+  d.lastSeen &&
+  Date.now() - d.lastSeen < 60000;
+      card.innerHTML = `
+        <h3>${online ? "💡" : "💤"} ${d.nickname}</h3>
+        <p>性別：${d.gender}</p>
+        <p>年齢：${d.age}</p>
+        <p>都道府県：${d.prefecture}</p>
+        <p>ひとこと：${d.comment}</p>
+        <p>通報数：${rep}</p>
+        <button onclick="startCall('${doc.id}')">📞 通話する</button>
+        <button onclick="reportUser('${doc.id}')">🚨 通報</button>
+        <button onclick="blockUser('${doc.id}')">⛔ ブロック</button>
+      `;
+      userList.appendChild(card);
+    }
+  });
+
+  window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
+    const d = snap.data();
+    if (!d) return;
+    if (d.from === myUid) return;
+   // if (d.from) showIncomingCall(d.from);
+    if (d.from) {
+//  alert("着信検知");
+  showIncomingCall(d.from);
+}
+  });
+});
+
+async function isBlocked(targetUid) {
+  const doc = await db.collection("user").doc(myUid)
+  .collection("blocks").doc(targetUid).get();
+  return doc.exists;
+}
+
+
+async function isBlockedBy(targetUid) {
+  
+  const doc = await db.collection("user").doc(targetUid)
+  .collection("blocks").doc(myUid).get();
+  return doc.exists;
+}
+  
+async function blockUser(targetUid) {
+  await db.collection("user").doc(myUid)
+    .collection("blocks").doc(targetUid)
+    .set({ blockedAt: Date.now() });
+  alert("ブロックしました。");
+}
+
+async function reportUser(targetUid) {
+  const already = await db.collection("reports")
+    .doc(targetUid).collection("from").doc(myUid).get();
+
+  if (already.exists) {
+    alert("通報済みです。");
+    return;
+  }
+
+  await db.collection("reports")
+    .doc(targetUid).collection("from").doc(myUid)
+    .set({ reportedAt: Date.now() });
+
+  await db.collection("reports").doc(targetUid)
+    .set(
+      { count: firebase.firestore.FieldValue.increment(1) },
+      { merge: true }
+    );
+  // 通報数確認
+const repSnap = await db.collection("reports").doc(targetUid).get();
+const count = repSnap.data()?.count || 0;
+
+// 10件以上ならBAN
+if (count >= 10) {
+  await db.collection("user").doc(targetUid).set(
+    {
+      banned: true
+    },
+    { merge: true }
+  );
+}
+
+  await db.collection("user").doc(myUid)
+    .collection("blocks").doc(targetUid)
+    .set({ blockedAt: Date.now() });
+
+  alert("通報しました。");
+}
+
+  async function startCall(targetUid) {
+if (await isBlocked(targetUid)) {
+  alert("ブロックしている相手です。");
+  return;
+}
+if (await isBlockedBy(targetUid)) {
+  alert("ブロックされています。");
+  return;
+}
+  // ▼ calls/{targetUid} に発信情報を書き込む（これが必須）
+  await db.collection("calls").doc(targetUid).set({
+    from: myUid,
+    offer: null,
+    answer: null,
+    ended: false
+  });
+  location.href =
+  `video.html?callerUid=${myUid}&calleeUid=${targetUid}`;
+}
+  
+  async function showIncomingCall(fromUid) {
+//  alert("fromUid=" + fromUid);
+  const snap = await db.collection("user").doc(fromUid).get();
+  //const d = snap.data();
+//  alert("exists=" + snap.exists);
+  if (!snap.exists) {
+//  alert("プロフィール見つからん");
+  return;
+}
+  const d = snap.data();
+
+  callerProfile.innerHTML = `
+    <p>名前：${d.nickname}</p>
+    <p>性別：${d.gender}</p>
+    <p>都道府県：${d.prefecture}</p>
+    <p>ひとこと：${d.comment}</p>
+  `;
+
+  window._incomingFrom = fromUid;
+  incomingCall.style.display = "flex";
+}
+
+function acceptCall() {
+  if (window.unsubIncoming) window.unsubIncoming();
+  incomingCall.style.display = "none";
+  db.collection("calls").doc(myUid).delete();
+  location.href =
+  `video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
+}
+
+async function declineCall() {
+  if (window.unsubIncoming) window.unsubIncoming();
+  db.collection("calls").doc(myUid).delete();
+  const callId = window._incomingFrom + "_" + myUid;
+  const callDoc = db.collection("calls").doc(callId);
+  await callDoc.set({
+  ended: true
+  }, { merge: true });
+  incomingCall.style.display = "none";
+}
+async function shareSite() {
+  const url = "https://quietroom-dev.github.io/QuietRoom/";
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "誰かわからん通話",
+        text: "匿名・モザイクで安心して話せるビデオ通話です。よかったら使ってみてください！",
+        url: url
+      });
+    } catch (e) {
+      // キャンセル時は何もしない
+    }
+  } else {
+    await navigator.clipboard.writeText(url);
+    alert("サイトのリンクをコピーしました。");
+  }
+}
+
+</script>
+
+</body>
+</html>
