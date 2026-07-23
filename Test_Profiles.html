@@ -448,16 +448,8 @@ async function declineCall() {
   }, { merge: true });
   incomingCall.style.display = "none";
 }
-  
 async function shareSite() {
   const url = "https://quietroom-dev.github.io/QuietRoom/";
-
-  await db.collection("stats").doc("share").set({
-    count: firebase.firestore.FieldValue.increment(1)
-  }, { merge: true });
-
-  const snap = await db.collection("stats").doc("share").get();
-  const count = snap.data()?.count || 0;
 
   if (navigator.share) {
     try {
@@ -467,20 +459,12 @@ async function shareSite() {
         url: url
       });
     } catch (e) {
-      return;
+      // キャンセル時は何もしない
     }
   } else {
     await navigator.clipboard.writeText(url);
+    alert("サイトのリンクをコピーしました。");
   }
-
-  alert(
-`😊 ご紹介ありがとうございます！
-
-このサービスは利用者が増えるほど楽しめます。
-
-皆さんのおかげで、
-このサイトは現在 ${count} 回紹介ボタンが押されています。`
-  );
 }
 
 </script>
