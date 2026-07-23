@@ -259,6 +259,18 @@ setInterval(async () => {
 }, { merge:true });
 }, 30000);
   await loadUsers(true);
+
+  window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
+    const d = snap.data();
+    if (!d) return;
+    if (d.from === myUid) return;
+   // if (d.from) showIncomingCall(d.from);
+    if (d.from) {
+//  alert("着信検知");
+  showIncomingCall(d.from);
+}
+  });
+});
   async function loadUsers(first = false) {
 
   if (first) {
@@ -315,18 +327,6 @@ setInterval(async () => {
   }
 
 }
-
-  window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
-    const d = snap.data();
-    if (!d) return;
-    if (d.from === myUid) return;
-   // if (d.from) showIncomingCall(d.from);
-    if (d.from) {
-//  alert("着信検知");
-  showIncomingCall(d.from);
-}
-  });
-});
 
 async function isBlocked(targetUid) {
   const doc = await db.collection("user").doc(myUid)
