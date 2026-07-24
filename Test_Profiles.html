@@ -453,44 +453,32 @@ async function declineCall() {
   ended: true
   }, { merge: true });
   incomingCall.style.display = "none";
-}
-async function shareSite() {
+}async function shareSite() {
   const url = "https://quietroom-dev.github.io/QuietRoom/";
+
+  // ボタンを押したらすぐカウントアップ（待たない）
+  db.collection("stats").doc("share").set({
+    count: firebase.firestore.FieldValue.increment(1)
+  }, { merge: true });
+
+  // 表示も1増やす
+  const el = document.getElementById("shareCount");
+  if (el) {
+    el.textContent = Number(el.textContent) + 1;
+  }
 
   if (navigator.share) {
     try {
-      // まず共有
       await navigator.share({
         title: "誰かわからん通話",
         text: "匿名・モザイクで安心して話せるビデオ通話です。よかったら使ってみてください！",
         url: url
       });
-
-      // 共有成功後だけカウント
-      await db.collection("stats").doc("share").set({
-        count: firebase.firestore.FieldValue.increment(1)
-      }, { merge:true });
-
-      const shareSnap = await db.collection("stats").doc("share").get();
-      document.getElementById("shareCount").textContent =
-        shareSnap.data()?.count || 0;
-
-    } catch(e) {
-      // キャンセル時は何もしない
+    } catch (e) {
+      // キャンセルしてもカウントはそのまま
     }
-
   } else {
-
     await navigator.clipboard.writeText(url);
-
-    await db.collection("stats").doc("share").set({
-      count: firebase.firestore.FieldValue.increment(1)
-    }, { merge:true });
-
-    const shareSnap = await db.collection("stats").doc("share").get();
-    document.getElementById("shareCount").textContent =
-      shareSnap.data()?.count || 0;
-
     alert("サイトのリンクをコピーしました。");
   }
 }
