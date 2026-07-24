@@ -267,8 +267,6 @@ const shareSnap = await db.collection("stats").doc("share").get();
 const shareCount = shareSnap.exists ? (shareSnap.data().count || 0) : 0;
 
 document.getElementById("shareCount").textContent = shareCount;
-
-document.getElementById("shareCount").innerHTML =
   `📤 このサイトは現在 <strong>${shareCount}</strong> 回紹介されています。`;
 
   window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
@@ -469,10 +467,6 @@ async function shareSite() {
   // 最新回数を取得
   const shareSnap = await db.collection("stats").doc("share").get();
   const shareCount = shareSnap.data()?.count || 0;
-
-  // 画面表示更新
-  document.getElementById("shareCount").innerHTML =
-    `📤 このサイトは現在 <strong>${shareCount}</strong> 回紹介されています。`;
 
   const url = "https://quietroom-dev.github.io/QuietRoom/";
 
