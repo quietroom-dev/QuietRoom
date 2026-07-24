@@ -191,6 +191,7 @@ h2{
   color:#334155;
   line-height:1.7;
   font-size:14px;
+  <p>📤 紹介された回数：<strong id="shareCount">0</strong> 回</p>
 ">
   📢 <strong>このサービスは利用者が増えるほど楽しめます。</strong><br>
   気に入っていただけたら、「このサイトを紹介」からお友達やSNSで紹介していただけると嬉しいです。<br>
@@ -261,8 +262,11 @@ setInterval(async () => {
 }, { merge:true });
 }, 30000);
   await loadUsers(true);
-  const shareSnap = await db.collection("stats").doc("share").get();
-const shareCount = shareSnap.data()?.count || 0;
+  // 紹介回数を表示
+const shareSnap = await db.collection("stats").doc("share").get();
+const shareCount = shareSnap.exists ? (shareSnap.data().count || 0) : 0;
+
+document.getElementById("shareCount").textContent = shareCount;
 
 document.getElementById("shareCount").innerHTML =
   `📤 このサイトは現在 <strong>${shareCount}</strong> 回紹介されています。`;
