@@ -194,7 +194,8 @@ h2{
 ">
   📢 <strong>このサービスは利用者が増えるほど楽しめます。</strong><br>
   気に入っていただけたら、「このサイトを紹介」からお友達やSNSで紹介していただけると嬉しいです。<br>
-  皆さんのおかげで、もっと通話しやすいサービスになります。
+  皆さんのおかげで、もっと通話しやすいサービスになります。<br>
+  <p>📤 紹介された回数：<strong id="shareCount">読み込み中...</strong> 回</p>
 </div>
 
 <h2>プロフィール一覧</h2>
@@ -259,6 +260,11 @@ setInterval(async () => {
 }, { merge:true });
 }, 30000);
   await loadUsers(true);
+  // 紹介回数を表示
+const shareSnap = await db.collection("stats").doc("share").get();
+const shareCount = shareSnap.exists ? (shareSnap.data().count || 0) : 0;
+
+document.getElementById("shareCount").textContent = shareCount;
 
   window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
     const d = snap.data();
@@ -447,9 +453,19 @@ async function declineCall() {
   ended: true
   }, { merge: true });
   incomingCall.style.display = "none";
-}
-async function shareSite() {
+}async function shareSite() {
   const url = "https://quietroom-dev.github.io/QuietRoom/";
+
+  // ボタンを押したらすぐカウントアップ（待たない）
+  db.collection("stats").doc("share").set({
+    count: firebase.firestore.FieldValue.increment(1)
+  }, { merge: true });
+
+  // 表示も1増やす
+  const el = document.getElementById("shareCount");
+  if (el) {
+    el.textContent = Number(el.textContent) + 1;
+  }
 
   if (navigator.share) {
     try {
@@ -459,14 +475,13 @@ async function shareSite() {
         url: url
       });
     } catch (e) {
-      // キャンセル時は何もしない
+      // キャンセルしてもカウントはそのまま
     }
   } else {
     await navigator.clipboard.writeText(url);
     alert("サイトのリンクをコピーしました。");
   }
 }
-
 </script>
 
 </body>
