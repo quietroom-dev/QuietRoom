@@ -464,7 +464,7 @@ async function shareSite() {
   // 最新回数を取得
   const shareSnap = await db.collection("stats").doc("share").get();
   const shareCount = shareSnap.data()?.count || 0;
-
+  document.getElementById("shareCount").textContent = shareCount;
   const url = "https://quietroom-dev.github.io/QuietRoom/";
 
   if (navigator.share) {
