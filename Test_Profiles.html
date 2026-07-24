@@ -191,13 +191,11 @@ h2{
   color:#334155;
   line-height:1.7;
   font-size:14px;
-"〉
+">
   📢 <strong>このサービスは利用者が増えるほど楽しめます。</strong><br>
   気に入っていただけたら、「このサイトを紹介」からお友達やSNSで紹介していただけると嬉しいです。<br>
   皆さんのおかげで、もっと通話しやすいサービスになります。<br>
   <p>📤 紹介された回数：<strong id="shareCount">0</strong> 回</p>
-
-  <div id="shareCount" style="margin-top:10px;font-weight:bold;"></div>
 </div>
 
 <h2>プロフィール一覧</h2>
@@ -267,7 +265,6 @@ const shareSnap = await db.collection("stats").doc("share").get();
 const shareCount = shareSnap.exists ? (shareSnap.data().count || 0) : 0;
 
 document.getElementById("shareCount").textContent = shareCount;
-  `📤 このサイトは現在 <strong>${shareCount}</strong> 回紹介されています。`;
 
   window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
     const d = snap.data();
