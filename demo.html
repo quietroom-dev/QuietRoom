@@ -189,19 +189,31 @@ function drawMosaic() {
   mainCtx.strokeText("サンプル画像です", w / 2, h / 2 + 20);
   mainCtx.fillText("サンプル画像です", w / 2, h / 2 + 20);
 
-  // 説明
-  mainCtx.font = "24px sans-serif";
-  mainCtx.lineWidth = 3;
-  mainCtx.strokeText(
-    "相手とは接続されていないので、操作感をお試しください。",
-    w / 2,
-    h / 2 + 65
-  );
-  mainCtx.fillText(
-    "相手とは接続されていないので、操作感をお試しください。",
-    w / 2,
-    h / 2 + 65
-  );
+// 説明（2行）
+mainCtx.font = "24px sans-serif";
+mainCtx.lineWidth = 3;
+
+mainCtx.strokeText(
+  "相手とは接続されていないので、",
+  w / 2,
+  h / 2 + 65
+);
+mainCtx.fillText(
+  "相手とは接続されていないので、",
+  w / 2,
+  h / 2 + 65
+);
+
+mainCtx.strokeText(
+  "操作感をお試しください。",
+  w / 2,
+  h / 2 + 100
+);
+mainCtx.fillText(
+  "操作感をお試しください。",
+  w / 2,
+  h / 2 + 100
+);
 
   /* 自分映像 */
   const sw = selfVideo.videoWidth;
