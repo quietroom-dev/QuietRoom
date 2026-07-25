@@ -172,6 +172,36 @@ function drawMosaic() {
 
   mainCtx.imageSmoothingEnabled = false;
   mainCtx.drawImage(partnerImg, 0, 0, w, h);
+    /* DEMO文字 */
+  mainCtx.textAlign = "center";
+  mainCtx.fillStyle = "rgba(255,255,255,0.95)";
+  mainCtx.strokeStyle = "rgba(0,0,0,0.8)";
+
+  // DEMO
+  mainCtx.font = "bold 64px sans-serif";
+  mainCtx.lineWidth = 6;
+  mainCtx.strokeText("DEMO", w / 2, h / 2 - 40);
+  mainCtx.fillText("DEMO", w / 2, h / 2 - 40);
+
+  // サンプル画像です
+  mainCtx.font = "bold 28px sans-serif";
+  mainCtx.lineWidth = 4;
+  mainCtx.strokeText("サンプル画像です", w / 2, h / 2 + 20);
+  mainCtx.fillText("サンプル画像です", w / 2, h / 2 + 20);
+
+  // 説明
+  mainCtx.font = "24px sans-serif";
+  mainCtx.lineWidth = 3;
+  mainCtx.strokeText(
+    "相手とは接続されていないので、操作感をお試しください。",
+    w / 2,
+    h / 2 + 65
+  );
+  mainCtx.fillText(
+    "相手とは接続されていないので、操作感をお試しください。",
+    w / 2,
+    h / 2 + 65
+  );
 
   /* 自分映像 */
   const sw = selfVideo.videoWidth;
