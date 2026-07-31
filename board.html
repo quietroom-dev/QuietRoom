@@ -287,18 +287,24 @@ document.getElementById("postBtn").addEventListener("click", async () => {
 
     }
 
-    await db.collection("messageBoard").add({
+    const deleteAt = new Date();
+deleteAt.setDate(deleteAt.getDate() + 7);
 
-        uid: myUid,
+await db.collection("messageBoard").add({
 
-        nickname: myNickname,
+    uid: myUid,
 
-        message: message,
+    nickname: myNickname,
 
-        createdAt:
-        firebase.firestore.FieldValue.serverTimestamp()
+    message: message,
 
-    });
+    createdAt:
+        firebase.firestore.FieldValue.serverTimestamp(),
+
+    deleteAt:
+        firebase.firestore.Timestamp.fromDate(deleteAt)
+
+});
 
     document.getElementById("message").value = "";
 
