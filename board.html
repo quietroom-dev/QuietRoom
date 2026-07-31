@@ -234,12 +234,12 @@ const db = firebase.firestore();
 let myUid = "";
 let myNickname = "";
 
-if (!auth.currentUser) {
-    await auth.signInAnonymously();
-}
 auth.onAuthStateChanged(async (user) => {
 
-    if (!user) return;
+    if (!user) {
+        await auth.signInAnonymously();
+        return;
+    }
 
     myUid = user.uid;
 
