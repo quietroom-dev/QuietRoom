@@ -362,7 +362,13 @@ card.innerHTML = `
         ${date}
     </p>
 
-    <p>${data.message}</p>
+    <p style="
+    white-space:pre-wrap;
+    word-break:break-word;
+    line-height:1.6;
+">
+${data.message}
+</p>
 
     ${
         data.uid == myUid
