@@ -1,1 +1,345 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>誰かわからん通話 プロフィール一覧</title>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+body{
+  margin:0;
+  background:#f5f7fa;
+  color:#334155;
+  font-family:Inter,"Helvetica Neue",Arial,sans-serif;
+  padding:20px;
+}
+
+.top-actions{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
+}
+
+button{
+  border:none;
+  cursor:pointer;
+  font-size:15px;
+  border-radius:12px;
+  padding:12px 16px;
+  transition:.2s;
+}
+
+button:hover{
+  opacity:.9;
+}
+
+.action-btn{
+  background:#5d7087;
+  color:#fff;
+}
+
+.edit-btn{
+  background:#fff;
+  color:#5d7087;
+  border:1px solid #d7dde5;
+}
+
+h2{
+  margin:0 0 20px;
+  color:#344054;
+  font-size:28px;
+}
+
+.user-card{
+  background:#fff;
+  padding:18px;
+  margin-bottom:16px;
+  border-radius:16px;
+  box-shadow:0 4px 16px rgba(15,23,42,.08);
+  border:1px solid #eef2f6;
+}
+
+.user-card h3{
+  margin:0 0 12px;
+  color:#344054;
+  font-size:20px;
+}
+
+.user-card p{
+  margin:6px 0;
+  color:#667085;
+  line-height:1.5;
+}
+
+.user-card button{
+  margin-top:10px;
+  margin-right:8px;
+}
+
+.user-card button:nth-of-type(1){
+  background:#5d7087;
+  color:#fff;
+}
+
+.user-card button:nth-of-type(2){
+  background:#fff3cd;
+  color:#8a6d3b;
+  border:1px solid #ffe69c;
+}
+
+.user-card button:nth-of-type(3){
+  background:#ffe5e5;
+  color:#c62828;
+  border:1px solid #ffcaca;
+}
+
+#incomingCall{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.75);
+  backdrop-filter:blur(6px);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  z-index:999;
+  padding:24px;
+  text-align:center;
+}
+
+#incomingCall h2{
+  background:#fff;
+  color:#344054;
+  padding:24px;
+  border-radius:16px 16px 0 0;
+  margin:0;
+  width:min(500px,100%);
+}
+
+#callerProfile{
+  background:#fff;
+  color:#667085;
+  width:min(500px,100%);
+  padding:20px;
+}
+
+#incomingCall button{
+  width:250px;
+  margin-top:12px;
+}
+
+#incomingCall button:first-of-type{
+  background:#5d7087;
+  color:#fff;
+}
+
+#incomingCall button:last-of-type{
+  background:#fff;
+  color:#475467;
+  border:1px solid #d7dde5;
+}
+
+@media(max-width:700px){
+
+  body{
+    padding:16px;
+  }
+
+  h2{
+    font-size:24px;
+  }
+
+  .user-card{
+    padding:16px;
+  }
+
+  .user-card button{
+    width:100%;
+    margin-right:0;
+    margin-bottom:8px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="top-actions">
+  <button class="action-btn" onclick="location.reload()">
+    🔄 更新
+  </button>
+
+  <button class="edit-btn"
+          onclick="location.href='profile-edit.html'">
+    ✏️ プロフィール編集
+  </button>
+
+<div class="top-actions">
+
+    <button class="action-btn"
+            onclick="location.href='profiles.html'">
+        ← プロフィール一覧へ戻る
+    </button>
+
+</div>
+
+<h2>📝 伝言板</h2>
+
+<div class="user-card">
+
+    <h3>メッセージを投稿</h3>
+
+    <textarea
+        id="message"
+        placeholder="みんなへのメッセージを書いてください。"
+        style="
+            width:100%;
+            height:120px;
+            border:1px solid #d7dde5;
+            border-radius:12px;
+            padding:12px;
+            box-sizing:border-box;
+            resize:none;
+            font-size:15px;
+        ">
+    </textarea>
+
+    <button
+        id="postBtn"
+        class="action-btn"
+        style="margin-top:15px;">
+        投稿する
+    </button>
+
+</div>
+
+<h2 style="margin-top:30px;">
+投稿一覧
+</h2>
+
+<div id="messageList">
+
+</div>
+
+  
+<script>
+// Firebase初期化
+firebase.initializeApp({
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  projectId: "roomvideo",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+});
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let myUid = "";
+let myNickname = "";
+
+auth.signInAnonymously();
+auth.onAuthStateChanged(async (user) => {
+
+    if (!user) return;
+
+    myUid = user.uid;
+
+    const profile = await db.collection("user")
+        .doc(myUid)
+        .get();
+
+    if (!profile.exists) {
+
+        alert("プロフィールがありません。");
+
+        location.href = "index.html";
+
+        return;
+
+    }
+
+    myNickname = profile.data().nickname || "";
+
+    if (myNickname == "") {
+
+        alert("ニックネーム登録後に投稿できます。");
+
+    }
+
+});
+document.getElementById("postBtn").addEventListener("click", async () => {
+
+    if (myNickname == "") {
+
+        alert("ニックネーム登録後に投稿できます。");
+
+        return;
+
+    }
+
+    const message =
+        document.getElementById("message").value.trim();
+
+    if (message == "") {
+
+        alert("メッセージを入力してください。");
+
+        return;
+
+    }
+
+    await db.collection("messageBoard").add({
+
+        uid: myUid,
+
+        nickname: myNickname,
+
+        message: message,
+
+        createdAt:
+        firebase.firestore.FieldValue.serverTimestamp()
+
+    });
+
+    document.getElementById("message").value = "";
+
+});
+db.collection("messageBoard")
+.orderBy("createdAt", "desc")
+.onSnapshot((snapshot) => {
+
+    const list =
+        document.getElementById("messageList");
+
+    list.innerHTML = "";
+
+    snapshot.forEach((doc) => {
+
+        const data = doc.data();
+
+        const card = document.createElement("div");
+
+        card.className = "user-card";
+
+        card.innerHTML = `
+            <h3>${data.nickname}</h3>
+
+            <p>${data.message}</p>
+        `;
+
+        list.appendChild(card);
+
+    });
+
+});
+</script>
+
+</body>
+</html>
