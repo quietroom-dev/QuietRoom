@@ -311,6 +311,7 @@ await db.collection("messageBoard").add({
 });
 db.collection("messageBoard")
 .orderBy("createdAt", "desc")
+.limit(50)
 .onSnapshot((snapshot) => {
 
     const list =
@@ -321,7 +322,30 @@ db.collection("messageBoard")
     snapshot.forEach((doc) => {
 
     const data = doc.data();
-    const id = doc.id;
+const id = doc.id;
+
+// 作成日時がある場合は7日経過を確認
+if (data.createdAt) {
+
+    const created =
+        data.createdAt.toDate();
+
+    const now = new Date();
+
+    const days =
+        (now - created) / 1000 / 60 / 60 / 24;
+
+    if (days >= 7) {
+
+        db.collection("messageBoard")
+          .doc(id)
+          .delete();
+
+        return;
+
+    }
+
+}
 
 const card = document.createElement("div");
 
