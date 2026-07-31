@@ -314,9 +314,10 @@ db.collection("messageBoard")
 
     snapshot.forEach((doc) => {
 
-        const data = doc.data();
+    const data = doc.data();
+    const id = doc.id;
 
-        const card = document.createElement("div");
+const card = document.createElement("div");
 
         card.className = "user-card";
 
@@ -332,6 +333,14 @@ card.innerHTML = `
     </p>
 
     <p>${data.message}</p>
+
+    ${
+        data.uid == myUid
+        ? `<button class="edit-btn" onclick="deleteMessage('${id}')">
+              🗑 削除
+           </button>`
+        : ""
+    }
 `;
 
         list.appendChild(card);
@@ -339,6 +348,17 @@ card.innerHTML = `
     });
 
 });
+async function deleteMessage(id){
+
+    if(!confirm("この投稿を削除しますか？")){
+        return;
+    }
+
+    await db.collection("messageBoard")
+        .doc(id)
+        .delete();
+
+}
 </script>
 
 </body>
