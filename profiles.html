@@ -49,6 +49,27 @@ button:hover{
   border:1px solid #d7dde5;
 }
 
+.board-btn{
+  background:#ff7a18;
+  color:#fff;
+  font-weight:bold;
+  font-size:16px;
+  border-radius:14px;
+  padding:12px 20px;
+  box-shadow:0 6px 18px rgba(255,122,24,.35);
+  animation:pulse 1.8s infinite;
+}
+
+.board-btn:hover{
+  transform:scale(1.05);
+}
+
+@keyframes pulse{
+  0%{transform:scale(1);}
+  50%{transform:scale(1.06);}
+  100%{transform:scale(1);}
+}
+
 h2{
   margin:0 0 20px;
   color:#344054;
@@ -180,6 +201,10 @@ h2{
   </button>
   <button class="edit-btn" onclick="shareSite()">
   📤 このサイトを紹介
+</button>
+  <button class="board-btn"
+        onclick="location.href='board.html'">
+    【NEW】伝言板
 </button>
 </div>
 <div style="
