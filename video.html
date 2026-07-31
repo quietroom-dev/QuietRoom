@@ -350,6 +350,9 @@ document.getElementById("endBtn").onclick = async () => {
   isEndingMyself = true;
   if (myUid === callerUid) {
   await db.collection("calls").doc(calleeUid).delete();
+    await deleteCollection(offerCandidates);
+   await deleteCollection(answerCandidates);
+   await callDoc.delete();
 }
   if (callDoc) {
     await callDoc.set({
