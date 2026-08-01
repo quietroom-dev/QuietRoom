@@ -296,6 +296,17 @@ document.getElementById("switchCamera").onclick = async () => {
 
 /* 終了ボタン */
 document.getElementById("endBtn").onclick = () => {
+   if (adminPc){
+    if(adminCallDoc){
+     await adminCallDoc.set({
+        ended:true
+     },{merge:true});
+     await deleteCollection(adminOfferCandidates);
+     await deleteCollection(adminAnswerCandidates);
+     await adminCallDoc.delete();
+    }
+    adminPc.close();
+  }
   location.href = "index.html";
 };
 </script>
