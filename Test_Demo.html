@@ -292,7 +292,14 @@ document.getElementById("switchCamera").onclick = async () => {
   };
 };
 
-
+async function deleteCollection(collectionRef) {
+  const snapshot = await collectionRef.get();
+  const promises = [];
+  snapshot.forEach(doc => {
+    promises.push(doc.ref.delete());
+  });
+  await Promise.all(promises);
+}
 
 /* 終了ボタン */
 document.getElementById("endBtn").onclick = async () => {
