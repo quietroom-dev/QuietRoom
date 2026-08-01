@@ -258,6 +258,7 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     myNickname = profile.data().nickname || "";
+    myGender = profile.data().gender || "";
 
     if (myNickname == "") {
 
