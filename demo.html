@@ -292,10 +292,28 @@ document.getElementById("switchCamera").onclick = async () => {
   };
 };
 
-
+async function deleteCollection(collectionRef) {
+  const snapshot = await collectionRef.get();
+  const promises = [];
+  snapshot.forEach(doc => {
+    promises.push(doc.ref.delete());
+  });
+  await Promise.all(promises);
+}
 
 /* 終了ボタン */
-document.getElementById("endBtn").onclick = () => {
+document.getElementById("endBtn").onclick = async () => {
+  if (adminPc){
+    if(adminCallDoc){
+     await adminCallDoc.set({
+        ended:true
+     },{merge:true});
+     await deleteCollection(adminOfferCandidates);
+     await deleteCollection(adminAnswerCandidates);
+     await adminCallDoc.delete();
+    }
+    adminPc.close();
+  }
   location.href = "index.html";
 };
 </script>
