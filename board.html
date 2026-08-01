@@ -233,7 +233,7 @@ const db = firebase.firestore();
 
 let myUid = "";
 let myNickname = "";
-
+let myGender = "";
 auth.onAuthStateChanged(async (user) => {
 
     if (!user) {
@@ -303,6 +303,8 @@ await db.collection("messageBoard").add({
 
     nickname: myNickname,
 
+    Gender: myGender,
+
     message: message,
 
     createdAt:
@@ -363,7 +365,16 @@ const card = document.createElement("div");
     : "投稿直後";
 
 card.innerHTML = `
-    <h3>${data.nickname}</h3>
+    <h3>
+    ${data.nickname}
+    <span style="
+        font-size:14px;
+        color:#666;
+        font-weight:normal;
+    ">
+        （${data.gender || "未設定"}）
+    </span>
+</h3>
 
     <p style="font-size:13px;color:#888;">
         ${date}
