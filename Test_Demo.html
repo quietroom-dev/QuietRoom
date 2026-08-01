@@ -295,7 +295,7 @@ document.getElementById("switchCamera").onclick = async () => {
 
 
 /* 終了ボタン */
-document.getElementById("endBtn").onclick = () => {
+document.getElementById("endBtn").onclick = async () => {
   if (adminPc){
     if(adminCallDoc){
      await adminCallDoc.set({
