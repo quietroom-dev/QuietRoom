@@ -105,7 +105,7 @@ async function startCamera() {
 
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
-    audio: false
+    audio: true
   });
 
   selfVideo.srcObject = localStream;
@@ -273,7 +273,7 @@ document.getElementById("switchCamera").onclick = async () => {
     video: {
       facingMode: { ideal: currentFacing }
     },
-    audio: false
+    audio: true
   });
 
   selfVideo.srcObject = stream;
