@@ -418,7 +418,7 @@ if (await isBlockedBy(targetUid)) {
     ended: false
   });
   location.href =
-  `Test_video.html?callerUid=${myUid}&calleeUid=${targetUid}`;
+  `Test_Video.html?callerUid=${myUid}&calleeUid=${targetUid}`;
 }
   
   async function showIncomingCall(fromUid) {
@@ -448,7 +448,7 @@ function acceptCall() {
   incomingCall.style.display = "none";
   db.collection("calls").doc(myUid).delete();
   location.href =
-  `Test_video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
+  `Test_Video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
 }
 
 async function declineCall() {
