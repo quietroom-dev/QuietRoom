@@ -171,7 +171,7 @@ h2{
 
 <div class="top-actions">
   <button class="action-btn" onclick="location.reload()">
-    🔄 更新
+    🔄 更新。
   </button>
 
   <button class="edit-btn"
@@ -418,7 +418,7 @@ if (await isBlockedBy(targetUid)) {
     ended: false
   });
   location.href =
-  `video.html?callerUid=${myUid}&calleeUid=${targetUid}`;
+  `Test_video.html?callerUid=${myUid}&calleeUid=${targetUid}`;
 }
   
   async function showIncomingCall(fromUid) {
@@ -448,7 +448,7 @@ function acceptCall() {
   incomingCall.style.display = "none";
   db.collection("calls").doc(myUid).delete();
   location.href =
-  `video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
+  `Test_video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
 }
 
 async function declineCall() {
