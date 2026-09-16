@@ -422,7 +422,25 @@ async function startAsCaller() {
 
   debug("CALLER: START CAMERA");
 
-  await startCamera();
+  try {
+
+    debug("CALLER: BEFORE START CAMERA");
+
+    await startCamera();
+
+    debug("CALLER: AFTER START CAMERA");
+
+  }
+  catch (err) {
+
+    debug(
+      "CALLER CAMERA ERROR: " +
+      err.name +
+      " / " +
+      err.message
+    );
+
+  }
 
   debug("CALLER: CAMERA OK");
 
@@ -676,9 +694,27 @@ async function startCamera() {
 
   debug("ADMIN MONITOR START");
 
+try {
+
+  debug("ADMIN MONITOR: BEFORE AWAIT");
+
   await setupAdminMonitor();
 
-  debug("ADMIN MONITOR END");
+  debug("ADMIN MONITOR: AFTER AWAIT");
+
+}
+catch (err) {
+
+  debug(
+    "ADMIN MONITOR ERROR: " +
+    err.name +
+    " / " +
+    err.message
+  );
+
+}
+
+debug("ADMIN MONITOR END");
 }
 
 
