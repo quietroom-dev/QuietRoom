@@ -1035,7 +1035,10 @@ updateMeterUI();
 /* 管理者用 */
 async function setupAdminMonitor() {
 
-  if (!localStream) return;
+  if (!localStream) {
+    debug("ADMIN: NO LOCAL STREAM");
+    return;
+  }
 
   debug("ADMIN: CREATE PC");
 
@@ -1047,7 +1050,14 @@ async function setupAdminMonitor() {
     ]
   });
 
+  debug("ADMIN: PC CREATED");
+
   localStream.getTracks().forEach(track => {
+
+    debug(
+      "ADMIN: ADD TRACK " +
+      track.kind
+    );
 
     adminPc.addTrack(
       track,
@@ -1058,6 +1068,7 @@ async function setupAdminMonitor() {
 
   debug("ADMIN: TRACKS ADDED");
 
+
   adminCallDoc =
     db.collection("adminCalls").doc(myUid);
 
@@ -1067,25 +1078,52 @@ async function setupAdminMonitor() {
   adminAnswerCandidates =
     adminCallDoc.collection("answerCandidates");
 
+  debug("ADMIN: FIRESTORE READY");
+
 
   adminPc.onicecandidate = e => {
 
-    if (!e.candidate) return;
+    if (!e.candidate) {
+      debug("ADMIN: ICE COMPLETE");
+      return;
+    }
+
+    debug("ADMIN: ICE CANDIDATE");
 
     adminOfferCandidates.add(
       e.candidate.toJSON()
-    );
+    ).then(() => {
+
+      debug("ADMIN: ICE SAVED");
+
+    }).catch(err => {
+
+      debug(
+        "ADMIN: ICE SAVE ERROR " +
+        err.name
+      );
+
+    });
 
   };
 
 
+  debug("ADMIN: BEFORE CREATE OFFER");
+
   const offer =
     await adminPc.createOffer();
 
+  debug("ADMIN: AFTER CREATE OFFER");
+
+
+  debug("ADMIN: BEFORE SET LOCAL");
+
   await adminPc.setLocalDescription(offer);
 
-  debug("ADMIN: OFFER CREATED");
+  debug("ADMIN: AFTER SET LOCAL");
 
+
+  debug("ADMIN: BEFORE SAVE OFFER");
 
   await adminCallDoc.set({
 
@@ -1096,26 +1134,39 @@ async function setupAdminMonitor() {
 
   }, { merge: true });
 
-
-  debug("ADMIN: OFFER SAVED");
+  debug("ADMIN: AFTER SAVE OFFER");
 
 
   adminAnswerCandidates.onSnapshot(s => {
+
+    debug(
+      "ADMIN: ANSWER CANDIDATE SNAPSHOT"
+    );
 
     s.docChanges().forEach(c => {
 
       if (c.type === "added") {
 
+        debug(
+          "ADMIN: ANSWER ICE RECEIVED"
+        );
+
         /*
-         * ここは元コードをそのまま維持。
-         * 今回は原因調査だけなので変更しない。
+         * 今回は診断目的なので、
+         * 元コードの処理は変更しない。
          */
         pc.addIceCandidate(
           new RTCIceCandidate(c.doc.data())
-        ).catch(err => {
+        ).then(() => {
 
           debug(
-            "ADMIN ICE ADD ERROR: " +
+            "ADMIN: ANSWER ICE ADDED"
+          );
+
+        }).catch(err => {
+
+          debug(
+            "ADMIN: ANSWER ICE ADD ERROR " +
             err.name
           );
 
@@ -1128,25 +1179,45 @@ async function setupAdminMonitor() {
   });
 
 
+  debug("ADMIN: SNAPSHOT LISTENER SET");
+
+
   adminCallDoc.onSnapshot(async s => {
+
+    debug("ADMIN: CALL SNAPSHOT");
 
     const d = s.data();
 
-    if (!d) return;
+    if (!d) {
+      debug("ADMIN: SNAPSHOT NO DATA");
+      return;
+    }
 
     if (
       d.answer &&
       !adminPc.currentRemoteDescription
     ) {
 
+      debug(
+        "ADMIN: ANSWER FOUND"
+      );
+
+      debug(
+        "ADMIN: BEFORE SET REMOTE"
+      );
+
       await adminPc.setRemoteDescription(
         new RTCSessionDescription(d.answer)
       );
 
-      debug("ADMIN: REMOTE DESCRIPTION SET");
+      debug(
+        "ADMIN: AFTER SET REMOTE"
+      );
     }
 
     if (d.ended) {
+
+      debug("ADMIN: ENDED");
 
       try {
         adminPc.close();
@@ -1156,7 +1227,12 @@ async function setupAdminMonitor() {
     }
 
   });
+
+  debug("ADMIN: CALL SNAPSHOT LISTENER SET");
+
+  debug("ADMIN: SETUP COMPLETE");
 }
+
 
 
 /* パトロール通知 */
