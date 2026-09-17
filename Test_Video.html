@@ -1117,31 +1117,26 @@ async function setupAdminMonitor() {
   debug("ADMIN: FIRESTORE READY");
 
 
-  adminPc.onicecandidate = e => {
+adminPc.onicecandidate = e => {
 
-    if (!e.candidate) {
-      debug("ADMIN: ICE COMPLETE");
-      return;
-    }
+  if (!e.candidate) {
+    debug("ADMIN: ICE COMPLETE");
+    return;
+  }
 
-    debug("ADMIN: ICE CANDIDATE");
+  // ICE候補は大量に出るので画面には表示しない
+  adminOfferCandidates.add(
+    e.candidate.toJSON()
+  ).catch(err => {
 
-    adminOfferCandidates.add(
-      e.candidate.toJSON()
-    ).then(() => {
+    debug(
+      "ADMIN: ICE SAVE ERROR " +
+      err.name
+    );
 
-      debug("ADMIN: ICE SAVED");
+  });
 
-    }).catch(err => {
-
-      debug(
-        "ADMIN: ICE SAVE ERROR " +
-        err.name
-      );
-
-    });
-
-  };
+};
 
 
   debug("ADMIN: BEFORE CREATE OFFER");
