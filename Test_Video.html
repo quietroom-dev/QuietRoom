@@ -454,16 +454,23 @@ async function startAsCaller() {
 
   debug("CALLER: CREATE OFFER");
 
-  const offer = await pc.createOffer();
+const offer = await pc.createOffer();
 
-  await pc.setLocalDescription(offer);
+await pc.setLocalDescription(offer);
 
-  debug("CALLER: LOCAL DESCRIPTION SET");
+debug("CALLER: LOCAL DESCRIPTION SET");
 
-  await callDoc.set({
-    offer: offer,
-    createdAt: Date.now()
-  }, { merge:true });
+const offerData = {
+  type: pc.localDescription.type,
+  sdp: pc.localDescription.sdp
+};
+
+await callDoc.set({
+  offer: offerData,
+  createdAt: Date.now()
+}, { merge:true });
+
+debug("CALLER: OFFER SAVED");
 
   debug("CALLER: OFFER SAVED");
 
@@ -540,17 +547,22 @@ async function startAsCallee() {
 
     debug("CALLEE: REMOTE DESCRIPTION SET");
 
-    const answer = await pc.createAnswer();
+const answer = await pc.createAnswer();
 
-    await pc.setLocalDescription(answer);
+await pc.setLocalDescription(answer);
 
-    debug("CALLEE: LOCAL DESCRIPTION SET");
+debug("CALLEE: LOCAL DESCRIPTION SET");
 
-    await callDoc.update({
-      answer
-    });
+const answerData = {
+  type: pc.localDescription.type,
+  sdp: pc.localDescription.sdp
+};
 
-    debug("CALLEE: ANSWER SAVED");
+await callDoc.update({
+  answer: answerData
+});
+
+debug("CALLEE: ANSWER SAVED");
 
     offerCandidates.onSnapshot(s => {
 
@@ -1141,29 +1153,28 @@ adminPc.onicecandidate = e => {
 
   debug("ADMIN: BEFORE CREATE OFFER");
 
-  const offer =
-    await adminPc.createOffer();
+const offer =
+  await adminPc.createOffer();
 
-  debug("ADMIN: AFTER CREATE OFFER");
+await adminPc.setLocalDescription(offer);
 
+debug("ADMIN: AFTER SET LOCAL");
 
-  debug("ADMIN: BEFORE SET LOCAL");
+const adminOfferData = {
+  type: adminPc.localDescription.type,
+  sdp: adminPc.localDescription.sdp
+};
 
-  await adminPc.setLocalDescription(offer);
+await adminCallDoc.set({
 
-  debug("ADMIN: AFTER SET LOCAL");
+  uid: myUid,
+  offer: adminOfferData,
+  createdAt: Date.now(),
+  ended: false
 
+}, { merge: true });
 
-  debug("ADMIN: BEFORE SAVE OFFER");
-
-  await adminCallDoc.set({
-
-    uid: myUid,
-    offer: offer,
-    createdAt: Date.now(),
-    ended: false
-
-  }, { merge: true });
+debug("ADMIN: AFTER SAVE OFFER");
 
   debug("ADMIN: AFTER SAVE OFFER");
 
