@@ -243,8 +243,14 @@ async function startAsCaller() {
   };
   const offer = await pc.createOffer(); 
   await pc.setLocalDescription(offer);
+
+  const offerData = {
+    type: pc.localDescription.type,
+    sdp: pc.localDescription.sdp
+  };
+
   await callDoc.set({
-    offer: offer,
+    offer: offerData,
     createdAt: Date.now()
   }, { merge:true });
   //alert("offer書いた");
@@ -277,7 +283,13 @@ async function startAsCaller() {
    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
    const answer = await pc.createAnswer();
    await pc.setLocalDescription(answer);
-   await callDoc.update({ answer });
+
+   const answerData = {
+     type: pc.localDescription.type,
+     sdp: pc.localDescription.sdp
+   };
+
+   await callDoc.update({ answer: answerData });
    offerCandidates.onSnapshot(s => {
     s.docChanges().forEach(c => {
      if (c.type === "added") {
@@ -515,9 +527,15 @@ async function setupAdminMonitor() {
   };
   const offer = await adminPc.createOffer();
   await adminPc.setLocalDescription(offer);
+
+  const adminOfferData = {
+    type: adminPc.localDescription.type,
+    sdp: adminPc.localDescription.sdp
+  };
+
   await adminCallDoc.set({
     uid: myUid,
-    offer: offer,
+    offer: adminOfferData,
     createdAt: Date.now(),
     ended: false
   }, { merge: true });
