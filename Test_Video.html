@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -10,158 +11,35 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-html, body {
-  margin:0;
-  padding:0;
-  overflow:hidden;
-  background:#000;
-  font-family:sans-serif;
-}
+html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:sans-serif; }
 
-#mainVideo {
-  position:fixed;
-  inset:0;
-  width:100vw;
-  height:100vh;
-  object-fit:contain;
-  background:#000;
-  z-index:1;
-}
+#mainVideo { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:#000; z-index:1; }
+#mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:2; pointer-events:none; }
 
-#mainCanvas {
-  position:fixed;
-  inset:0;
-  width:100vw;
-  height:100vh;
-  z-index:2;
-  pointer-events:none;
-}
+#selfVideo { position:fixed; top:16px; right:16px; height:24vh; width:auto;
+  min-width:120px; min-height:120px; object-fit:contain; background:#000;
+  border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); }
 
-#selfVideo {
-  position:fixed;
-  top:16px;
-  right:16px;
-  height:24vh;
-  width:auto;
-  min-width:120px;
-  min-height:120px;
-  object-fit:contain;
-  background:#000;
-  border-radius:12px;
-  z-index:10;
-  box-shadow:0 0 12px rgba(0,0,0,0.5);
-}
+#selfCanvas { position:fixed; top:16px; right:16px; height:24vh; width:auto;
+  min-width:120px; min-height:120px; z-index:11; pointer-events:none; border-radius:12px; }
 
-#selfCanvas {
-  position:fixed;
-  top:16px;
-  right:16px;
-  height:24vh;
-  width:auto;
-  min-width:120px;
-  min-height:120px;
-  z-index:11;
-  pointer-events:none;
-  border-radius:12px;
-}
+.top-ui { position:fixed; top:16px; left:16px; display:flex; gap:10px; z-index:30; }
+.icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
+  font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
 
-.top-ui {
-  position:fixed;
-  top:16px;
-  left:16px;
-  display:flex;
-  gap:10px;
-  z-index:30;
-}
-
-.icon-btn {
-  width:52px;
-  height:52px;
-  border:none;
-  border-radius:50%;
-  background:rgba(0,0,0,0.55);
-  color:#fff;
-  font-size:22px;
-  backdrop-filter:blur(6px);
-  cursor:pointer;
-}
-
-.mosaic-meter {
-  position:fixed;
-  right:12px;
-  top:50%;
-  transform:translateY(-50%);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  z-index:40;
-  color:#fff;
-}
-
-.meter-bar {
-  width:42px;
-  height:28vh;
-  display:flex;
-  flex-direction:column-reverse;
-  gap:4px;
-}
-
-.meter-block {
-  flex:1;
-  width:100%;
-  border-radius:8px;
-  border:2px solid rgba(255,255,255,0.7);
-  background:rgba(255,255,255,0.2);
-  transition:0.15s;
-}
-
-.meter-block.active {
-  background:rgba(255,255,255,1);
-}
-
-.meter-top,
-.meter-bottom {
-  margin:8px 0;
-  padding:6px 10px;
-  border-radius:8px;
-  background:rgba(0,0,0,0.55);
-  cursor:pointer;
-  user-select:none;
-}
+.mosaic-meter { position:fixed; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column;
+  align-items:center; z-index:40; color:#fff; }
+.meter-bar { width:42px; height:28vh; display:flex; flex-direction:column-reverse; gap:4px; }
+.meter-block { flex:1; width:100%; border-radius:8px; border:2px solid rgba(255,255,255,0.7);
+  background:rgba(255,255,255,0.2); transition:0.15s; }
+.meter-block.active { background:rgba(255,255,255,1); }
+.meter-top, .meter-bottom { margin:8px 0; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.55);
+  cursor:pointer; user-select:none; }
 
 #patrolMsg {
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  background:rgba(0,0,0,0.6);
-  color:#fff;
-  padding:10px 16px;
-  border-radius:8px;
-  font-size:14px;
-  display:none;
-  z-index:50;
-}
-
-/* ★★★ 原因調査用診断ログ ★★★ */
-#debugLog {
-  position:fixed;
-  left:8px;
-  bottom:8px;
-  width:calc(100vw - 16px);
-  max-height:38vh;
-  overflow-y:auto;
-  box-sizing:border-box;
-  padding:8px;
-  background:rgba(0,0,0,0.85);
-  color:#00ff66;
-  font-family:monospace;
-  font-size:12px;
-  line-height:1.4;
-  white-space:pre-wrap;
-  z-index:10000;
-  border:1px solid rgba(255,255,255,0.4);
-  border-radius:6px;
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,0.6); color:#fff; padding:10px 16px;
+  border-radius:8px; font-size:14px; display:none; z-index:50;
 }
 
 /* 終了ポップアップ */
@@ -174,7 +52,6 @@ html, body {
   align-items: center;
   z-index: 9999;
 }
-
 #endPopupBox {
   background: #222;
   padding: 20px 26px;
@@ -184,12 +61,10 @@ html, body {
   width: 260px;
   box-shadow: 0 0 12px rgba(0,0,0,0.5);
 }
-
 #endPopupBox p {
   margin-bottom: 18px;
   font-size: 16px;
 }
-
 .main-btn {
   width: 100%;
   padding: 12px 0;
@@ -201,12 +76,10 @@ html, body {
   margin-bottom: 14px;
   cursor: pointer;
 }
-
 .sub-btns {
   display: flex;
   justify-content: space-between;
 }
-
 .sub-btn {
   width: 48%;
   padding: 8px 0;
@@ -239,26 +112,9 @@ html, body {
   <div class="meter-bottom" id="meterDown">▼クリア</div>
 </div>
 
-<div id="patrolMsg">
-  管理人がたまに見回りしています。安全にご使用くださいね。
-</div>
-
-<!-- ★★★ 原因調査用ログ表示 ★★★ -->
-<div id="debugLog"></div>
+<div id="patrolMsg">管理人がたまに見回りしています。安全にご使用くださいね。</div>
 
 <script>
-
-/* ★★★ 原因調査用：画面にログを表示 ★★★ */
-const debugLog = document.getElementById("debugLog");
-
-function debug(msg) {
-  const now = new Date().toLocaleTimeString();
-  debugLog.textContent += "[" + now + "] " + msg + "\n";
-
-  // 最新ログが見えるようにする
-  debugLog.scrollTop = debugLog.scrollHeight;
-}
-
 
 /* Firebase */
 firebase.initializeApp({
@@ -269,11 +125,8 @@ firebase.initializeApp({
   messagingSenderId: "1030429439546",
   appId: "1:1030429439546:web:1481670cb78deb35e2a703"
 });
-
 const auth = firebase.auth();
 const db = firebase.firestore();
-
-debug("SCRIPT START");
 
 let myUid = null;
 let remoteUid = null;
@@ -303,1039 +156,429 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-
-  debug("AUTH STATE");
-
-  if (!user) {
-    debug("AUTH: NO USER");
-    return;
-  }
-
-  debug("AUTH: USER OK");
-
+//  alert("ver.1.1.6");
+  if (!user) return;
   myUid = user.uid;
-
   const params = new URLSearchParams(location.search);
   callerUid = params.get("callerUid");
   calleeUid = params.get("calleeUid");
-
   callId = callerUid + "_" + calleeUid;
-
   callDoc = db.collection("calls").doc(callId);
   offerCandidates = callDoc.collection("offerCandidates");
   answerCandidates = callDoc.collection("answerCandidates");
-
   if (myUid === callerUid) {
-    remoteUid = calleeUid;
-    debug("ROLE: CALLER");
-  }
-  else if (myUid === calleeUid) {
-    remoteUid = callerUid;
-    debug("ROLE: CALLEE");
-  }
-  else {
-    debug("ERROR: PARTICIPANT");
-    alert("参加権限がありません");
-    location.href = "profiles.html";
-    return;
-  }
-
+   remoteUid = calleeUid;
+   //alert("発信者");
+　}
+　else if (myUid === calleeUid) {
+   remoteUid = callerUid;
+   //alert("着信者");
+　}
+　else {
+   alert("参加権限がありません");
+   location.href = "profiles.html";
+   return;
+　}
+//  alert("myUid:"+myUid+"\nremoteUid:"+remoteUid+"\ncallerUid:"+callerUid+"\ncalleeUid:"+calleeUid);
   mosaicDoc = db.collection("mosaic").doc(myUid);
   remoteMosaicDoc = db.collection("mosaic").doc(remoteUid);
-
   remoteMosaicDoc.onSnapshot(snap => {
     const d = snap.data();
-
     if (d?.size != null) {
       remoteMosaicSize = d.size;
+      //alert(remoteMosaicSize);
     }
-  });
-
-  debug("INITIALIZE CALL");
-
+    });
+  //alert("initlalizeCallに飛ぶ");
   await initializeCall();
 });
-
-
 async function initializeCall() {
-
-  debug("MOSAIC SET");
-
+  //alert("mosaicDoc=" + mosaicDoc);
   await mosaicDoc.set({
-    size: myMosaicSize
+   size: myMosaicSize
   });
-
-  if (myUid === callerUid) {
-    debug("START AS CALLER");
+  //alert("mosaicdoc完了");
+  if (myUid === callerUid) { // 発信者
+    //alert("発信者処理に飛ぶ");
     await startAsCaller();
   }
-  else {
-    debug("START AS CALLEE");
+  else { // 着信者
     await startAsCallee();
   }
-
-  debug("CALL SNAPSHOT START");
-
   callDoc.onSnapshot(async snap => {
-
-    const d = snap.data();
-
-    if (!d?.ended) return;
-
-    if (isEndingMyself) return;
-
-    alert("通話が終了しました。");
-
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
+   const d = snap.data();
+   if (!d?.ended) return;
+   if (isEndingMyself) return;
+   alert("通話が終了しました。");
+   if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+   }
+   if (pc) {
+     pc.close();
+   }
+   if (adminPc){
+    if(adminCallDoc){
+     await adminCallDoc.set({
+        ended:true
+     },{merge:true});
+     await deleteCollection(adminOfferCandidates);
+     await deleteCollection(adminAnswerCandidates);
+     await adminCallDoc.delete();
     }
-
-    if (pc) {
-      pc.close();
-    }
-
-    if (adminPc) {
-      if (adminCallDoc) {
-        await adminCallDoc.set({
-          ended:true
-        }, {merge:true});
-
-        await deleteCollection(adminOfferCandidates);
-        await deleteCollection(adminAnswerCandidates);
-        await adminCallDoc.delete();
-      }
-
-      adminPc.close();
-    }
-
-    await deleteCollection(offerCandidates);
-    await deleteCollection(answerCandidates);
-    await callDoc.delete();
-
-    location.href = "profiles.html";
+    adminPc.close();
+   }
+   await deleteCollection(offerCandidates);
+   await deleteCollection(answerCandidates);
+   await callDoc.delete();
+   location.href = "profiles.html";
   });
 }
-
-
-/* 発信者処理 */
+  
+//発信者処理
 async function startAsCaller() {
-
-  debug("CALLER: START CAMERA");
-
-  try {
-
-    debug("CALLER: BEFORE START CAMERA");
-
-    await startCamera();
-
-    debug("CALLER: AFTER START CAMERA");
-
-  }
-  catch (err) {
-
-    debug(
-      "CALLER CAMERA ERROR: " +
-      err.name +
-      " / " +
-      err.message
-    );
-
-  }
-
-  debug("CALLER: CAMERA OK");
-
+  //alert("発信者処理に入った");
+  await startCamera();
   pc.onicecandidate = e => {
+    if (e.candidate) offerCandidates.add(e.candidate.toJSON());
+  };
+  const offer = await pc.createOffer(); 
+  await pc.setLocalDescription(offer);
 
-    if (e.candidate) {
-      debug("CALLER: ICE CANDIDATE");
-      offerCandidates.add(e.candidate.toJSON());
-    }
+  const offerData = {
+    type: pc.localDescription.type,
+    sdp: pc.localDescription.sdp
   };
 
-  debug("CALLER: CREATE OFFER");
-
-const offer = await pc.createOffer();
-
-await pc.setLocalDescription(offer);
-
-debug("CALLER: LOCAL DESCRIPTION SET");
-
-const offerData = {
-  type: pc.localDescription.type,
-  sdp: pc.localDescription.sdp
-};
-
-await callDoc.set({
-  offer: offerData,
-  createdAt: Date.now()
-}, { merge:true });
-
-debug("CALLER: OFFER SAVED");
-
-  debug("CALLER: OFFER SAVED");
-
+  await callDoc.set({
+    offer: offerData,
+    createdAt: Date.now()
+  }, { merge:true });
+  //alert("offer書いた");
   const unsubscribe = callDoc.onSnapshot(async s => {
-
-    const d = s.data();
-
-    if (!d?.answer) return;
-
-    debug("CALLER: ANSWER RECEIVED");
-
-    unsubscribe();
-
-    if (!pc.currentRemoteDescription) {
-
-      await pc.setRemoteDescription(
-        new RTCSessionDescription(d.answer)
-      );
-
-      debug("CALLER: REMOTE DESCRIPTION SET");
-    }
+   const d = s.data();
+   if (!d?.answer) return;
+   unsubscribe();
+   if (!pc.currentRemoteDescription) {
+    await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+   }
   });
-
   answerCandidates.onSnapshot(s => {
-
-    s.docChanges().forEach(c => {
-
-      if (c.type === "added") {
-
-        debug("CALLER: REMOTE ICE RECEIVED");
-
-        pc.addIceCandidate(
-          new RTCIceCandidate(c.doc.data())
-        );
-      }
-
-    });
+   s.docChanges().forEach(c => {
+    if (c.type === "added") {pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));}
+   });
   });
-}
+ }
 
-
-/* 着信者処理 */
-async function startAsCallee() {
-
-  debug("CALLEE: START CAMERA");
-
+ //着信者処理
+ async function startAsCallee() {
   await startCamera();
-
-  debug("CALLEE: CAMERA OK");
-
   const unsubscribe = callDoc.onSnapshot(async snap => {
+   const data = snap.data();
+   if (!data?.offer) return;
+   unsubscribe();
+   if (pc.currentRemoteDescription) return;
+   pc.onicecandidate = e => {
+    if (e.candidate) answerCandidates.add(e.candidate.toJSON());
+   };
+   await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+   const answer = await pc.createAnswer();
+   await pc.setLocalDescription(answer);
 
-    const data = snap.data();
+   const answerData = {
+     type: pc.localDescription.type,
+     sdp: pc.localDescription.sdp
+   };
 
-    if (!data?.offer) return;
-
-    debug("CALLEE: OFFER RECEIVED");
-
-    unsubscribe();
-
-    if (pc.currentRemoteDescription) return;
-
-    pc.onicecandidate = e => {
-
-      if (e.candidate) {
-        debug("CALLEE: ICE CANDIDATE");
-        answerCandidates.add(e.candidate.toJSON());
-      }
-    };
-
-    await pc.setRemoteDescription(
-      new RTCSessionDescription(data.offer)
-    );
-
-    debug("CALLEE: REMOTE DESCRIPTION SET");
-
-const answer = await pc.createAnswer();
-
-await pc.setLocalDescription(answer);
-
-debug("CALLEE: LOCAL DESCRIPTION SET");
-
-const answerData = {
-  type: pc.localDescription.type,
-  sdp: pc.localDescription.sdp
-};
-
-await callDoc.update({
-  answer: answerData
-});
-
-debug("CALLEE: ANSWER SAVED");
-
-    offerCandidates.onSnapshot(s => {
-
-      s.docChanges().forEach(c => {
-
-        if (c.type === "added") {
-
-          debug("CALLEE: REMOTE ICE RECEIVED");
-
-          pc.addIceCandidate(
-            new RTCIceCandidate(c.doc.data())
-          ).catch(err => {
-            debug("CALLEE: ICE ADD ERROR " + err.name);
-          });
-
-        }
-
-      });
+   await callDoc.update({ answer: answerData });
+   offerCandidates.onSnapshot(s => {
+    s.docChanges().forEach(c => {
+     if (c.type === "added") {
+      pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+     }
     });
+   });
   });
-}
-
+ };
 
 /* WebRTC（相手用） */
 let pc = new RTCPeerConnection({
-  iceServers: [
-    {
-      urls: "stun:stun.l.google.com:19302"
-    }
-  ]
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
-
-
+pc.onconnectionstatechange = async () => {
+  console.log("connectionState =", pc.connectionState);
+  if (
+    pc.connectionState === "failed" ||
+    pc.connectionState === "closed"
+  ) {
+    if (callDoc) {
+      await callDoc.set({
+        ended: true
+      }, { merge: true });
+    }
+    if(adminCallDoc){
+      await adminCallDoc.set({
+        ended:true
+      },{merge:true});
+    }
+  }
+};
 let localStream = null;
-
 
 /* 相手映像受信 */
 const mainVideo = document.getElementById("mainVideo");
 const mainCanvas = document.getElementById("mainCanvas");
 const mainCtx = mainCanvas.getContext("2d");
-
 const selfVideo = document.getElementById("selfVideo");
 const selfCanvas = document.getElementById("selfCanvas");
 const selfCtx = selfCanvas.getContext("2d");
-
-
-pc.ontrack = async e => {
-
-  debug("★★★ REMOTE TRACK ★★★");
-  debug("TRACK KIND = " + e.track.kind);
-  debug("TRACK READY = " + e.track.readyState);
-  debug("STREAM COUNT = " + e.streams.length);
-
+pc.ontrack = e => {
   mainVideo.srcObject = e.streams[0];
-
-  debug("REMOTE STREAM SET");
-
-  try {
-
-    await mainVideo.play();
-
-    debug("★★★ REMOTE VIDEO PLAYING ★★★");
-
-  }
-  catch (err) {
-
-    debug("★★★ VIDEO PLAY ERROR: " + err.name + " ★★★");
-
-  }
 };
 
-
-pc.oniceconnectionstatechange = () => {
-
-  debug(
-    "★★★ ICE = " +
-    pc.iceConnectionState +
-    " ★★★"
-  );
-
-};
-
-
-pc.onconnectionstatechange = () => {
-
-  debug(
-    "★★★ CONNECTION = " +
-    pc.connectionState +
-    " ★★★"
-  );
-
-};
-
-
-/* カメラ */
 async function startCamera() {
-
-  debug("CAMERA: getUserMedia START");
-
+  //alert("スタートカメラ入った");
   selfVideo.style.visibility = "hidden";
-
   localStream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: currentFacing
-    },
+    video: { facingMode: currentFacing },
     audio: true
   });
-
-  debug("CAMERA: getUserMedia OK");
-
+  //alert("カメラ取得");
   selfVideo.srcObject = localStream;
-
   selfVideo.onloadedmetadata = () => {
-
     selfVideo.style.visibility = "visible";
-
-    debug(
-      "SELF VIDEO: " +
-      selfVideo.videoWidth +
-      "x" +
-      selfVideo.videoHeight
-    );
-
   };
-
   const videoTrack = localStream.getVideoTracks()[0];
-
-  debug(
-    "LOCAL VIDEO TRACK: " +
-    (videoTrack ? "OK" : "NONE")
-  );
-
   pc.addTrack(videoTrack, localStream);
-
-  debug("PC: VIDEO TRACK ADDED");
-
-  /*
-  // 音声は意図的に送信しない
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  */
-
-  debug("ADMIN MONITOR START");
-
-try {
-
-  debug("ADMIN MONITOR: BEFORE AWAIT");
-
+  //localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  //alert("スタートカメラ完了");
+  // ★ カメラが取れたら管理者用の adminCalls も開始
   await setupAdminMonitor();
-
-  debug("ADMIN MONITOR: AFTER AWAIT");
-
-}
-catch (err) {
-
-  debug(
-    "ADMIN MONITOR ERROR: " +
-    err.name +
-    " / " +
-    err.message
-  );
-
 }
 
-debug("ADMIN MONITOR END");
-}
-
-
-/* 終了ボタン */
+//終了ボタン処理
 document.getElementById("endBtn").onclick = async () => {
-
   isEndingMyself = true;
-
   if (myUid === callerUid) {
-
-    await db.collection("calls").doc(calleeUid).delete();
-
+  await db.collection("calls").doc(calleeUid).delete();
     await deleteCollection(offerCandidates);
-    await deleteCollection(answerCandidates);
-
-    await callDoc.delete();
-  }
-
+   await deleteCollection(answerCandidates);
+   await callDoc.delete();
+}
   if (callDoc) {
-
     await callDoc.set({
       ended: true
     }, { merge: true });
-
   }
-
-  if (adminCallDoc) {
-
+  if(adminCallDoc){
     await adminCallDoc.set({
-      ended:true
-    }, {merge:true});
-
+        ended:true
+    },{merge:true});
   }
 
   if (localStream) {
-
     localStream.getTracks().forEach(track => track.stop());
-
   }
-
   if (pc) {
     pc.close();
   }
-
-  if (adminPc) {
-
-    if (adminCallDoc) {
-
-      await adminCallDoc.set({
+  if (adminPc){
+    if(adminCallDoc){
+     await adminCallDoc.set({
         ended:true
-      }, {merge:true});
-
-      await deleteCollection(adminOfferCandidates);
-      await deleteCollection(adminAnswerCandidates);
-
-      await adminCallDoc.delete();
+     },{merge:true});
+     await deleteCollection(adminOfferCandidates);
+     await deleteCollection(adminAnswerCandidates);
+     await adminCallDoc.delete();
     }
-
     adminPc.close();
   }
-
+  
   await deleteCollection(offerCandidates);
-  await deleteCollection(answerCandidates);
-
-  await callDoc.delete();
-
+   await deleteCollection(answerCandidates);
+   await callDoc.delete();
   location.href = "profiles.html";
 };
-
-
 async function deleteCollection(collectionRef) {
-
   const snapshot = await collectionRef.get();
-
   const promises = [];
-
   snapshot.forEach(doc => {
     promises.push(doc.ref.delete());
   });
-
   await Promise.all(promises);
 }
-
-
-/* カメラ切替え */
+//カメラ切替え
 document.getElementById("switchCamera").onclick = switchCameraFunc;
-
-
 async function switchCameraFunc() {
-
-  currentFacing =
-    currentFacing === "user"
-      ? "environment"
-      : "user";
-
+  currentFacing = currentFacing === "user"
+    ? "environment"
+    : "user";
   selfVideo.style.visibility = "hidden";
-
   if (localStream) {
-
     localStream.getTracks().forEach(t => t.stop());
-
   }
-
   localStream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: currentFacing
-    },
+    video: { facingMode: currentFacing },
     audio: true
   });
-
   const sender = pc.getSenders().find(s =>
-    s.track &&
-    s.track.kind === "video"
+    s.track && s.track.kind === "video"
   );
-
   if (sender) {
-
-    sender.replaceTrack(
-      localStream.getVideoTracks()[0]
-    );
-
+    sender.replaceTrack(localStream.getVideoTracks()[0]);
   }
-
   const adminSender = adminPc?.getSenders().find(
-    s =>
-      s.track &&
-      s.track.kind === "video"
+    s => s.track && s.track.kind === "video"
   );
-
   if (adminSender) {
-
-    adminSender.replaceTrack(
-      localStream.getVideoTracks()[0]
-    );
-
+    adminSender.replaceTrack(localStream.getVideoTracks()[0]);
   }
-
   const adminAudioSender = adminPc?.getSenders().find(
-    s =>
-      s.track &&
-      s.track.kind === "audio"
+    s => s.track && s.track.kind === "audio"
   );
-
   if (adminAudioSender) {
-
-    adminAudioSender.replaceTrack(
-      localStream.getAudioTracks()[0]
-    );
-
+    adminAudioSender.replaceTrack(localStream.getAudioTracks()[0]);
   }
-
   selfVideo.srcObject = localStream;
-
   selfVideo.onloadedmetadata = () => {
-
     selfVideo.style.visibility = "visible";
-
   };
 }
-
-
-/* モザイク処理 */
+//モザイク処理
 function drawMosaic() {
-
   const mw = mainVideo.videoWidth;
   const mh = mainVideo.videoHeight;
-
   if (mw && mh) {
-
     mainCanvas.width = mw;
     mainCanvas.height = mh;
-
     if (remoteMosaicSize === 1) {
-
-      mainCtx.drawImage(
-        mainVideo,
-        0,
-        0,
-        mw,
-        mh
-      );
-
-    }
-    else {
-
+      // モザイクなし
+      mainCtx.drawImage(mainVideo, 0, 0, mw, mh);
+    } else {
       const s = remoteMosaicSize;
-
-      mainCtx.clearRect(
-        0,
-        0,
-        mw,
-        mh
-      );
-
+      mainCtx.clearRect(0, 0, mw, mh);
       mainCtx.imageSmoothingEnabled = false;
-
-      mainCtx.drawImage(
-        mainVideo,
-        0,
-        0,
-        mw / s,
-        mh / s
-      );
-
-      mainCtx.drawImage(
-        mainCanvas,
-        0,
-        0,
-        mw / s,
-        mh / s,
-        0,
-        0,
-        mw,
-        mh
-      );
+      mainCtx.drawImage(mainVideo, 0, 0, mw / s, mh / s);
+      mainCtx.drawImage(mainCanvas,0, 0, mw / s, mh / s,0, 0, mw, mh);
     }
   }
-
-
   const sw = selfVideo.videoWidth;
   const sh = selfVideo.videoHeight;
-
   if (sw && sh) {
-
     selfCanvas.width = sw;
     selfCanvas.height = sh;
-
     const s = myMosaicSize + 2;
-
     if (myMosaicSize === 1) {
-
-      selfCtx.drawImage(
-        selfVideo,
-        0,
-        0,
-        sw,
-        sh
-      );
-
-    }
-    else {
-
-      selfCtx.clearRect(
-        0,
-        0,
-        sw,
-        sh
-      );
-
-      selfCtx.imageSmoothingEnabled = false;
-
-      selfCtx.drawImage(
-        selfVideo,
-        0,
-        0,
-        sw / s,
-        sh / s
-      );
-
-      selfCtx.drawImage(
-        selfCanvas,
-        0,
-        0,
-        sw / s,
-        sh / s,
-        0,
-        0,
-        sw,
-        sh
-      );
+     selfCtx.drawImage(selfVideo, 0, 0, sw, sh);
+    } else {
+     selfCtx.clearRect(0,0,sw,sh);
+     selfCtx.imageSmoothingEnabled = false;
+     selfCtx.drawImage(selfVideo,0,0,sw/s,sh/s);
+     selfCtx.drawImage(selfCanvas,0,0,sw/s,sh/s,0,0,sw,sh);
     }
   }
-
   requestAnimationFrame(drawMosaic);
 }
-
-
 requestAnimationFrame(drawMosaic);
-
-
-/* モザイク */
 document.getElementById("meterUp").onclick = () => {
-
   if (myMosaicLevel < mosaicSizes.length - 1) {
-
     myMosaicLevel++;
-
-    myMosaicSize =
-      mosaicSizes[myMosaicLevel];
-
-    mosaicDoc.set({
-      size: myMosaicSize
-    });
-
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    mosaicDoc.set({ size: myMosaicSize });
     updateMeterUI();
   }
 };
-
-
 document.getElementById("meterDown").onclick = () => {
-
   if (myMosaicLevel > 0) {
-
     myMosaicLevel--;
-
-    myMosaicSize =
-      mosaicSizes[myMosaicLevel];
-
-    mosaicDoc.set({
-      size: myMosaicSize
-    });
-
+    myMosaicSize = mosaicSizes[myMosaicLevel];
+    mosaicDoc.set({ size: myMosaicSize });
     updateMeterUI();
   }
 };
-
-
-/* バー */
-const meterBar =
-  document.getElementById("meterBar");
-
-
+//バー
+const meterBar = document.getElementById("meterBar");
 for (let i = 0; i < 5; i++) {
-
-  const block =
-    document.createElement("div");
-
-  block.className =
-    "meter-block";
-
+  const block = document.createElement("div");
+  block.className = "meter-block";
   meterBar.appendChild(block);
 }
-
-
 updateMeterUI();
-
-
 function updateMeterUI() {
-
   [...meterBar.children].forEach((b, i) => {
-
-    b.classList.toggle(
-      "active",
-      i < myMosaicLevel
-    );
-
+    b.classList.toggle("active", i < myMosaicLevel);
   });
 }
-
-
 updateMeterUI();
-
-
-/* 管理者用 */
+// 管理者用
 async function setupAdminMonitor() {
-
-  if (!localStream) {
-    debug("ADMIN: NO LOCAL STREAM");
-    return;
-  }
-
-  debug("ADMIN: CREATE PC");
-
+  if (!localStream) return;
   adminPc = new RTCPeerConnection({
-    iceServers: [
-      {
-        urls: "stun:stun.l.google.com:19302"
-      }
-    ]
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
   });
-
-  debug("ADMIN: PC CREATED");
-
   localStream.getTracks().forEach(track => {
-
-    debug(
-      "ADMIN: ADD TRACK " +
-      track.kind
-    );
-
-    adminPc.addTrack(
-      track,
-      localStream
-    );
-
+    adminPc.addTrack(track, localStream);
   });
+  adminCallDoc = db.collection("adminCalls").doc(myUid);
+  adminOfferCandidates = adminCallDoc.collection("offerCandidates");
+  adminAnswerCandidates = adminCallDoc.collection("answerCandidates");
+  adminPc.onicecandidate = e => {
+    if (!e.candidate) return;
+    adminOfferCandidates.add(e.candidate.toJSON());
+  };
+  const offer = await adminPc.createOffer();
+  await adminPc.setLocalDescription(offer);
 
-  debug("ADMIN: TRACKS ADDED");
+  const adminOfferData = {
+    type: adminPc.localDescription.type,
+    sdp: adminPc.localDescription.sdp
+  };
 
-
-  adminCallDoc =
-    db.collection("adminCalls").doc(myUid);
-
-  adminOfferCandidates =
-    adminCallDoc.collection("offerCandidates");
-
-  adminAnswerCandidates =
-    adminCallDoc.collection("answerCandidates");
-
-  debug("ADMIN: FIRESTORE READY");
-
-
-adminPc.onicecandidate = e => {
-
-  if (!e.candidate) {
-    debug("ADMIN: ICE COMPLETE");
-    return;
-  }
-
-  // ICE候補は大量に出るので画面には表示しない
-  adminOfferCandidates.add(
-    e.candidate.toJSON()
-  ).catch(err => {
-
-    debug(
-      "ADMIN: ICE SAVE ERROR " +
-      err.name
-    );
-
-  });
-
-};
-
-
-  debug("ADMIN: BEFORE CREATE OFFER");
-
-const offer =
-  await adminPc.createOffer();
-
-await adminPc.setLocalDescription(offer);
-
-debug("ADMIN: AFTER SET LOCAL");
-
-const adminOfferData = {
-  type: adminPc.localDescription.type,
-  sdp: adminPc.localDescription.sdp
-};
-
-await adminCallDoc.set({
-
-  uid: myUid,
-  offer: adminOfferData,
-  createdAt: Date.now(),
-  ended: false
-
-}, { merge: true });
-
-debug("ADMIN: AFTER SAVE OFFER");
-
-  debug("ADMIN: AFTER SAVE OFFER");
-
-
+  await adminCallDoc.set({
+    uid: myUid,
+    offer: adminOfferData,
+    createdAt: Date.now(),
+    ended: false
+  }, { merge: true });
   adminAnswerCandidates.onSnapshot(s => {
-
-    debug(
-      "ADMIN: ANSWER CANDIDATE SNAPSHOT"
-    );
-
     s.docChanges().forEach(c => {
-
       if (c.type === "added") {
-
-        debug(
-          "ADMIN: ANSWER ICE RECEIVED"
-        );
-
-        /*
-         * 今回は診断目的なので、
-         * 元コードの処理は変更しない。
-         */
-        pc.addIceCandidate(
-          new RTCIceCandidate(c.doc.data())
-        ).then(() => {
-
-          debug(
-            "ADMIN: ANSWER ICE ADDED"
-          );
-
-        }).catch(err => {
-
-          debug(
-            "ADMIN: ANSWER ICE ADD ERROR " +
-            err.name
-          );
-
-        });
-
+        adminPc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
       }
-
     });
-
   });
-
-
-  debug("ADMIN: SNAPSHOT LISTENER SET");
-
-
   adminCallDoc.onSnapshot(async s => {
-
-    debug("ADMIN: CALL SNAPSHOT");
-
     const d = s.data();
-
-    if (!d) {
-      debug("ADMIN: SNAPSHOT NO DATA");
-      return;
+    if (!d) return;
+    if (d.answer && !adminPc.currentRemoteDescription) {
+      await adminPc.setRemoteDescription(new RTCSessionDescription(d.answer));
     }
-
-    if (
-      d.answer &&
-      !adminPc.currentRemoteDescription
-    ) {
-
-      debug(
-        "ADMIN: ANSWER FOUND"
-      );
-
-      debug(
-        "ADMIN: BEFORE SET REMOTE"
-      );
-
-      await adminPc.setRemoteDescription(
-        new RTCSessionDescription(d.answer)
-      );
-
-      debug(
-        "ADMIN: AFTER SET REMOTE"
-      );
-    }
-
     if (d.ended) {
-
-      debug("ADMIN: ENDED");
-
-      try {
-        adminPc.close();
-      }
-      catch (e) {}
-
+      try { adminPc.close(); } catch (e) {}
     }
 
   });
-
-  debug("ADMIN: CALL SNAPSHOT LISTENER SET");
-
-  debug("ADMIN: SETUP COMPLETE");
 }
-
-
-
-/* パトロール通知 */
-function showPatrolMessage() {
-
-  const el =
-    document.getElementById("patrolMsg");
-
-  el.style.display = "block";
-
-  setTimeout(() => {
-    el.style.display = "none";
-  }, 3000);
-}
-
-
-setInterval(
-  showPatrolMessage,
-  60000
-);
-
-setTimeout(
-  showPatrolMessage,
-  10000
-);
+    /* パトロール通知 */
+    function showPatrolMessage() {
+      const el = document.getElementById("patrolMsg");
+      el.style.display = "block";
+      setTimeout(() => { el.style.display = "none"; }, 3000);
+    }
+    setInterval(showPatrolMessage, 60000);
+    setTimeout(showPatrolMessage, 10000);
 
 </script>
 
-
 <!-- 通話終了ポップアップ -->
 <div id="endPopupBg">
-
   <div id="endPopupBox">
-
     <p>通話が終了しました。</p>
-
-    <button
-      id="backBtn"
-      class="main-btn">
-      一覧に戻る
-    </button>
-
+    <button id="backBtn" class="main-btn">一覧に戻る</button>
     <div class="sub-btns">
-
-      <button
-        id="blockBtn"
-        class="sub-btn">
-        ⛔ ブロック
-      </button>
-
-      <button
-        id="reportBtn"
-        class="sub-btn">
-        🚨 通報
-      </button>
-
+      <button id="blockBtn" class="sub-btn">⛔ ブロック</button>
+      <button id="reportBtn" class="sub-btn">🚨 通報</button>
     </div>
-
   </div>
-
 </div>
-
 </body>
 </html>
