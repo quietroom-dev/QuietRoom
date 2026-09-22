@@ -49,6 +49,27 @@ button:hover{
   border:1px solid #d7dde5;
 }
 
+.board-btn{
+  background:#ff7a18;
+  color:#fff;
+  font-weight:bold;
+  font-size:16px;
+  border-radius:14px;
+  padding:12px 20px;
+  box-shadow:0 6px 18px rgba(255,122,24,.35);
+  animation:pulse 1.8s infinite;
+}
+
+.board-btn:hover{
+  transform:scale(1.05);
+}
+
+@keyframes pulse{
+  0%{transform:scale(1);}
+  50%{transform:scale(1.06);}
+  100%{transform:scale(1);}
+}
+
 h2{
   margin:0 0 20px;
   color:#344054;
@@ -171,7 +192,7 @@ h2{
 
 <div class="top-actions">
   <button class="action-btn" onclick="location.reload()">
-    🔄 更新。
+    🔄 更新
   </button>
 
   <button class="edit-btn"
@@ -181,9 +202,9 @@ h2{
   <button class="edit-btn" onclick="shareSite()">
   📤 このサイトを紹介
 </button>
-  <button class="edit-btn"
+  <button class="board-btn"
         onclick="location.href='board.html'">
-    🆕📝 伝言板
+    【NEW】待ち合わせ伝言板
 </button>
 </div>
 <div style="
@@ -200,6 +221,7 @@ h2{
   相手が見つからなかった方申し訳ありません。<br>
   人が集まりやすいのは<strong>23時〜24時過ぎ頃</strong>のようです。<br>
   何度か覗いてみてください。<br>
+  伝言板で来る時間を書くなどもご活用ください。<br>
   気に入っていただけたら、「このサイトを紹介」からお友達やSNSで紹介していただけると嬉しいです。<br>
   皆さんのご協力によって、もっと通話しやすいサービスになりますので、よろしくお願いします。<br>
   <p>📤 紹介された回数：<strong id="shareCount">読み込み中...</strong> 回</p>
@@ -418,7 +440,7 @@ if (await isBlockedBy(targetUid)) {
     ended: false
   });
   location.href =
-  `Test_Video.html?callerUid=${myUid}&calleeUid=${targetUid}`;
+  `video.html?callerUid=${myUid}&calleeUid=${targetUid}`;
 }
   
   async function showIncomingCall(fromUid) {
@@ -448,7 +470,7 @@ function acceptCall() {
   incomingCall.style.display = "none";
   db.collection("calls").doc(myUid).delete();
   location.href =
-  `Test_Video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
+  `video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
 }
 
 async function declineCall() {
