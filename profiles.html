@@ -8,7 +8,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  
 <style>
 body{
   margin:0;
@@ -253,6 +254,8 @@ firebase.initializeApp({
 });
 const auth = firebase.auth();
 const db = firebase.firestore();
+const rtdb = firebase.database();
+
 let myUid = null;
 let lastDoc = null;
 const PAGE_SIZE = 20;
@@ -261,6 +264,17 @@ auth.signInAnonymously();
 auth.onAuthStateChanged(async user => {
   if (!user) return;
   myUid = user.uid;
+
+  // 現在地を「プロフィール一覧」として登録
+  const presenceRef = rtdb.ref("presence/" + user.uid);
+
+  // 通信が切れたら自動削除
+  presenceRef.onDisconnect().remove();
+
+  // 現在のページを登録
+  await presenceRef.set({
+    page: "profiles"
+  });
 //  alert(myUid);
   if (!myUid) {
     alert("通話する場合はプロフィール作成からやり直してください。");
