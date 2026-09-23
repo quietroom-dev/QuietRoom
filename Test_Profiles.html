@@ -266,8 +266,6 @@ const rtdb = firebase.database();
 let myUid = null;
 let lastDoc = null;
 const PAGE_SIZE = 20;
-auth.signInAnonymously();
-
 auth.onAuthStateChanged(async user => {
 
   alert("① auth.onAuthStateChanged が実行されました");
@@ -291,22 +289,32 @@ auth.onAuthStateChanged(async user => {
 
   try {
 
-alert("⑤ presence書き込み開始");
+    alert("⑤ presence書き込み開始");
 
-const connectedRef = rtdb.ref(".info/connected");
+    const connectedRef = rtdb.ref(".info/connected");
 
-const connectedSnapshot = await connectedRef.once("value");
+    // 現在の接続状態
+    const connectedSnapshot = await connectedRef.once("value");
 
-alert(
-  "⑥ RTDB接続状態: " +
-  connectedSnapshot.val()
-);
+    alert(
+      "⑥ RTDB接続状態: " +
+      connectedSnapshot.val()
+    );
 
-await presenceRef.set({
-  page: "index"
-});
+    // 接続状態が変化したら表示
+    connectedRef.on("value", snapshot => {
+      alert(
+        "RTDB接続状態が変化: " +
+        snapshot.val()
+      );
+    });
 
-alert("⑦ presence作成成功");
+    // presence作成
+    await presenceRef.set({
+      page: "index"
+    });
+
+    alert("⑦ presence作成成功");
 
   } catch (err) {
 
