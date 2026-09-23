@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -6,10 +7,13 @@
 <title>誰かわからん通話 プロフィール一覧</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-  
+
 <style>
 body{
   margin:0;
@@ -187,6 +191,7 @@ h2{
   }
 }
 </style>
+
 </head>
 
 <body>
@@ -196,17 +201,18 @@ h2{
     🔄 更新
   </button>
 
-  <button class="edit-btn"
-          onclick="location.href='profile-edit.html'">
-    ✏️ プロフィール編集
-  </button>
-  <button class="edit-btn" onclick="shareSite()">
-  📤 このサイトを紹介
+<button class="edit-btn"
+       onclick="location.href='profile-edit.html'">
+✏️ プロフィール編集
 </button>
-  <button class="board-btn"
-        onclick="location.href='board.html'">
-    【NEW】待ち合わせ伝言板
+<button class="edit-btn" onclick="shareSite()">
+📤 このサイトを紹介
 </button>
+<button class="board-btn"
+     onclick="location.href='board.html'">
+【NEW】待ち合わせ伝言板
+</button>
+
 </div>
 <div style="
   margin:16px 0 24px;
@@ -262,176 +268,36 @@ const PAGE_SIZE = 20;
 auth.signInAnonymously();
 
 auth.onAuthStateChanged(async user => {
-
-  if (!user) return;
-
-  myUid = user.uid;
-
-  // =========================
-  // Firestoreのオンライン状態
-  // =========================
-
-  try {
-
-    await db.collection("user").doc(myUid).set({
-      lastSeen: Date.now()
-    }, { merge: true });
-
-    console.log("lastSeen更新成功");
-
-  } catch (error) {
-
-    console.error("lastSeen更新エラー:", error);
-
+  if (!user) {
+    try {
+      await auth.signInAnonymously();
+    } catch (err) {
+      console.error('匿名ログイン失敗', err);
+      showToast('匿名ログイン失敗: ' + err.message, 5000);
+    }
+    return;
   }
 
-
-  // =========================
-  // Realtime Database presence
-  // =========================
+  const presenceRef = rtdb.ref("presence/" + user.uid);
 
   try {
-
-    const presenceRef = rtdb.ref("presence/" + myUid);
-
-    // 通信が切れたら自動削除
     await presenceRef.onDisconnect().remove();
 
-    // 現在のページを登録
     await presenceRef.set({
-      page: "profiles"
+      page: "index"
     });
 
-    console.log("presence登録成功");
+    showToast("オンライン登録成功", 3000);
 
-  } catch (error) {
+  } catch (err) {
+    console.error("presence登録失敗", err);
 
-    console.error("presenceエラー:", error);
-
+    showToast(
+      "オンライン登録失敗: " +
+      (err.code || err.message || "原因不明"),
+      8000
+    );
   }
-
-
-  // =========================
-  // BAN確認
-  // =========================
-
-  try {
-
-    const myReport =
-      await db.collection("reports").doc(myUid).get();
-
-    const reportCount =
-      myReport.exists
-        ? (myReport.data().count || 0)
-        : 0;
-
-    if (reportCount >= 10) {
-
-      alert(
-        "通報が一定数を超えたため、このアカウントは利用できません。"
-      );
-
-      await auth.signOut();
-
-      location.href = "index.html";
-
-      return;
-    }
-
-  } catch (error) {
-
-    console.error("BAN確認エラー:", error);
-
-  }
-
-
-  // =========================
-  // 30秒ごとにオンライン更新
-  // =========================
-
-  setInterval(async () => {
-
-    if (!myUid) return;
-
-    try {
-
-      await db.collection("user").doc(myUid).set({
-        lastSeen: Date.now()
-      }, { merge: true });
-
-      console.log("lastSeen更新");
-
-    } catch (error) {
-
-      console.error("lastSeen更新エラー:", error);
-
-    }
-
-  }, 30000);
-
-
-  // =========================
-  // プロフィール一覧
-  // =========================
-
-  await loadUsers(true);
-
-
-  // =========================
-  // 紹介回数
-  // =========================
-
-  try {
-
-    const shareSnap =
-      await db.collection("stats").doc("share").get();
-
-    const shareCount =
-      shareSnap.exists
-        ? (shareSnap.data().count || 0)
-        : 0;
-
-    document.getElementById("shareCount").textContent =
-      shareCount;
-
-  } catch (error) {
-
-    console.error("紹介回数取得エラー:", error);
-
-  }
-
-
-  // =========================
-  // 着信監視
-  // =========================
-
-  window.unsubIncoming =
-    db.collection("calls")
-      .doc(myUid)
-      .onSnapshot(
-
-        snap => {
-
-          const d = snap.data();
-
-          if (!d) return;
-
-          if (d.from === myUid) return;
-
-          if (d.from) {
-            showIncomingCall(d.from);
-          }
-
-        },
-
-        error => {
-
-          console.error("着信監視エラー:", error);
-
-        }
-
-      );
-
 });
   async function loadUsers(first = false) {
 
