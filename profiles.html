@@ -267,18 +267,41 @@ auth.onAuthStateChanged(async user => {
 
   myUid = user.uid;
 
-  // 現在地を「プロフィール一覧」として登録
+  // =========================
+  // Firestoreのオンライン状態
+  // =========================
+
   try {
 
-    const presenceRef = rtdb.ref("presence/" + user.uid);
+    await db.collection("user").doc(myUid).set({
+      lastSeen: Date.now()
+    }, { merge: true });
 
-    // 通信が切れたら自動削除
+    console.log("lastSeen更新成功");
+
+  } catch (error) {
+
+    console.error("lastSeen更新エラー:", error);
+
+  }
+
+
+  // =========================
+  // Realtime Database presence
+  // =========================
+
+  try {
+
+    const presenceRef =
+      rtdb.ref("presence/" + myUid);
+
     await presenceRef.onDisconnect().remove();
 
-    // 現在のページを登録
     await presenceRef.set({
       page: "profiles"
     });
+
+    console.log("presence登録成功");
 
   } catch (error) {
 
@@ -286,12 +309,49 @@ auth.onAuthStateChanged(async user => {
 
   }
 
-  // ↓↓↓ ここから今までの処理 ↓↓↓
 
-  // 自分がBANされていないか確認
-  const myReport = await db.collection("reports").doc(myUid).get();
+  // =========================
+  // 以下、既存処理
+  // =========================
 
-  // ...
+  // BAN確認
+  const myReport =
+    await db.collection("reports").doc(myUid).get();
+
+  const reportCount =
+    myReport.exists
+      ? (myReport.data().count || 0)
+      : 0;
+
+  if (reportCount >= 10) {
+    alert("通報が一定数を超えたため、このアカウントは利用できません。");
+    await auth.signOut();
+    location.href = "index.html";
+    return;
+  }
+
+  // 30秒ごとにオンライン更新
+  setInterval(async () => {
+
+    if (!myUid) return;
+
+    try {
+
+      await db.collection("user").doc(myUid).set({
+        lastSeen: Date.now()
+      }, { merge: true });
+
+    } catch (error) {
+
+      console.error("lastSeen更新エラー:", error);
+
+    }
+
+  }, 30000);
+
+  await loadUsers(true);
+
+  // 以下、既存処理...
 });
 //  alert(myUid);
   if (!myUid) {
