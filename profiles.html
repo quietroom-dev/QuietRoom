@@ -262,19 +262,37 @@ const PAGE_SIZE = 20;
 auth.signInAnonymously();
 
 auth.onAuthStateChanged(async user => {
+
   if (!user) return;
+
   myUid = user.uid;
 
   // 現在地を「プロフィール一覧」として登録
-  const presenceRef = rtdb.ref("presence/" + user.uid);
+  try {
 
-  // 通信が切れたら自動削除
-  presenceRef.onDisconnect().remove();
+    const presenceRef = rtdb.ref("presence/" + user.uid);
 
-  // 現在のページを登録
-  await presenceRef.set({
-    page: "profiles"
-  });
+    // 通信が切れたら自動削除
+    await presenceRef.onDisconnect().remove();
+
+    // 現在のページを登録
+    await presenceRef.set({
+      page: "profiles"
+    });
+
+  } catch (error) {
+
+    console.error("presenceエラー:", error);
+
+  }
+
+  // ↓↓↓ ここから今までの処理 ↓↓↓
+
+  // 自分がBANされていないか確認
+  const myReport = await db.collection("reports").doc(myUid).get();
+
+  // ...
+});
 //  alert(myUid);
   if (!myUid) {
     alert("通話する場合はプロフィール作成からやり直してください。");
