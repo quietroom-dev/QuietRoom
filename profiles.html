@@ -292,11 +292,12 @@ auth.onAuthStateChanged(async user => {
 
   try {
 
-    const presenceRef =
-      rtdb.ref("presence/" + myUid);
+    const presenceRef = rtdb.ref("presence/" + myUid);
 
+    // 通信が切れたら自動削除
     await presenceRef.onDisconnect().remove();
 
+    // 現在のページを登録
     await presenceRef.set({
       page: "profiles"
     });
@@ -311,26 +312,43 @@ auth.onAuthStateChanged(async user => {
 
 
   // =========================
-  // 以下、既存処理
+  // BAN確認
   // =========================
 
-  // BAN確認
-  const myReport =
-    await db.collection("reports").doc(myUid).get();
+  try {
 
-  const reportCount =
-    myReport.exists
-      ? (myReport.data().count || 0)
-      : 0;
+    const myReport =
+      await db.collection("reports").doc(myUid).get();
 
-  if (reportCount >= 10) {
-    alert("通報が一定数を超えたため、このアカウントは利用できません。");
-    await auth.signOut();
-    location.href = "index.html";
-    return;
+    const reportCount =
+      myReport.exists
+        ? (myReport.data().count || 0)
+        : 0;
+
+    if (reportCount >= 10) {
+
+      alert(
+        "通報が一定数を超えたため、このアカウントは利用できません。"
+      );
+
+      await auth.signOut();
+
+      location.href = "index.html";
+
+      return;
+    }
+
+  } catch (error) {
+
+    console.error("BAN確認エラー:", error);
+
   }
 
+
+  // =========================
   // 30秒ごとにオンライン更新
+  // =========================
+
   setInterval(async () => {
 
     if (!myUid) return;
@@ -341,6 +359,8 @@ auth.onAuthStateChanged(async user => {
         lastSeen: Date.now()
       }, { merge: true });
 
+      console.log("lastSeen更新");
+
     } catch (error) {
 
       console.error("lastSeen更新エラー:", error);
@@ -349,54 +369,69 @@ auth.onAuthStateChanged(async user => {
 
   }, 30000);
 
+
+  // =========================
+  // プロフィール一覧
+  // =========================
+
   await loadUsers(true);
 
-  // 以下、既存処理...
-});
-//  alert(myUid);
-  if (!myUid) {
-    alert("通話する場合はプロフィール作成からやり直してください。");
-    location.href = "index.html";
-    return;
+
+  // =========================
+  // 紹介回数
+  // =========================
+
+  try {
+
+    const shareSnap =
+      await db.collection("stats").doc("share").get();
+
+    const shareCount =
+      shareSnap.exists
+        ? (shareSnap.data().count || 0)
+        : 0;
+
+    document.getElementById("shareCount").textContent =
+      shareCount;
+
+  } catch (error) {
+
+    console.error("紹介回数取得エラー:", error);
+
   }
-  // 自分がBANされていないか確認
-const myReport = await db.collection("reports").doc(myUid).get();
-const reportCount =
-  myReport.exists ? (myReport.data().count || 0) : 0;
-if (reportCount >= 10) {
-  alert("通報が一定数を超えたため、このアカウントは利用できません。");
-  await auth.signOut();
-  location.href = "index.html";
-  return;
-}
-// BANされていなければオンライン
-await db.collection("user").doc(myUid).set({
-  lastSeen: Date.now()
-}, { merge:true });
-setInterval(async () => {
-  if (!myUid) return;
 
-  await db.collection("user").doc(myUid).set({
-  lastSeen: Date.now()
-}, { merge:true });
-}, 30000);
-  await loadUsers(true);
-  // 紹介回数を表示
-const shareSnap = await db.collection("stats").doc("share").get();
-const shareCount = shareSnap.exists ? (shareSnap.data().count || 0) : 0;
 
-document.getElementById("shareCount").textContent = shareCount;
+  // =========================
+  // 着信監視
+  // =========================
 
-  window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
-    const d = snap.data();
-    if (!d) return;
-    if (d.from === myUid) return;
-   // if (d.from) showIncomingCall(d.from);
-    if (d.from) {
-//  alert("着信検知");
-  showIncomingCall(d.from);
-}
-  });
+  window.unsubIncoming =
+    db.collection("calls")
+      .doc(myUid)
+      .onSnapshot(
+
+        snap => {
+
+          const d = snap.data();
+
+          if (!d) return;
+
+          if (d.from === myUid) return;
+
+          if (d.from) {
+            showIncomingCall(d.from);
+          }
+
+        },
+
+        error => {
+
+          console.error("着信監視エラー:", error);
+
+        }
+
+      );
+
 });
   async function loadUsers(first = false) {
 
