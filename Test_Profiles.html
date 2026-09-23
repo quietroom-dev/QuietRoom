@@ -293,13 +293,13 @@ auth.onAuthStateChanged(async user => {
 
     alert("⑤ presence書き込み開始");
 
-    await presenceRef.onDisconnect().remove();
+    alert("⑤ presence書き込み開始");
 
-    alert("⑥ onDisconnect設定OK");
+await presenceRef.set({
+  page: "index"
+});
 
-    await presenceRef.set({
-      page: "index"
-    });
+alert("⑥ presence作成成功");
 
     alert("⑦ presence作成成功");
 
