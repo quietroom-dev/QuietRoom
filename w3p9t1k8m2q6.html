@@ -8,7 +8,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  
 <style>
 body {
   margin: 0;
@@ -157,6 +158,21 @@ font-family:monospace;">
   </p>
 </div>
 <!-- ▲▲▲ ログイン画面 ▲▲▲ -->
+<div id="presencePanel" style="
+  display:none;
+  padding:12px;
+  margin-bottom:8px;
+  background:#050505;
+  border:1px solid #1f1f1f;
+  border-radius:8px;
+  color:#4aff4a;
+  font-size:14px;
+  line-height:1.8;
+">
+  <div>現在のアクセス人数</div>
+  <div>トップページ：<span id="indexCount">0</span>人</div>
+  <div>プロフィール：<span id="profilesCount">0</span>人</div>
+</div>
 
 <div id="gridView"></div>
 
@@ -180,6 +196,8 @@ firebase.initializeApp({
 });
 const auth = firebase.auth();
 const db = firebase.firestore();
+const rtdb = firebase.database();
+
 let myUid;
 let pcMap = new Map();
 let watcherMap = new Map();
@@ -190,12 +208,44 @@ auth.onAuthStateChanged(user => {
   if (!user) {
     document.getElementById("loginBox").style.display="block";
     document.getElementById("gridView").style.display="none";
+    document.getElementById("presencePanel").style.display="none";
     return;
   }
+
   myUid = user.uid;
+
   document.getElementById("loginBox").style.display="none";
   document.getElementById("gridView").style.display="grid";
+  document.getElementById("presencePanel").style.display="block";
+
+  startPresenceMonitor();
 });
+
+function startPresenceMonitor() {
+  const presenceRef = rtdb.ref("presence");
+
+  presenceRef.on("value", snapshot => {
+    let indexCount = 0;
+    let profilesCount = 0;
+
+    snapshot.forEach(child => {
+      const data = child.val();
+
+      if (!data) return;
+
+      if (data.page === "index") {
+        indexCount++;
+      }
+
+      if (data.page === "profiles") {
+        profilesCount++;
+      }
+    });
+
+    document.getElementById("indexCount").textContent = indexCount;
+    document.getElementById("profilesCount").textContent = profilesCount;
+  });
+}
 
 /* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
 async function login() {
