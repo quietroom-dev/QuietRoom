@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -7,12 +6,8 @@
 <title>誰かわからん通話 プロフィール一覧</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <style>
 body{
@@ -191,7 +186,6 @@ h2{
   }
 }
 </style>
-
 </head>
 
 <body>
@@ -201,18 +195,17 @@ h2{
     🔄 更新
   </button>
 
-<button class="edit-btn"
-       onclick="location.href='profile-edit.html'">
-✏️ プロフィール編集
+  <button class="edit-btn"
+          onclick="location.href='profile-edit.html'">
+    ✏️ プロフィール編集
+  </button>
+  <button class="edit-btn" onclick="shareSite()">
+  📤 このサイトを紹介
 </button>
-<button class="edit-btn" onclick="shareSite()">
-📤 このサイトを紹介
+  <button class="board-btn"
+        onclick="location.href='board.html'">
+    【NEW】待ち合わせ伝言板
 </button>
-<button class="board-btn"
-     onclick="location.href='board.html'">
-【NEW】待ち合わせ伝言板
-</button>
-
 </div>
 <div style="
   margin:16px 0 24px;
@@ -260,56 +253,58 @@ firebase.initializeApp({
 });
 const auth = firebase.auth();
 const db = firebase.firestore();
-const rtdb = firebase.database();
-
 let myUid = null;
 let lastDoc = null;
 const PAGE_SIZE = 20;
 auth.signInAnonymously();
 
 auth.onAuthStateChanged(async user => {
-
-  alert("① auth.onAuthStateChanged が実行されました");
-
-  if (!user) {
-    alert("② ユーザーがいません。匿名ログインします");
-
-    try {
-      await auth.signInAnonymously();
-      alert("③ 匿名ログイン成功");
-    } catch (err) {
-      alert("匿名ログイン失敗\n" + err.code + "\n" + err.message);
-    }
-
+  if (!user) return;
+  myUid = user.uid;
+//  alert(myUid);
+  if (!myUid) {
+    alert("通話する場合はプロフィール作成からやり直してください。");
+    location.href = "index.html";
     return;
   }
+  // 自分がBANされていないか確認
+const myReport = await db.collection("reports").doc(myUid).get();
+const reportCount =
+  myReport.exists ? (myReport.data().count || 0) : 0;
+if (reportCount >= 10) {
+  alert("通報が一定数を超えたため、このアカウントは利用できません。");
+  await auth.signOut();
+  location.href = "index.html";
+  return;
+}
+// BANされていなければオンライン
+await db.collection("user").doc(myUid).set({
+  lastSeen: Date.now()
+}, { merge:true });
+setInterval(async () => {
+  if (!myUid) return;
 
-  alert("④ ユーザー確認OK\nUID: " + user.uid);
+  await db.collection("user").doc(myUid).set({
+  lastSeen: Date.now()
+}, { merge:true });
+}, 30000);
+  await loadUsers(true);
+  // 紹介回数を表示
+const shareSnap = await db.collection("stats").doc("share").get();
+const shareCount = shareSnap.exists ? (shareSnap.data().count || 0) : 0;
 
-  const presenceRef = rtdb.ref("presence/" + user.uid);
+document.getElementById("shareCount").textContent = shareCount;
 
-  try {
-
-    alert("⑤ presence書き込み開始");
-
-    await presenceRef.onDisconnect().remove();
-
-    alert("⑥ onDisconnect設定OK");
-
-    await presenceRef.set({
-      page: "index"
-    });
-
-    alert("⑦ presence作成成功");
-
-  } catch (err) {
-
-    alert(
-      "⑧ presence作成失敗\n\n" +
-      "code: " + err.code + "\n" +
-      "message: " + err.message
-    );
-  }
+  window.unsubIncoming = db.collection("calls").doc(myUid).onSnapshot(snap => {
+    const d = snap.data();
+    if (!d) return;
+    if (d.from === myUid) return;
+   // if (d.from) showIncomingCall(d.from);
+    if (d.from) {
+//  alert("着信検知");
+  showIncomingCall(d.from);
+}
+  });
 });
   async function loadUsers(first = false) {
 
