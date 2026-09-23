@@ -291,17 +291,22 @@ auth.onAuthStateChanged(async user => {
 
   try {
 
-    alert("⑤ presence書き込み開始");
+alert("⑤ presence書き込み開始");
 
-    alert("⑤ presence書き込み開始");
+const connectedRef = rtdb.ref(".info/connected");
+
+const connectedSnapshot = await connectedRef.once("value");
+
+alert(
+  "⑥ RTDB接続状態: " +
+  connectedSnapshot.val()
+);
 
 await presenceRef.set({
   page: "index"
 });
 
-alert("⑥ presence作成成功");
-
-    alert("⑦ presence作成成功");
+alert("⑦ presence作成成功");
 
   } catch (err) {
 
