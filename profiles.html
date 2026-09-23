@@ -268,34 +268,46 @@ const PAGE_SIZE = 20;
 auth.signInAnonymously();
 
 auth.onAuthStateChanged(async user => {
+
+  alert("① auth.onAuthStateChanged が実行されました");
+
   if (!user) {
+    alert("② ユーザーがいません。匿名ログインします");
+
     try {
       await auth.signInAnonymously();
+      alert("③ 匿名ログイン成功");
     } catch (err) {
-      console.error('匿名ログイン失敗', err);
-      showToast('匿名ログイン失敗: ' + err.message, 5000);
+      alert("匿名ログイン失敗\n" + err.code + "\n" + err.message);
     }
+
     return;
   }
+
+  alert("④ ユーザー確認OK\nUID: " + user.uid);
 
   const presenceRef = rtdb.ref("presence/" + user.uid);
 
   try {
+
+    alert("⑤ presence書き込み開始");
+
     await presenceRef.onDisconnect().remove();
+
+    alert("⑥ onDisconnect設定OK");
 
     await presenceRef.set({
       page: "index"
     });
 
-    showToast("オンライン登録成功", 3000);
+    alert("⑦ presence作成成功");
 
   } catch (err) {
-    console.error("presence登録失敗", err);
 
-    showToast(
-      "オンライン登録失敗: " +
-      (err.code || err.message || "原因不明"),
-      8000
+    alert(
+      "⑧ presence作成失敗\n\n" +
+      "code: " + err.code + "\n" +
+      "message: " + err.message
     );
   }
 });
