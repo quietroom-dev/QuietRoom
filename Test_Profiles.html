@@ -313,6 +313,7 @@ setInterval(async () => {
     });
 
     console.log("profiles presence登録成功");
+    await loadUsers(true);
 
   } catch (err) {
     console.error(
