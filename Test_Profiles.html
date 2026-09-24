@@ -252,7 +252,7 @@ h2{
 
 <script>
 firebase.initializeApp({
-  apiKey: "AIzaSyDXSKJaknyHhXGtrFQCzYhmA6r7VQR0K_GM",
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
   projectId: "roomvideo",
   databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -260,7 +260,6 @@ firebase.initializeApp({
   messagingSenderId: "1030429439546",
   appId: "1:1030429439546:web:1481670cb78deb35e2a703"
 });
-
 const auth = firebase.auth();
 const db = firebase.firestore();
 const rtdb = firebase.database();
@@ -268,34 +267,63 @@ const rtdb = firebase.database();
 let myUid = null;
 let lastDoc = null;
 const PAGE_SIZE = 20;
-
 auth.onAuthStateChanged(async user => {
 
+  alert("① auth.onAuthStateChanged が実行されました");
+
   if (!user) {
+    alert("② ユーザーがいません。匿名ログインします");
+
     try {
       await auth.signInAnonymously();
+      alert("③ 匿名ログイン成功");
     } catch (err) {
-      console.error("匿名ログイン失敗", err);
+      alert("匿名ログイン失敗\n" + err.code + "\n" + err.message);
     }
+
     return;
   }
 
-  myUid = user.uid;
+  alert("④ ユーザー確認OK\nUID: " + user.uid);
 
   const presenceRef = rtdb.ref("presence/" + user.uid);
 
   try {
 
-    // ページを離れたらpresenceを自動削除
-    await presenceRef.onDisconnect().remove();
+    alert("⑤ presence書き込み開始");
 
-    // 現在いるページを登録
-    await presenceRef.set({
-      page: "profiles"
+    const connectedRef = rtdb.ref(".info/connected");
+
+    // 現在の接続状態
+    const connectedSnapshot = await connectedRef.once("value");
+
+    alert(
+      "⑥ RTDB接続状態: " +
+      connectedSnapshot.val()
+    );
+
+    // 接続状態が変化したら表示
+    connectedRef.on("value", snapshot => {
+      alert(
+        "RTDB接続状態が変化: " +
+        snapshot.val()
+      );
     });
 
+    // presence作成
+    await presenceRef.set({
+      page: "index"
+    });
+
+    alert("⑦ presence作成成功");
+
   } catch (err) {
-    console.error("presence登録失敗", err);
+
+    alert(
+      "⑧ presence作成失敗\n\n" +
+      "code: " + err.code + "\n" +
+      "message: " + err.message
+    );
   }
 });
   async function loadUsers(first = false) {
