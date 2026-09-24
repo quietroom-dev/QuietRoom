@@ -252,7 +252,7 @@ h2{
 
 <script>
 firebase.initializeApp({
-  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  apiKey: "AIzaSyDXSKJaknyHhXGtrFQCzYhmA6r7VQR0K_GM",
   authDomain: "roomvideo.firebaseapp.com",
   projectId: "roomvideo",
   databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -260,6 +260,7 @@ firebase.initializeApp({
   messagingSenderId: "1030429439546",
   appId: "1:1030429439546:web:1481670cb78deb35e2a703"
 });
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 const rtdb = firebase.database();
@@ -267,28 +268,34 @@ const rtdb = firebase.database();
 let myUid = null;
 let lastDoc = null;
 const PAGE_SIZE = 20;
+
 auth.onAuthStateChanged(async user => {
+
   if (!user) {
     try {
       await auth.signInAnonymously();
     } catch (err) {
+      console.error("匿名ログイン失敗", err);
     }
     return;
   }
-  const presenceRef = rtdb.ref("presence/" + user.uid);
-  try {
-    const connectedRef = rtdb.ref(".info/connected");
-    // 現在の接続状態
-    const connectedSnapshot = await connectedRef.once("value");
-    // 接続状態が変化したら表示
-    connectedRef.on("value", snapshot => {
-    });
 
-    // presence作成
+  myUid = user.uid;
+
+  const presenceRef = rtdb.ref("presence/" + user.uid);
+
+  try {
+
+    // ページを離れたらpresenceを自動削除
+    await presenceRef.onDisconnect().remove();
+
+    // 現在いるページを登録
     await presenceRef.set({
       page: "profiles"
     });
+
   } catch (err) {
+    console.error("presence登録失敗", err);
   }
 });
   async function loadUsers(first = false) {
