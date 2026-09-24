@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>誰かわからん通話</title>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
+  <!-- Firebase --><!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  
   <style>
     :root{
   --bg:#f5f7fa;
@@ -415,15 +416,37 @@ textarea{
       setTimeout(()=> toast.style.display = 'none', ms);
     }
 
-    // 匿名ログインを事前に行う
-    auth.onAuthStateChanged(user => {
-      if (!user) {
-        auth.signInAnonymously().catch(err => {
-          console.error('匿名ログイン失敗', err);
-          showToast('ログインに失敗しました');
-        });
-      }
+// 匿名ログイン + presence
+auth.onAuthStateChanged(async user => {
+
+  if (!user) {
+    try {
+      await auth.signInAnonymously();
+    } catch (err) {
+      console.error('匿名ログイン失敗', err);
+      showToast('ログインに失敗しました');
+    }
+    return;
+  }
+
+  const presenceRef = firebase
+    .database()
+    .ref("presence/" + user.uid);
+
+  try {
+
+    // ページを離れたら自動削除
+    await presenceRef.onDisconnect().remove();
+
+    // 現在はトップページにいる
+    await presenceRef.set({
+      page: "index"
     });
+
+  } catch (err) {
+    console.error("presence登録失敗", err);
+  }
+});
 
     // まずは体験だけするボタン
     startBtn.addEventListener('click', async () => {
