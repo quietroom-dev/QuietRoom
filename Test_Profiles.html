@@ -279,6 +279,19 @@ auth.onAuthStateChanged(async user => {
   }
 
   myUid = user.uid;
+  // オンライン状態をFirestoreに記録
+await db.collection("user").doc(myUid).set({
+  lastSeen: Date.now()
+}, { merge: true });
+
+// 30秒ごとに更新
+setInterval(async () => {
+  if (!myUid) return;
+
+  await db.collection("user").doc(myUid).set({
+    lastSeen: Date.now()
+  }, { merge: true });
+}, 30000);
 
   const presenceRef =
     rtdb.ref("presence/" + user.uid);
