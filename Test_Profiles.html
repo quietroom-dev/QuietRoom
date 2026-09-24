@@ -269,60 +269,43 @@ let lastDoc = null;
 const PAGE_SIZE = 20;
 auth.onAuthStateChanged(async user => {
 
-  alert("① auth.onAuthStateChanged が実行されました");
-
   if (!user) {
-    alert("② ユーザーがいません。匿名ログインします");
-
     try {
       await auth.signInAnonymously();
-      alert("③ 匿名ログイン成功");
     } catch (err) {
-      alert("匿名ログイン失敗\n" + err.code + "\n" + err.message);
+      console.error("匿名ログイン失敗", err);
     }
-
     return;
   }
 
-  alert("④ ユーザー確認OK\nUID: " + user.uid);
+  myUid = user.uid;
 
-  const presenceRef = rtdb.ref("presence/" + user.uid);
+  const presenceRef =
+    rtdb.ref("presence/" + user.uid);
+
+  const connectedRef =
+    rtdb.ref(".info/connected");
 
   try {
 
-    alert("⑤ presence書き込み開始");
+    // RTDB接続が確立するまで待つ
+    await connectedRef.once("value");
 
-    const connectedRef = rtdb.ref(".info/connected");
+    // 切断時に自動削除
+    await presenceRef.onDisconnect().remove();
 
-    // 現在の接続状態
-    const connectedSnapshot = await connectedRef.once("value");
-
-    alert(
-      "⑥ RTDB接続状態: " +
-      connectedSnapshot.val()
-    );
-
-    // 接続状態が変化したら表示
-    connectedRef.on("value", snapshot => {
-      alert(
-        "RTDB接続状態が変化: " +
-        snapshot.val()
-      );
-    });
-
-    // presence作成
+    // profilesページとして登録
     await presenceRef.set({
       page: "profiles"
     });
 
-    alert("⑦ presence作成成功");
+    console.log("profiles presence登録成功");
 
   } catch (err) {
-
-    alert(
-      "⑧ presence作成失敗\n\n" +
-      "code: " + err.code + "\n" +
-      "message: " + err.message
+    console.error(
+      "presence登録失敗:",
+      err.code,
+      err.message
     );
   }
 });
