@@ -172,6 +172,18 @@ font-family:monospace;">
   <div>現在のアクセス人数</div>
   <div>トップページ：<span id="indexCount">0</span>人</div>
   <div>プロフィール：<span id="profilesCount">0</span>人</div>
+  <button id="notificationBtn"
+  style="
+    margin-top:8px;
+    padding:8px 12px;
+    border:1px solid #4aff4a;
+    border-radius:4px;
+    background:#000;
+    color:#4aff4a;
+    font-family:monospace;
+  ">
+  🔔 通知を許可する
+</button>
 </div>
 
 <div id="gridView"></div>
@@ -222,6 +234,10 @@ auth.onAuthStateChanged(user => {
   startPresenceMonitor();
 });
 
+let previousIndexCount = null;
+let previousProfilesCount = null;
+let presenceInitialized = false;
+
 function startPresenceMonitor() {
   const presenceRef = rtdb.ref("presence");
 
@@ -245,7 +261,71 @@ function startPresenceMonitor() {
 
     document.getElementById("indexCount").textContent = indexCount;
     document.getElementById("profilesCount").textContent = profilesCount;
+
+    // 初回は現在人数を記録するだけ
+    if (!presenceInitialized) {
+      previousIndexCount = indexCount;
+      previousProfilesCount = profilesCount;
+      presenceInitialized = true;
+      return;
+    }
+
+    // トップページの人数が増えた
+    if (indexCount > previousIndexCount) {
+      notifyNewAccess(
+        "トップページに新しいアクセス",
+        "現在 " + indexCount + "人"
+      );
+    }
+
+    // プロフィールの人数が増えた
+    if (profilesCount > previousProfilesCount) {
+      notifyNewAccess(
+        "プロフィールに新しいアクセス",
+        "現在 " + profilesCount + "人"
+      );
+    }
+
+    previousIndexCount = indexCount;
+    previousProfilesCount = profilesCount;
   });
+}
+
+
+function notifyNewAccess(title, body) {
+  if (!("Notification" in window)) {
+    console.log("この環境ではNotification APIが使えません");
+    return;
+  }
+
+  if (Notification.permission !== "granted") {
+    return;
+  }
+
+  new Notification(title, {
+    body: body,
+    icon: "/favicon.ico"
+  });
+}
+
+const notificationBtn =
+  document.getElementById("notificationBtn");
+
+if (notificationBtn) {
+  notificationBtn.onclick = async () => {
+    if (!("Notification" in window)) {
+      alert("この端末では通知機能を利用できません");
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission === "granted") {
+      notificationBtn.textContent = "🔔 通知ON";
+    } else {
+      notificationBtn.textContent = "🔕 通知OFF";
+    }
+  };
 }
 
 /* ▼▼▼ 管理者ログイン（password 方式） ▼▼▼ */
