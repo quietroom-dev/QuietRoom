@@ -322,6 +322,33 @@ setInterval(async () => {
       err.message
     );
   }
+    // 自分宛ての着信を監視する
+  if (window.unsubIncoming) {
+    window.unsubIncoming();
+  }
+
+  window.unsubIncoming = db.collection("calls").doc(myUid)
+    .onSnapshot((snap) => {
+      if (!snap.exists) return;
+
+      const d = snap.data();
+
+      // 発信者情報がない場合、自分自身からの発信、
+      // または終了済みの通話は無視する
+      if (!d || !d.from || d.from === myUid || d.ended === true) {
+        return;
+      }
+
+      // 着信画面を表示する
+      showIncomingCall(d.from);
+
+    }, (err) => {
+      console.error(
+        "着信監視失敗:",
+        err.code,
+        err.message
+      );
+    });
 });
   async function loadUsers(first = false) {
 
