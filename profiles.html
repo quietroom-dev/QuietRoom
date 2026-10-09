@@ -279,6 +279,18 @@ auth.onAuthStateChanged(async user => {
   }
 
   myUid = user.uid;
+
+  // 自分が利用制限対象でないか確認
+  const myReport = await db.collection("reports").doc(myUid).get();
+  const reportCount = myReport.exists ? (myReport.data().count || 0) : 0;
+
+  if (reportCount >= 10) {
+    alert("通報が一定数を超えたため、このアカウントは利用できません。");
+    await auth.signOut();
+    location.href = "index.html";
+    return;
+  }
+
   // オンライン状態をFirestoreに記録
 await db.collection("user").doc(myUid).set({
   lastSeen: Date.now()
@@ -322,7 +334,18 @@ setInterval(async () => {
       err.message
     );
   }
-    // 自分宛ての着信を監視する
+
+  // 紹介回数をFirestoreから読み込んで表示
+  try {
+    const shareSnap = await db.collection("stats").doc("share").get();
+    const shareCount = shareSnap.exists ? (shareSnap.data().count || 0) : 0;
+    document.getElementById("shareCount").textContent = shareCount;
+  } catch (err) {
+    console.error("紹介回数の読み込み失敗:", err.code, err.message);
+    document.getElementById("shareCount").textContent = "取得できません";
+  }
+
+  // 自分宛ての着信を監視する
   if (window.unsubIncoming) {
     window.unsubIncoming();
   }
@@ -332,22 +355,21 @@ setInterval(async () => {
       if (!snap.exists) return;
 
       const d = snap.data();
-
-      // 発信者情報がない場合、自分自身からの発信、
-      // または終了済みの通話は無視する
       if (!d || !d.from || d.from === myUid || d.ended === true) {
         return;
       }
 
-      // 着信画面を表示する
-      showIncomingCall(d.from);
+      // 同じ着信ダイアログを繰り返し表示しない
+      if (
+        window._incomingFrom === d.from &&
+        incomingCall.style.display === "flex"
+      ) {
+        return;
+      }
 
+      showIncomingCall(d.from);
     }, (err) => {
-      console.error(
-        "着信監視失敗:",
-        err.code,
-        err.message
-      );
+      console.error("着信監視失敗:", err.code, err.message);
     });
 });
   async function loadUsers(first = false) {
@@ -518,14 +540,29 @@ function acceptCall() {
 }
 
 async function declineCall() {
-  if (window.unsubIncoming) window.unsubIncoming();
-  db.collection("calls").doc(myUid).delete();
-  const callId = window._incomingFrom + "_" + myUid;
-  const callDoc = db.collection("calls").doc(callId);
-  await callDoc.set({
-  ended: true
-  }, { merge: true });
+  const fromUid = window._incomingFrom;
+
+  // 通話接続用ドキュメントがあれば終了状態にする
+  if (fromUid) {
+    const callId = fromUid + "_" + myUid;
+    const callDoc = db.collection("calls").doc(callId);
+
+    try {
+      await callDoc.set({ ended: true }, { merge: true });
+    } catch (err) {
+      console.error("通話終了状態の更新失敗:", err.code, err.message);
+    }
+  }
+
+  // 着信通知ドキュメントを削除する。監視自体は解除しない。
+  try {
+    await db.collection("calls").doc(myUid).delete();
+  } catch (err) {
+    console.error("着信通知の削除失敗:", err.code, err.message);
+  }
+
   incomingCall.style.display = "none";
+  window._incomingFrom = null;
 }async function shareSite() {
   const url = "https://quietroom-dev.github.io/QuietRoom/";
 
