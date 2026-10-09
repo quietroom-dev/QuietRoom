@@ -1,0 +1,598 @@
+
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>誰かわからん通話 プロフィール一覧</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<style>
+body{
+  margin:0;
+  background:#f5f7fa;
+  color:#334155;
+  font-family:Inter,"Helvetica Neue",Arial,sans-serif;
+  padding:20px;
+}
+
+.top-actions{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
+}
+
+button{
+  border:none;
+  cursor:pointer;
+  font-size:15px;
+  border-radius:12px;
+  padding:12px 16px;
+  transition:.2s;
+}
+
+button:hover{
+  opacity:.9;
+}
+
+.action-btn{
+  background:#5d7087;
+  color:#fff;
+}
+
+.edit-btn{
+  background:#fff;
+  color:#5d7087;
+  border:1px solid #d7dde5;
+}
+
+.board-btn{
+  background:#ff7a18;
+  color:#fff;
+  font-weight:bold;
+  font-size:16px;
+  border-radius:14px;
+  padding:12px 20px;
+  box-shadow:0 6px 18px rgba(255,122,24,.35);
+  animation:pulse 1.8s infinite;
+}
+
+.board-btn:hover{
+  transform:scale(1.05);
+}
+
+@keyframes pulse{
+  0%{transform:scale(1);}
+  50%{transform:scale(1.06);}
+  100%{transform:scale(1);}
+}
+
+h2{
+  margin:0 0 20px;
+  color:#344054;
+  font-size:28px;
+}
+
+.user-card{
+  background:#fff;
+  padding:18px;
+  margin-bottom:16px;
+  border-radius:16px;
+  box-shadow:0 4px 16px rgba(15,23,42,.08);
+  border:1px solid #eef2f6;
+}
+
+.user-card h3{
+  margin:0 0 12px;
+  color:#344054;
+  font-size:20px;
+}
+
+.user-card p{
+  margin:6px 0;
+  color:#667085;
+  line-height:1.5;
+}
+
+.user-card button{
+  margin-top:10px;
+  margin-right:8px;
+}
+
+.user-card button:nth-of-type(1){
+  background:#5d7087;
+  color:#fff;
+}
+
+.user-card button:nth-of-type(2){
+  background:#fff3cd;
+  color:#8a6d3b;
+  border:1px solid #ffe69c;
+}
+
+.user-card button:nth-of-type(3){
+  background:#ffe5e5;
+  color:#c62828;
+  border:1px solid #ffcaca;
+}
+
+#incomingCall{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.75);
+  backdrop-filter:blur(6px);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  z-index:999;
+  padding:24px;
+  text-align:center;
+}
+
+#incomingCall h2{
+  background:#fff;
+  color:#344054;
+  padding:24px;
+  border-radius:16px 16px 0 0;
+  margin:0;
+  width:min(500px,100%);
+}
+
+#callerProfile{
+  background:#fff;
+  color:#667085;
+  width:min(500px,100%);
+  padding:20px;
+}
+
+#incomingCall button{
+  width:250px;
+  margin-top:12px;
+}
+
+#incomingCall button:first-of-type{
+  background:#5d7087;
+  color:#fff;
+}
+
+#incomingCall button:last-of-type{
+  background:#fff;
+  color:#475467;
+  border:1px solid #d7dde5;
+}
+
+@media(max-width:700px){
+
+  body{
+    padding:16px;
+  }
+
+  h2{
+    font-size:24px;
+  }
+
+  .user-card{
+    padding:16px;
+  }
+
+  .user-card button{
+    width:100%;
+    margin-right:0;
+    margin-bottom:8px;
+  }
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="top-actions">
+  <button class="action-btn" onclick="location.reload()">
+    🔄 更新
+  </button>
+
+<button class="edit-btn"
+       onclick="location.href='profile-edit.html'">
+✏️ プロフィール編集
+</button>
+<button class="edit-btn" onclick="shareSite()">
+📤 このサイトを紹介
+</button>
+<button class="board-btn"
+     onclick="location.href='board.html'">
+【NEW】待ち合わせ伝言板
+</button>
+
+</div>
+<div style="
+  margin:16px 0 24px;
+  padding:14px;
+  background:#eef6ff;
+  border:1px solid #cfe2ff;
+  border-radius:12px;
+  color:#334155;
+  line-height:1.7;
+  font-size:14px;
+">
+  📢 <strong>このサービスは利用者が増えるほど楽しめます。</strong><br>
+  相手が見つからなかった方申し訳ありません。<br>
+  人が集まりやすいのは<strong>23時〜24時過ぎ頃</strong>のようです。<br>
+  何度か覗いてみてください。<br>
+  伝言板で来る時間を書くなどもご活用ください。<br>
+  気に入っていただけたら、「このサイトを紹介」からお友達やSNSで紹介していただけると嬉しいです。<br>
+  皆さんのご協力によって、もっと通話しやすいサービスになりますので、よろしくお願いします。<br>
+  <p>📤 紹介された回数：<strong id="shareCount">読み込み中...</strong> 回</p>
+</div>
+
+<h2>プロフィール一覧</h2>
+<div id="userList"></div>
+<div style="text-align:center;margin:20px;">
+    <button class="action-btn" onclick="loadUsers()">
+        ▼ もっと見る
+    </button>
+</div>
+
+<div id="incomingCall">
+  <h2>通話リクエストがきています。<br>音声オフ・モザイクなので安心してください。</h2>
+  <div id="callerProfile"></div>
+  <button onclick="acceptCall()">出る</button>
+  <button onclick="declineCall()">出ない</button>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyDXSKJaknyhXGtrFQCzYhmA6r7VQR0K_GM",
+  authDomain: "roomvideo.firebaseapp.com",
+  projectId: "roomvideo",
+  databaseURL: "https://roomvideo-default-rtdb.asia-southeast1.firebasedatabase.app",
+  storageBucket: "roomvideo.firebasestorage.app",
+  messagingSenderId: "1030429439546",
+  appId: "1:1030429439546:web:1481670cb78deb35e2a703"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
+const rtdb = firebase.database();
+
+let myUid = null;
+let lastDoc = null;
+const PAGE_SIZE = 20;
+auth.onAuthStateChanged(async user => {
+
+  if (!user) {
+    try {
+      await auth.signInAnonymously();
+    } catch (err) {
+      console.error("匿名ログイン失敗", err);
+    }
+    return;
+  }
+
+  myUid = user.uid;
+
+  // 自分が利用制限対象でないか確認
+  const myReport = await db.collection("reports").doc(myUid).get();
+  const reportCount = myReport.exists ? (myReport.data().count || 0) : 0;
+
+  if (reportCount >= 10) {
+    alert("通報が一定数を超えたため、このアカウントは利用できません。");
+    await auth.signOut();
+    location.href = "index.html";
+    return;
+  }
+
+  // オンライン状態をFirestoreに記録
+await db.collection("user").doc(myUid).set({
+  lastSeen: Date.now()
+}, { merge: true });
+
+// 30秒ごとに更新
+setInterval(async () => {
+  if (!myUid) return;
+
+  await db.collection("user").doc(myUid).set({
+    lastSeen: Date.now()
+  }, { merge: true });
+}, 30000);
+
+  const presenceRef =
+    rtdb.ref("presence/" + user.uid);
+
+  const connectedRef =
+    rtdb.ref(".info/connected");
+
+  try {
+
+    // RTDB接続が確立するまで待つ
+    await connectedRef.once("value");
+
+    // 切断時に自動削除
+    await presenceRef.onDisconnect().remove();
+
+    // profilesページとして登録
+    await presenceRef.set({
+      page: "profiles"
+    });
+
+    console.log("profiles presence登録成功");
+    await loadUsers(true);
+
+  } catch (err) {
+    console.error(
+      "presence登録失敗:",
+      err.code,
+      err.message
+    );
+  }
+
+  // 紹介回数をFirestoreから読み込んで表示
+  try {
+    const shareSnap = await db.collection("stats").doc("share").get();
+    const shareCount = shareSnap.exists ? (shareSnap.data().count || 0) : 0;
+    document.getElementById("shareCount").textContent = shareCount;
+  } catch (err) {
+    console.error("紹介回数の読み込み失敗:", err.code, err.message);
+    document.getElementById("shareCount").textContent = "取得できません";
+  }
+
+  // 自分宛ての着信を監視する
+  if (window.unsubIncoming) {
+    window.unsubIncoming();
+  }
+
+  window.unsubIncoming = db.collection("calls").doc(myUid)
+    .onSnapshot((snap) => {
+      if (!snap.exists) return;
+
+      const d = snap.data();
+      if (!d || !d.from || d.from === myUid || d.ended === true) {
+        return;
+      }
+
+      // 同じ着信ダイアログを繰り返し表示しない
+      if (
+        window._incomingFrom === d.from &&
+        incomingCall.style.display === "flex"
+      ) {
+        return;
+      }
+
+      showIncomingCall(d.from);
+    }, (err) => {
+      console.error("着信監視失敗:", err.code, err.message);
+    });
+});
+  async function loadUsers(first = false) {
+
+  if (first) {
+    userList.innerHTML = "";
+    lastDoc = null;
+  }
+
+  let query = db.collection("user")
+    .orderBy("lastSeen", "desc")
+    .limit(PAGE_SIZE);
+
+  if (lastDoc) {
+    query = query.startAfter(lastDoc);
+  }
+
+  const snap = await query.get();
+
+  if (snap.empty) {
+    alert("これ以上ユーザーはいません。");
+    return;
+  }
+
+  lastDoc = snap.docs[snap.docs.length - 1];
+
+  for (const doc of snap.docs) {
+
+    const d = doc.data();
+
+    if (d.banned) continue;
+
+    const repSnap = await db.collection("reports").doc(doc.id).get();
+    const rep = repSnap.exists ? repSnap.data().count || 0 : 0;
+
+    const card = document.createElement("div");
+    card.className = "user-card";
+
+    const online =
+      d.lastSeen &&
+      Date.now() - d.lastSeen < 60000;
+
+    card.innerHTML = `
+      <h3>${online ? "💡" : "💤"} ${d.nickname}</h3>
+      <p>性別：${d.gender}</p>
+      <p>年齢：${d.age}</p>
+      <p>都道府県：${d.prefecture}</p>
+      <p>ひとこと：${d.comment}</p>
+      <p>通報数：${rep}</p>
+      <button onclick="startCall('${doc.id}')">📞 通話する</button>
+      <button onclick="reportUser('${doc.id}')">🚨 通報</button>
+      <button onclick="blockUser('${doc.id}')">⛔ ブロック</button>
+    `;
+
+    userList.appendChild(card);
+  }
+
+}
+
+async function isBlocked(targetUid) {
+  const doc = await db.collection("user").doc(myUid)
+  .collection("blocks").doc(targetUid).get();
+  return doc.exists;
+}
+
+
+async function isBlockedBy(targetUid) {
+  
+  const doc = await db.collection("user").doc(targetUid)
+  .collection("blocks").doc(myUid).get();
+  return doc.exists;
+}
+  
+async function blockUser(targetUid) {
+  await db.collection("user").doc(myUid)
+    .collection("blocks").doc(targetUid)
+    .set({ blockedAt: Date.now() });
+  alert("ブロックしました。");
+}
+
+async function reportUser(targetUid) {
+  const already = await db.collection("reports")
+    .doc(targetUid).collection("from").doc(myUid).get();
+
+  if (already.exists) {
+    alert("通報済みです。");
+    return;
+  }
+
+  await db.collection("reports")
+    .doc(targetUid).collection("from").doc(myUid)
+    .set({ reportedAt: Date.now() });
+
+  await db.collection("reports").doc(targetUid)
+    .set(
+      { count: firebase.firestore.FieldValue.increment(1) },
+      { merge: true }
+    );
+  // 通報数確認
+const repSnap = await db.collection("reports").doc(targetUid).get();
+const count = repSnap.data()?.count || 0;
+
+// 10件以上ならBAN
+if (count >= 10) {
+  await db.collection("user").doc(targetUid).set(
+    {
+      banned: true
+    },
+    { merge: true }
+  );
+}
+
+  await db.collection("user").doc(myUid)
+    .collection("blocks").doc(targetUid)
+    .set({ blockedAt: Date.now() });
+
+  alert("通報しました。");
+}
+
+  async function startCall(targetUid) {
+if (await isBlocked(targetUid)) {
+  alert("ブロックしている相手です。");
+  return;
+}
+if (await isBlockedBy(targetUid)) {
+  alert("ブロックされています。");
+  return;
+}
+  // ▼ calls/{targetUid} に発信情報を書き込む（これが必須）
+  await db.collection("calls").doc(targetUid).set({
+    from: myUid,
+    offer: null,
+    answer: null,
+    ended: false
+  });
+  location.href =
+  `video.html?callerUid=${myUid}&calleeUid=${targetUid}`;
+}
+  
+  async function showIncomingCall(fromUid) {
+//  alert("fromUid=" + fromUid);
+  const snap = await db.collection("user").doc(fromUid).get();
+  //const d = snap.data();
+//  alert("exists=" + snap.exists);
+  if (!snap.exists) {
+//  alert("プロフィール見つからん");
+  return;
+}
+  const d = snap.data();
+
+  callerProfile.innerHTML = `
+    <p>名前：${d.nickname}</p>
+    <p>性別：${d.gender}</p>
+    <p>都道府県：${d.prefecture}</p>
+    <p>ひとこと：${d.comment}</p>
+  `;
+
+  window._incomingFrom = fromUid;
+  incomingCall.style.display = "flex";
+}
+
+function acceptCall() {
+  if (window.unsubIncoming) window.unsubIncoming();
+  incomingCall.style.display = "none";
+  db.collection("calls").doc(myUid).delete();
+  location.href =
+  `video.html?callerUid=${window._incomingFrom}&calleeUid=${myUid}`;
+}
+
+async function declineCall() {
+  const fromUid = window._incomingFrom;
+
+  // 通話接続用ドキュメントがあれば終了状態にする
+  if (fromUid) {
+    const callId = fromUid + "_" + myUid;
+    const callDoc = db.collection("calls").doc(callId);
+
+    try {
+      await callDoc.set({ ended: true }, { merge: true });
+    } catch (err) {
+      console.error("通話終了状態の更新失敗:", err.code, err.message);
+    }
+  }
+
+  // 着信通知ドキュメントを削除する。監視自体は解除しない。
+  try {
+    await db.collection("calls").doc(myUid).delete();
+  } catch (err) {
+    console.error("着信通知の削除失敗:", err.code, err.message);
+  }
+
+  incomingCall.style.display = "none";
+  window._incomingFrom = null;
+}async function shareSite() {
+  const url = "https://quietroom-dev.github.io/QuietRoom/";
+
+  // ボタンを押したらすぐカウントアップ（待たない）
+  db.collection("stats").doc("share").set({
+    count: firebase.firestore.FieldValue.increment(1)
+  }, { merge: true });
+
+  // 表示も1増やす
+  const el = document.getElementById("shareCount");
+  if (el) {
+    el.textContent = Number(el.textContent) + 1;
+  }
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "誰かわからん通話",
+        text: "匿名・モザイクで安心して話せるビデオ通話です。よかったら使ってみてください！",
+        url: url
+      });
+    } catch (e) {
+      // キャンセルしてもカウントはそのまま
+    }
+  } else {
+    await navigator.clipboard.writeText(url);
+    alert("サイトのリンクをコピーしました。");
+  }
+}
+</script>
+
+</body>
+</html>
