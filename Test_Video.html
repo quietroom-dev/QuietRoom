@@ -448,10 +448,10 @@ async function switchCameraFunc() {
 
   try {
     // 古いカメラは、切替が成功するまで停止しない
-    const cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: currentFacing } },
-      audio: false
-    });
+const cameraStream = await navigator.mediaDevices.getUserMedia({
+  video: { facingMode: currentFacing },
+  audio: false
+});
 
     newVideoTrack = cameraStream.getVideoTracks()[0];
 
