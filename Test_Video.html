@@ -18,7 +18,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 
 #selfVideo { position:fixed; top:16px; right:16px; height:24vh; width:auto;
   min-width:120px; min-height:120px; object-fit:contain; background:#000;
-  border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); }
+  border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); visibility: hidden !important; }
 
 #selfCanvas { position:fixed; top:16px; right:16px; height:24vh; width:auto;
   min-width:120px; min-height:120px; z-index:11; pointer-events:none; border-radius:12px; }
@@ -175,7 +175,7 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.1.1.6");
+  alert("ver.0");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -365,8 +365,6 @@ async function startCamera() {
   selfVideo.srcObject = localStream;
   updateSelfMirror();
 
-  selfVideo.onloadedmetadata = () => {
-    selfVideo.style.visibility = "visible";
   };
   const videoTrack = localStream.getVideoTracks()[0];
   pc.addTrack(videoTrack, localStream);
@@ -518,12 +516,21 @@ await new Promise(resolve => {
     // 古い映像トラックだけ停止（音声は維持）
     oldStream?.getVideoTracks().forEach(track => track.stop());
 
+
     // 新しい映像をモザイク描画できるサイズに更新
     if (selfVideo.videoWidth && selfVideo.videoHeight) {
       selfCanvas.width = selfVideo.videoWidth;
       selfCanvas.height = selfVideo.videoHeight;
     }
 
+    // Canvasの描画が更新されるまで待つ
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(resolve);
+      });
+    });
+
+    // 最後にCanvasの表示を再開
     document.body.classList.remove("camera-switching");
 
   } catch (err) {
