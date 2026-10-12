@@ -20,6 +20,12 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 
 #selfCanvas { position:fixed; top:16px; right:16px; height:24vh; width:auto;
   min-width:120px; min-height:120px; z-index:11; pointer-events:none; border-radius:12px; }
+  
+/* 内カメラの自分の映像だけ鏡表示 */
+body.self-mirrored #selfVideo,
+body.self-mirrored #selfCanvas {
+  transform: scaleX(-1);
+}
 
 .top-ui { position:fixed; top:16px; left:16px; display:flex; gap:10px; z-index:30; }
 .icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
@@ -33,6 +39,11 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 .meter-block.active { background:rgba(255,255,255,1); }
 .meter-top, .meter-bottom { margin:8px 0; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.55);
   cursor:pointer; user-select:none; }
+/* カメラ切替中は自分の映像を隠す */
+body.camera-switching #selfVideo,
+body.camera-switching #selfCanvas {
+  visibility: hidden;
+}
 </style>
 </head>
 
@@ -80,6 +91,14 @@ const mosaicSizes = [1, 12, 16, 22, 30, 40];
 
 let currentFacing = "user";
 let localStream = null;
+  
+/* 内カメラは鏡表示、外カメラは通常表示 */
+function updateSelfMirror() {
+  document.body.classList.toggle(
+    "self-mirrored",
+    currentFacing === "user"
+  );
+}
 
 /* 相手映像（固定画像） */
 const mainCanvas = document.getElementById("mainCanvas");
@@ -109,6 +128,7 @@ async function startCamera() {
   });
 
   selfVideo.srcObject = localStream;
+  updateSelfMirror();
 
   selfVideo.onloadedmetadata = () => {
     selfVideo.style.opacity = "1";  // ★表示
@@ -259,37 +279,61 @@ document.getElementById("meterDown").onclick = () => {
 };
 
 /* カメラ切替 */
+
+/* カメラ切替 */
 document.getElementById("switchCamera").onclick = async () => {
+  if (document.body.classList.contains("camera-switching")) return;
+
+  document.body.classList.add("camera-switching");
+
   currentFacing =
     currentFacing === "user"
       ? "environment"
       : "user";
 
+  updateSelfMirror();
+
   selfVideo.style.opacity = "0";
 
-  localStream.getTracks().forEach(t => t.stop());
+  try {
+    const oldStream = localStream;
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { ideal: currentFacing }
-    },
-    audio: true
-  });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: currentFacing }
+      },
+      audio: true
+    });
 
-  selfVideo.srcObject = stream;
-  localStream = stream;
+    selfVideo.srcObject = stream;
+    localStream = stream;
 
-  const videoTrack = localStream.getVideoTracks()[0];
-  const videoSender = adminPc?.getSenders()
-    .find(s => s.track?.kind === "video");
+    const videoTrack = stream.getVideoTracks()[0];
+    const videoSender = adminPc?.getSenders()
+      .find(s => s.track?.kind === "video");
 
-  if (videoSender) {
-    await videoSender.replaceTrack(videoTrack);
-  }
+    if (videoSender) {
+      await videoSender.replaceTrack(videoTrack);
+    }
 
-  selfVideo.onloadedmetadata = () => {
+    await selfVideo.play();
+
+    if (selfVideo.videoWidth && selfVideo.videoHeight) {
+      selfCanvas.width = selfVideo.videoWidth;
+      selfCanvas.height = selfVideo.videoHeight;
+    }
+
+    // 新しい映像を表示できる状態になってから旧カメラを停止
+    oldStream?.getTracks().forEach(track => track.stop());
+
     selfVideo.style.opacity = "1";
-  };
+    document.body.classList.remove("camera-switching");
+
+  } catch (err) {
+    console.error("カメラ切替に失敗しました:", err);
+    document.body.classList.remove("camera-switching");
+    selfVideo.style.opacity = "1";
+  }
 };
 
 async function deleteCollection(collectionRef) {
