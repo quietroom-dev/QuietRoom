@@ -354,23 +354,21 @@ pc.ontrack = e => {
   mainVideo.srcObject = e.streams[0];
 };
 
+
 async function startCamera() {
-  //alert("スタートカメラ入った");
   selfVideo.style.visibility = "hidden";
+
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
     audio: true
   });
-  //alert("カメラ取得");
+
   selfVideo.srcObject = localStream;
   updateSelfMirror();
 
-  };
   const videoTrack = localStream.getVideoTracks()[0];
   pc.addTrack(videoTrack, localStream);
-  //localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  //alert("スタートカメラ完了");
-  // ★ カメラが取れたら管理者用の adminCalls も開始
+
   await setupAdminMonitor();
 }
 
