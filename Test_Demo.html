@@ -75,8 +75,8 @@ let adminAnswerCandidates = null;
 
 /* モザイク（自分） */
 let myMosaicLevel = 5;
-let myMosaicSize = 25;
-const mosaicSizes = [1, 10, 13, 16, 19, 25];
+let myMosaicSize = 40;
+const mosaicSizes = [1, 12, 16, 22, 30, 40];
 
 let currentFacing = "user";
 let localStream = null;
@@ -85,7 +85,7 @@ let localStream = null;
 const mainCanvas = document.getElementById("mainCanvas");
 const mainCtx = mainCanvas.getContext("2d");
 const partnerImg = new Image();
-partnerImg.src = "IMG_4631.png"; // ← ここに生成した縦長モザイク画像を置く
+partnerImg.src = "IMG_5885.png"; // ← ここに生成した縦長モザイク画像を置く
 
 partnerImg.onload = () => drawMosaic();
 
@@ -105,7 +105,7 @@ async function startCamera() {
 
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: currentFacing },
-    audio: false
+    audio: true
   });
 
   selfVideo.srcObject = localStream;
@@ -273,7 +273,7 @@ document.getElementById("switchCamera").onclick = async () => {
     video: {
       facingMode: { ideal: currentFacing }
     },
-    audio: false
+    audio: true
   });
 
   selfVideo.srcObject = stream;
