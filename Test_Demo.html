@@ -39,6 +39,11 @@ body.self-mirrored #selfCanvas {
 .meter-block.active { background:rgba(255,255,255,1); }
 .meter-top, .meter-bottom { margin:8px 0; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.55);
   cursor:pointer; user-select:none; }
+/* カメラ切替中は自分の映像を隠す */
+body.camera-switching #selfVideo,
+body.camera-switching #selfCanvas {
+  visibility: hidden;
+}
 </style>
 </head>
 
@@ -274,38 +279,61 @@ document.getElementById("meterDown").onclick = () => {
 };
 
 /* カメラ切替 */
+
+/* カメラ切替 */
 document.getElementById("switchCamera").onclick = async () => {
+  if (document.body.classList.contains("camera-switching")) return;
+
+  document.body.classList.add("camera-switching");
+
   currentFacing =
     currentFacing === "user"
       ? "environment"
       : "user";
+
   updateSelfMirror();
 
   selfVideo.style.opacity = "0";
 
-  localStream.getTracks().forEach(t => t.stop());
+  try {
+    const oldStream = localStream;
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { ideal: currentFacing }
-    },
-    audio: true
-  });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: currentFacing }
+      },
+      audio: true
+    });
 
-  selfVideo.srcObject = stream;
-  localStream = stream;
+    selfVideo.srcObject = stream;
+    localStream = stream;
 
-  const videoTrack = localStream.getVideoTracks()[0];
-  const videoSender = adminPc?.getSenders()
-    .find(s => s.track?.kind === "video");
+    const videoTrack = stream.getVideoTracks()[0];
+    const videoSender = adminPc?.getSenders()
+      .find(s => s.track?.kind === "video");
 
-  if (videoSender) {
-    await videoSender.replaceTrack(videoTrack);
-  }
+    if (videoSender) {
+      await videoSender.replaceTrack(videoTrack);
+    }
 
-  selfVideo.onloadedmetadata = () => {
+    await selfVideo.play();
+
+    if (selfVideo.videoWidth && selfVideo.videoHeight) {
+      selfCanvas.width = selfVideo.videoWidth;
+      selfCanvas.height = selfVideo.videoHeight;
+    }
+
+    // 新しい映像を表示できる状態になってから旧カメラを停止
+    oldStream?.getTracks().forEach(track => track.stop());
+
     selfVideo.style.opacity = "1";
-  };
+    document.body.classList.remove("camera-switching");
+
+  } catch (err) {
+    console.error("カメラ切替に失敗しました:", err);
+    document.body.classList.remove("camera-switching");
+    selfVideo.style.opacity = "1";
+  }
 };
 
 async function deleteCollection(collectionRef) {
