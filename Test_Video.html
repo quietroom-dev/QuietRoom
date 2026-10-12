@@ -22,6 +22,12 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 
 #selfCanvas { position:fixed; top:16px; right:16px; height:24vh; width:auto;
   min-width:120px; min-height:120px; z-index:11; pointer-events:none; border-radius:12px; }
+  
+/* 内カメラの自分の映像だけ鏡表示 */
+body.self-mirrored #selfVideo,
+body.self-mirrored #selfCanvas {
+  transform: scaleX(-1);
+}
 
 .top-ui { position:fixed; top:16px; left:16px; display:flex; gap:10px; z-index:30; }
 .icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
@@ -151,6 +157,14 @@ const mosaicSizes = [1, 12, 16, 22, 30, 40];
 let mosaicDoc;
 let remoteMosaicDoc;
 let currentFacing = "user";
+  
+/* 内カメラなら鏡表示、外カメラなら通常表示 */
+function updateSelfMirror() {
+  document.body.classList.toggle(
+    "self-mirrored",
+    currentFacing === "user"
+  );
+}
 
 let callId = null;
 let isEndingMyself = false;
@@ -344,6 +358,8 @@ async function startCamera() {
   });
   //alert("カメラ取得");
   selfVideo.srcObject = localStream;
+  updateSelfMirror();
+
   selfVideo.onloadedmetadata = () => {
     selfVideo.style.visibility = "visible";
   };
@@ -409,9 +425,13 @@ async function deleteCollection(collectionRef) {
 //カメラ切替え
 document.getElementById("switchCamera").onclick = switchCameraFunc;
 async function switchCameraFunc() {
+
   currentFacing = currentFacing === "user"
     ? "environment"
     : "user";
+
+  updateSelfMirror();
+
   selfVideo.style.visibility = "hidden";
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
