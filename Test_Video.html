@@ -567,21 +567,28 @@ function drawMosaic() {
       mainCtx.drawImage(mainCanvas,0, 0, mw / s, mh / s,0, 0, mw, mh);
     }
   }
-  const sw = selfVideo.videoWidth;
-  const sh = selfVideo.videoHeight;
-  if (sw && sh) {
+
+const sw = selfVideo.videoWidth;
+const sh = selfVideo.videoHeight;
+
+if (sw && sh) {
+  if (selfCanvas.width !== sw || selfCanvas.height !== sh) {
     selfCanvas.width = sw;
     selfCanvas.height = sh;
-    const s = myMosaicSize + 2;
-    if (myMosaicSize === 1) {
-     selfCtx.drawImage(selfVideo, 0, 0, sw, sh);
-    } else {
-     selfCtx.clearRect(0,0,sw,sh);
-     selfCtx.imageSmoothingEnabled = false;
-     selfCtx.drawImage(selfVideo,0,0,sw/s,sh/s);
-     selfCtx.drawImage(selfCanvas,0,0,sw/s,sh/s,0,0,sw,sh);
-    }
   }
+
+  const s = myMosaicSize;
+
+  selfCtx.clearRect(0, 0, sw, sh);
+  selfCtx.imageSmoothingEnabled = false;
+
+  selfCtx.drawImage(selfVideo, 0, 0, sw / s, sh / s);
+  selfCtx.drawImage(
+    selfCanvas,
+    0, 0, sw / s, sh / s,
+    0, 0, sw, sh
+  );
+}
   requestAnimationFrame(drawMosaic);
 }
 requestAnimationFrame(drawMosaic);
