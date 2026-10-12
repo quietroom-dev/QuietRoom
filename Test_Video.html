@@ -175,7 +175,7 @@ let callId = null;
 let isEndingMyself = false;
 
 auth.onAuthStateChanged(async user => {
-  alert("ver.2");
+  alert("ver.3");
   if (!user) return;
   myUid = user.uid;
   const params = new URLSearchParams(location.search);
@@ -431,128 +431,86 @@ async function deleteCollection(collectionRef) {
 /* カメラ切替 */
 document.getElementById("switchCamera").onclick = switchCameraFunc;
 
+
 async function switchCameraFunc() {
-  // 切替中の連続クリックを防ぐ
   if (document.body.classList.contains("camera-switching")) return;
 
   document.body.classList.add("camera-switching");
 
-  const oldFacing = currentFacing;
   const oldStream = localStream;
-  let newVideoTrack = null;
+  const oldFacing = currentFacing;
+  const audioTracks = oldStream
+    ? oldStream.getAudioTracks()
+    : [];
 
   currentFacing =
     currentFacing === "user" ? "environment" : "user";
 
-  updateSelfMirror();
-
   try {
-    // 古いカメラは、切替が成功するまで停止しない
-const cameraStream = await navigator.mediaDevices.getUserMedia({
-  video: { facingMode: currentFacing },
-  audio: false
-});
+    // 古い機種向けに、先に現在のカメラを解放する
+    oldStream?.getVideoTracks().forEach(track => track.stop());
 
-    newVideoTrack = cameraStream.getVideoTracks()[0];
+    const cameraStream =
+      await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: currentFacing },
+        audio: false
+      });
+
+    const newVideoTrack = cameraStream.getVideoTracks()[0];
 
     if (!newVideoTrack) {
-      throw new Error("新しいカメラの映像を取得できませんでした");
+      throw new Error("新しいカメラを取得できませんでした");
     }
-
-    // 既存の音声トラックはそのまま維持する
-    const audioTracks = oldStream
-      ? oldStream.getAudioTracks()
-      : [];
 
     const newStream = new MediaStream([
       newVideoTrack,
       ...audioTracks
     ]);
 
-    // 新しい映像をプレビューに設定
+    // 相手側の映像を交換
+    const sender = pc.getSenders().find(
+      s => s.track?.kind === "video"
+    );
+    if (sender) await sender.replaceTrack(newVideoTrack);
+
+    // 管理者側の映像を交換
+    const adminSender = adminPc?.getSenders().find(
+      s => s.track?.kind === "video"
+    );
+    if (adminSender) {
+      await adminSender.replaceTrack(newVideoTrack);
+    }
+
+    // 自分のプレビューを更新
+    localStream = newStream;
     selfVideo.srcObject = newStream;
     await selfVideo.play();
 
-    // 新しい映像のフレームが来るまで待つ
-    if ("requestVideoFrameCallback" in selfVideo) {
-      await new Promise(resolve => {
-        selfVideo.requestVideoFrameCallback(() => resolve());
-      });
-    } else if (selfVideo.readyState < 2) {
-      await new Promise((resolve, reject) => {
-        selfVideo.addEventListener("loadeddata", resolve, { once: true });
-        newVideoTrack.addEventListener("ended", () => {
-          reject(new Error("カメラ映像が停止しました"));
-        }, { once: true });
-      });
-    }
-    // モザイク用Canvasの描画更新を待つ
-await new Promise(resolve => {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(resolve);
-  });
-});
-
-    // 通話相手側の映像トラックを交換
-    const videoSender = pc.getSenders().find(
-      sender => sender.track?.kind === "video"
+    // 管理者側の音声送信元も新しいストリームに合わせる
+    const adminAudioSender = adminPc?.getSenders().find(
+      s => s.track?.kind === "audio"
     );
-
-    if (videoSender) {
-      await videoSender.replaceTrack(newVideoTrack);
+    const audioTrack = audioTracks[0];
+    if (adminAudioSender && audioTrack) {
+      await adminAudioSender.replaceTrack(audioTrack);
     }
 
-    // 管理者側の映像トラックも交換
-    const adminVideoSender = adminPc?.getSenders().find(
-      sender => sender.track?.kind === "video"
-    );
-
-    if (adminVideoSender) {
-      await adminVideoSender.replaceTrack(newVideoTrack);
-    }
-
-    // 新しいストリームを採用
-    localStream = newStream;
-
-    // 古い映像トラックだけ停止（音声は維持）
-    oldStream?.getVideoTracks().forEach(track => track.stop());
-
-
-    // 新しい映像をモザイク描画できるサイズに更新
-    if (selfVideo.videoWidth && selfVideo.videoHeight) {
-      selfCanvas.width = selfVideo.videoWidth;
-      selfCanvas.height = selfVideo.videoHeight;
-    }
-
-    // Canvasの描画が更新されるまで待つ
+    // モザイク描画用Canvasのサイズを更新
     await new Promise(resolve => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(resolve);
-      });
+      selfVideo.onloadedmetadata = () => resolve();
     });
 
-    // 最後にCanvasの表示を再開
-    document.body.classList.remove("camera-switching");
+    selfCanvas.width = selfVideo.videoWidth;
+    selfCanvas.height = selfVideo.videoHeight;
+
+    updateSelfMirror();
 
   } catch (err) {
     console.error("カメラ切替に失敗しました:", err);
-
-    // 失敗した場合は、元のカメラ表示に戻す
     currentFacing = oldFacing;
     updateSelfMirror();
-
-    if (newVideoTrack) {
-      newVideoTrack.stop();
-    }
-
-    selfVideo.srcObject = oldStream;
-
-    try {
-      await selfVideo.play();
-    } catch (playError) {
-      console.error("元の映像を再生できませんでした:", playError);
-    }
-
+    alert("カメラを切り替えられませんでした。元のカメラを再起動してください。");
+  } finally {
     document.body.classList.remove("camera-switching");
   }
 }
