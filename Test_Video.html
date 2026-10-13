@@ -16,30 +16,59 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 #mainVideo { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:#000; z-index:1; }
 #mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:2; pointer-events:none; }
 
-#selfVideo { position:fixed; top:16px; right:16px; height:24vh; width:auto;
-  min-width:120px; min-height:120px; object-fit:contain; background:#000;
-  border-radius:12px; z-index:10; box-shadow:0 0 12px rgba(0,0,0,0.5); visibility: hidden !important; }
-
-#selfCanvas { position:fixed; top:16px; right:16px; height:24vh; width:auto;
-  min-width:120px; min-height:120px; z-index:11; pointer-events:none; border-radius:12px; }
+/* 自分の映像を終了ボタンより下へ移動 */
+#selfPreview {
+  position:fixed;
+  top:76px;
+  right:16px;
+  height:max(24vh, 120px);
+  width:max-content;
+  min-width:120px;
+  max-width:calc(100vw - 32px);
+  z-index:10;
+  border-radius:12px;
+  box-shadow:0 0 12px rgba(0,0,0,0.5);
+}
+#selfVideo {
+  position:relative;
+  display:block;
+  height:100%;
+  width:auto;
+  min-width:120px;
+  max-width:100%;
+  object-fit:contain;
+  background:#000;
+  border-radius:12px;
+  visibility:hidden !important;
+}
+#selfCanvas {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:11;
+  pointer-events:none;
+  border-radius:12px;
+}
   
 /* 内カメラの自分の映像だけ鏡表示 */
 body.self-mirrored #selfVideo,
 body.self-mirrored #selfCanvas {
-  transform: scaleX(-1);
+  transform:scaleX(-1);
 }
 /* カメラ切替中は古いプレビューを隠す */
 body.camera-switching #selfVideo,
 body.camera-switching #selfCanvas {
-  visibility: hidden;
+  visibility:hidden;
 }
 
 .top-ui { position:fixed; top:12px; right:12px; z-index:30; }
 .icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
   font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
-#switchCamera { position:fixed; top:68px; right:12px; z-index:30; }
+/* カメラ切替は自分の映像の真下・中央 */
+#switchCamera { position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); z-index:30; }
 
-.mosaic-meter { position:fixed; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column;
+.mosaic-meter { position:fixed; right:12px; top:calc(76px + max(24vh, 120px) + 76px); display:flex; flex-direction:column;
   align-items:center; z-index:40; color:#fff; }
 .meter-bar { width:42px; height:28vh; display:flex; flex-direction:column-reverse; gap:4px; }
 .meter-block { flex:1; width:100%; border-radius:8px; border:2px solid rgba(255,255,255,0.7);
@@ -174,13 +203,15 @@ body.camera-switching #selfCanvas {
 <video id="mainVideo" autoplay playsinline></video>
 <canvas id="mainCanvas"></canvas>
 
-<video id="selfVideo" autoplay muted playsinline></video>
-<canvas id="selfCanvas"></canvas>
+<div id="selfPreview">
+  <video id="selfVideo" autoplay muted playsinline></video>
+  <canvas id="selfCanvas"></canvas>
+  <button class="icon-btn" id="switchCamera" aria-label="カメラを切り替え">📷🔄</button>
+</div>
 
 <div class="top-ui">
   <button class="icon-btn" id="endBtn" aria-label="通話を終了">✕</button>
 </div>
-<button class="icon-btn" id="switchCamera" aria-label="カメラを切り替え">📷🔄</button>
 
 <form id="messageForm">
   <input
