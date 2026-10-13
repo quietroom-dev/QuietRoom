@@ -16,26 +16,28 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
 #mainVideo { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:#000; z-index:1; }
 #mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:2; pointer-events:none; }
 
-/* 自分の映像を終了ボタンより下へ移動 */
+/* 自分の映像枠：元のカメラ映像の縦横比を維持し、枠サイズは実映像比率から算出 */
 #selfPreview {
   position:fixed;
   top:76px;
   right:16px;
-  height:max(24vh, 120px);
-  width:max-content;
-  min-width:120px;
-  max-width:calc(100vw - 32px);
+  width:120px;
+  height:120px;
+  box-sizing:border-box;
+  overflow:hidden;
   z-index:10;
   border-radius:12px;
+  background:#000;
   box-shadow:0 0 12px rgba(0,0,0,0.5);
 }
 #selfVideo {
-  position:relative;
+  position:absolute;
+  inset:0;
   display:block;
+  width:100%;
   height:100%;
-  width:auto;
-  min-width:120px;
-  max-width:100%;
+  min-width:0;
+  max-width:none;
   object-fit:contain;
   background:#000;
   border-radius:12px;
@@ -46,6 +48,7 @@ html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:
   inset:0;
   width:100%;
   height:100%;
+  object-fit:contain;
   z-index:11;
   pointer-events:none;
   border-radius:12px;
@@ -63,9 +66,9 @@ body.camera-switching #selfCanvas {
 }
 
 .top-ui { position:fixed; top:12px; right:12px; z-index:30; }
-.icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
-  font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
-/* カメラ切替ボタンは自分の映像の真下・中央に固定し、映像サイズ変更後も位置を再計算 */
+.icon-btn { width:52px; height:44px; border:0; border-radius:8px; background:rgba(0,0,0,0.55); color:#fff;
+  font-size:14px; font-weight:700; backdrop-filter:blur(6px); cursor:pointer; }
+/* 3つの操作ボタンは同じ角丸形状 */
 #switchCamera {
   position:fixed;
   top:0;
@@ -75,9 +78,11 @@ body.camera-switching #selfCanvas {
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:0;
+  padding:0 10px;
+  width:auto;
+  min-width:96px;
+  white-space:nowrap;
 }
-#switchCamera svg { display:block; width:26px; height:26px; flex:none; }
 #endBtn {
   width:64px;
   height:44px;
@@ -87,6 +92,12 @@ body.camera-switching #selfCanvas {
   font-size:16px;
   font-weight:700;
   backdrop-filter:blur(6px);
+}
+#messageForm button {
+  height:44px;
+  min-height:44px;
+  border-radius:8px;
+  box-sizing:border-box;
 }
 
 .mosaic-meter { position:fixed; right:12px; top:calc(76px + max(24vh, 120px) + 76px); display:flex; flex-direction:column;
@@ -229,17 +240,7 @@ body.camera-switching #selfCanvas {
   <canvas id="selfCanvas"></canvas>
 </div>
 
-<button class="icon-btn" id="switchCamera" aria-label="カメラを切り替え" title="カメラを切り替え">
-  <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M11 7H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-2" />
-    <path d="M11 7l2-3h5l2 3" />
-    <circle cx="13.5" cy="15" r="4" />
-    <path d="M21 5h5v5" />
-    <path d="M26 5a11 11 0 0 1 1 13" />
-    <path d="M27 27h-5v-5" />
-    <path d="M22 27a11 11 0 0 1-5 1" />
-  </svg>
-</button>
+<button class="icon-btn" id="switchCamera" aria-label="カメラ切替" title="カメラ切替">カメラ切替</button>
 
 <div class="top-ui">
   <button class="icon-btn" id="endBtn" aria-label="通話を終了">終了</button>
@@ -510,20 +511,32 @@ const selfVideo = document.getElementById("selfVideo");
 const selfCanvas = document.getElementById("selfCanvas");
 const selfCtx = selfCanvas.getContext("2d");
 
-// 自分の映像の実際の位置・サイズを使って、カメラ切替ボタンを真下中央に配置
+// 元のカメラ映像の縦横比を維持して自分映像枠を設定し、切替ボタンを枠の真下中央へ配置
 function positionSwitchCamera() {
   const preview = document.getElementById("selfPreview");
   const button = document.getElementById("switchCamera");
   if (!preview || !button) return;
+
+  const videoWidth = selfVideo.videoWidth;
+  const videoHeight = selfVideo.videoHeight;
+  if (videoWidth > 0 && videoHeight > 0) {
+    const ratio = videoWidth / videoHeight;
+    const targetHeight = Math.max(window.innerHeight * 0.24, 120, 120 / ratio);
+    const targetWidth = targetHeight * ratio;
+    preview.style.width = `${targetWidth}px`;
+    preview.style.height = `${targetHeight}px`;
+  }
+
   const rect = preview.getBoundingClientRect();
   button.style.left = `${rect.left + rect.width / 2}px`;
   button.style.top = `${rect.bottom + 8}px`;
 }
 
-window.addEventListener("resize", positionSwitchCamera);
+window.addEventListener("resize", () => requestAnimationFrame(positionSwitchCamera));
 window.addEventListener("orientationchange", () => requestAnimationFrame(positionSwitchCamera));
 selfVideo.addEventListener("loadedmetadata", () => requestAnimationFrame(positionSwitchCamera));
 selfVideo.addEventListener("loadeddata", () => requestAnimationFrame(positionSwitchCamera));
+selfVideo.addEventListener("resize", () => requestAnimationFrame(positionSwitchCamera));
 
 pc.ontrack = e => {
   mainVideo.srcObject = e.streams[0];
@@ -721,6 +734,7 @@ async function switchCameraFunc() {
     selfCanvas.width = selfVideo.videoWidth;
     selfCanvas.height = selfVideo.videoHeight;
     updateSelfMirror();
+    requestAnimationFrame(positionSwitchCamera);
 
   } catch (err) {
     console.error("カメラ切替に失敗しました:", err);
