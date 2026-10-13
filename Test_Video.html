@@ -34,9 +34,10 @@ body.camera-switching #selfCanvas {
   visibility: hidden;
 }
 
-.top-ui { position:fixed; top:16px; left:16px; display:flex; gap:10px; z-index:30; }
+.top-ui { position:fixed; top:12px; right:12px; z-index:30; }
 .icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
   font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
+#switchCamera { position:fixed; top:68px; right:12px; z-index:30; }
 
 .mosaic-meter { position:fixed; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column;
   align-items:center; z-index:40; color:#fff; }
@@ -105,26 +106,25 @@ body.camera-switching #selfCanvas {
 /* 一時メッセージ入力欄 */
 #messageForm {
   position: fixed;
-  top: 78px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 12px;
+  left: 12px;
   display: flex;
   gap: 6px;
-  width: min(440px, calc(100vw - 32px));
+  width: calc(100vw - 92px);
   z-index: 60;
 }
 #messageInput {
   flex: 1;
   min-width: 0;
   padding: 11px 12px;
-  border: 1px solid rgba(255,255,255,0.35);
+  border: 1px solid rgba(255,255,255,0.45);
   border-radius: 20px;
-  background: rgba(0,0,0,0.7);
+  background: transparent;
   color: #fff;
   font-size: 16px;
   outline: none;
 }
-#messageInput::placeholder { color: #ccc; }
+#messageInput::placeholder { color: rgba(255,255,255,0.8); }
 #messageForm button {
   padding: 10px 15px;
   border: none;
@@ -135,35 +135,35 @@ body.camera-switching #selfCanvas {
   white-space: nowrap;
 }
 
-/* 相手から届いたメッセージの一時表示 */
+/* 相手から届いたメッセージ：枠や背景なしで文字だけ表示 */
 #floatingMessage {
   position: fixed;
-  top: 32%;
-  left: 50%;
-  transform: translate(-50%, 12px);
-  max-width: calc(100vw - 40px);
-  padding: 12px 20px;
-  border-radius: 18px;
-  background: rgba(0,0,0,0.72);
+  top: 76px;
+  left: 12px;
+  transform: translateY(12px);
+  width: calc(100vw - 100px);
+  padding: 0;
   color: #fff;
   font-size: 20px;
   line-height: 1.5;
-  text-align: center;
+  text-align: left;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
   pointer-events: none;
   z-index: 80;
   opacity: 0;
   visibility: hidden;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.95);
 }
 #floatingMessage.show {
   visibility: visible;
   animation: floatingMessageInOut 4s ease forwards;
 }
 @keyframes floatingMessageInOut {
-  0% { opacity: 0; transform: translate(-50%, 12px); }
-  15% { opacity: 1; transform: translate(-50%, 0); }
-  80% { opacity: 1; transform: translate(-50%, 0); }
-  100% { opacity: 0; transform: translate(-50%, -12px); }
+  0% { opacity: 0; transform: translateY(12px); }
+  15% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-12px); }
 }
 
 </style>
@@ -178,9 +178,9 @@ body.camera-switching #selfCanvas {
 <canvas id="selfCanvas"></canvas>
 
 <div class="top-ui">
-  <button class="icon-btn" id="switchCamera">📷🔄</button>
-  <button class="icon-btn" id="endBtn">✕</button>
+  <button class="icon-btn" id="endBtn" aria-label="通話を終了">✕</button>
 </div>
+<button class="icon-btn" id="switchCamera" aria-label="カメラを切り替え">📷🔄</button>
 
 <form id="messageForm">
   <input
@@ -316,8 +316,8 @@ async function initializeCall() {
    } else if (msg && msg.id !== lastFloatingMessageId) {
      lastFloatingMessageId = msg.id;
 
-     // 自分が送信したメッセージは相手用表示に出さない
-     if (msg.senderUid !== myUid && typeof msg.text === "string") {
+     // 新しいメッセージは送信者を区別せず表示する
+     if (typeof msg.text === "string") {
        showFloatingMessage(msg.text);
      }
    }
@@ -840,7 +840,6 @@ document.getElementById("messageForm").addEventListener("submit", async e => {
     await callDoc.set({
       floatingMessage: {
         id: myUid + "_" + Date.now() + "_" + Math.random().toString(36).slice(2),
-        senderUid: myUid,
         text: text,
         sentAt: Date.now()
       }
