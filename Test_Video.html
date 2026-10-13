@@ -65,8 +65,29 @@ body.camera-switching #selfCanvas {
 .top-ui { position:fixed; top:12px; right:12px; z-index:30; }
 .icon-btn { width:52px; height:52px; border:none; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff;
   font-size:22px; backdrop-filter:blur(6px); cursor:pointer; }
-/* カメラ切替は自分の映像の真下・中央 */
-#switchCamera { position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); z-index:30; }
+/* カメラ切替ボタンは自分の映像の真下・中央に固定し、映像サイズ変更後も位置を再計算 */
+#switchCamera {
+  position:fixed;
+  top:0;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:30;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+}
+#switchCamera svg { display:block; width:26px; height:26px; flex:none; }
+#endBtn {
+  width:64px;
+  height:44px;
+  border-radius:8px;
+  background:#d62828;
+  color:#fff;
+  font-size:16px;
+  font-weight:700;
+  backdrop-filter:blur(6px);
+}
 
 .mosaic-meter { position:fixed; right:12px; top:calc(76px + max(24vh, 120px) + 76px); display:flex; flex-direction:column;
   align-items:center; z-index:40; color:#fff; }
@@ -206,11 +227,22 @@ body.camera-switching #selfCanvas {
 <div id="selfPreview">
   <video id="selfVideo" autoplay muted playsinline></video>
   <canvas id="selfCanvas"></canvas>
-  <button class="icon-btn" id="switchCamera" aria-label="カメラを切り替え">📷🔄</button>
 </div>
 
+<button class="icon-btn" id="switchCamera" aria-label="カメラを切り替え" title="カメラを切り替え">
+  <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M11 7H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-2" />
+    <path d="M11 7l2-3h5l2 3" />
+    <circle cx="13.5" cy="15" r="4" />
+    <path d="M21 5h5v5" />
+    <path d="M26 5a11 11 0 0 1 1 13" />
+    <path d="M27 27h-5v-5" />
+    <path d="M22 27a11 11 0 0 1-5 1" />
+  </svg>
+</button>
+
 <div class="top-ui">
-  <button class="icon-btn" id="endBtn" aria-label="通話を終了">✕</button>
+  <button class="icon-btn" id="endBtn" aria-label="通話を終了">終了</button>
 </div>
 
 <form id="messageForm">
@@ -477,6 +509,22 @@ const mainCtx = mainCanvas.getContext("2d");
 const selfVideo = document.getElementById("selfVideo");
 const selfCanvas = document.getElementById("selfCanvas");
 const selfCtx = selfCanvas.getContext("2d");
+
+// 自分の映像の実際の位置・サイズを使って、カメラ切替ボタンを真下中央に配置
+function positionSwitchCamera() {
+  const preview = document.getElementById("selfPreview");
+  const button = document.getElementById("switchCamera");
+  if (!preview || !button) return;
+  const rect = preview.getBoundingClientRect();
+  button.style.left = `${rect.left + rect.width / 2}px`;
+  button.style.top = `${rect.bottom + 8}px`;
+}
+
+window.addEventListener("resize", positionSwitchCamera);
+window.addEventListener("orientationchange", () => requestAnimationFrame(positionSwitchCamera));
+selfVideo.addEventListener("loadedmetadata", () => requestAnimationFrame(positionSwitchCamera));
+selfVideo.addEventListener("loadeddata", () => requestAnimationFrame(positionSwitchCamera));
+
 pc.ontrack = e => {
   mainVideo.srcObject = e.streams[0];
 };
@@ -495,6 +543,7 @@ async function startCamera() {
 
   // 映像の再生開始を待つ
   await selfVideo.play();
+  requestAnimationFrame(positionSwitchCamera);
 
   const videoTrack = localStream.getVideoTracks()[0];
   pc.addTrack(videoTrack, localStream);
@@ -731,6 +780,7 @@ async function switchCameraFunc() {
     }
   } finally {
     document.body.classList.remove("camera-switching");
+    requestAnimationFrame(positionSwitchCamera);
   }
 }
   
