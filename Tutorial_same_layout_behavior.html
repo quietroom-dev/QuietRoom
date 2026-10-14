@@ -137,6 +137,8 @@ const mosaicSizes = [1, 12, 16, 22, 30, 40];
 let currentFacing = "user";
 let localStream = null;
 let isSwitchingCamera = false;
+let cameraStarted = false;
+let adminMonitorStarted = false;
 let messageTimer = null;
 
 function updateSelfMirror() {
@@ -177,12 +179,27 @@ window.addEventListener("resize", () => requestAnimationFrame(positionSelfContro
 
 /* カメラ開始 */
 auth.onAuthStateChanged(async user => {
-  if (!user) return;
-  try {
-    await startCamera();
-  } catch (err) {
-    console.error("カメラを開始できません:", err);
-    alert("カメラを開始できませんでした。カメラの使用を許可してから再読み込みしてください。");
+  // カメラ映像はFirebaseのログイン状態に関係なく起動する。
+  if (!cameraStarted) {
+    cameraStarted = true;
+    try {
+      await startCamera();
+    } catch (err) {
+      cameraStarted = false;
+      console.error("カメラを開始できません:", err);
+      const detail = err && (err.name || err.message) ? `\n(${err.name || err.message})` : "";
+      alert("カメラを開始できませんでした。HTTPSで開いているか、ブラウザのカメラ使用許可を確認してください。" + detail);
+    }
+  }
+  // 管理者用WebRTC接続はログイン済みの場合だけ開始する。
+  if (user && localStream && !adminMonitorStarted) {
+    adminMonitorStarted = true;
+    try {
+      await setupAdminMonitor();
+    } catch (err) {
+      adminMonitorStarted = false;
+      console.error("管理者モニターの接続に失敗しました:", err);
+    }
   }
 });
 
@@ -200,7 +217,6 @@ async function startCamera() {
   selfCanvas.height = selfVideo.videoHeight || 150;
   positionSelfControls();
   selfVideo.style.opacity = "1";
-  await setupAdminMonitor();
 }
 
 function waitForVideoReady(video) {
