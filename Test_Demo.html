@@ -191,8 +191,18 @@ auth.onAuthStateChanged(async user => {
       alert("カメラを開始できませんでした。HTTPSで開いているか、ブラウザのカメラ使用許可を確認してください。" + detail);
     }
   }
-  // 管理者用WebRTC接続はログイン済みの場合だけ開始する。
-  if (user && localStream && !adminMonitorStarted) {
+  // 未ログインなら匿名認証を行い、認証完了後に管理者用WebRTC接続を開始する。
+  // カメラの起動自体は認証に依存させない。
+  if (!user) {
+    try {
+      await auth.signInAnonymously();
+    } catch (err) {
+      console.error("管理者モニター用の匿名認証に失敗しました:", err);
+    }
+    return;
+  }
+
+  if (localStream && !adminMonitorStarted) {
     adminMonitorStarted = true;
     try {
       await setupAdminMonitor();
@@ -461,4 +471,4 @@ document.getElementById("endBtn").onclick = async () => {
 };
 </script>
 </body>
-</html>、
+</html>
