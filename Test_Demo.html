@@ -10,7 +10,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-* { box-sizing: border-box; }
 html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; font-family:sans-serif; }
 #mainCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:1; pointer-events:none; }
 
@@ -22,19 +21,18 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; back
 #sendBtn { background:#3a3a3a; }
 #endBtn { background:#e53935; }
 
-/* 自分のカメラ：上部バーの下、映像本来の縦横比を維持 */
-.self-panel { position:fixed; top:68px; right:16px; z-index:10; display:flex; flex-direction:column; align-items:center; gap:6px; max-width:35vw; }
-#selfVideo { display:block; width:auto; height:20vh; max-width:35vw; min-height:0; object-fit:contain; background:#000; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,.5); }
-#selfCanvas { position:absolute; inset:0 auto auto 0; width:100%; height:calc(20vh); max-width:35vw; pointer-events:none; border-radius:10px; }
+/* 自分のカメラ：上部バーの下。映像はカメラ本来の縦横比で表示 */
+.self-panel { position:fixed; top:76px; right:16px; z-index:10; display:flex; flex-direction:column; align-items:center; gap:6px; width:clamp(100px, 30vw, 220px); }
+.self-preview-media { position:relative; width:100%; overflow:hidden; border-radius:12px; background:#000; box-shadow:0 0 12px rgba(0,0,0,.5); }
+#selfVideo { display:block; width:100%; height:auto; max-height:24vh; object-fit:contain; background:#000; border-radius:12px; }
+#selfCanvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; border-radius:12px; }
 /* 内カメラの自分の映像だけ鏡表示 */
 body.self-mirrored #selfVideo,
 body.self-mirrored #selfCanvas { transform:scaleX(-1); }
 #switchCamera { height:30px; padding:0 12px; border:1px solid rgba(255,255,255,.6); border-radius:8px; background:rgba(0,0,0,.55); color:#fff; font-size:13px; white-space:nowrap; cursor:pointer; }
-body.camera-switching #selfVideo,
-body.camera-switching #selfCanvas { visibility:hidden; }
 
 /* メッセージは背景なしの文字だけ。送信後に短時間表示 */
-#messageDisplay { position:fixed; left:50%; bottom:17%; transform:translateX(-50%); z-index:25; width:min(86vw,700px); text-align:center; color:#fff; font-size:18px; line-height:1.5; text-shadow:0 2px 5px #000, 0 0 8px #000; overflow-wrap:anywhere; pointer-events:none; }
+#messageDisplay { position:fixed; top:76px; left:12px; z-index:25; width:calc(100vw - 100px); text-align:left; color:#fff; font-size:20px; line-height:1.5; text-shadow:0 1px 4px rgba(0,0,0,.95); overflow-wrap:anywhere; white-space:pre-wrap; pointer-events:none; }
 .message-line { animation:messageIn .12s ease-out; }
 @keyframes messageIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
 
@@ -48,13 +46,12 @@ body.camera-switching #selfCanvas { visibility:hidden; }
   .top-ui { top:8px; left:8px; right:8px; gap:5px; }
   #messageInput { height:40px; padding:0 9px; font-size:14px; }
   .top-btn { height:40px; padding:0 10px; font-size:13px; }
-  .self-panel { top:60px; right:10px; max-width:32vw; }
-  #selfVideo { height:17vh; max-width:32vw; }
-  #selfCanvas { height:17vh; max-width:32vw; }
+  .self-panel { top:76px; right:10px; width:clamp(100px, 30vw, 220px); }
+  #selfVideo { max-height:22vh; }
   .mosaic-meter { right:6px; top:61%; }
   .meter-bar { width:30px; height:24vh; }
   .meter-top, .meter-bottom { padding:5px 6px; font-size:11px; }
-  #messageDisplay { font-size:16px; bottom:15%; }
+  #messageDisplay { font-size:18px; top:76px; left:10px; width:calc(100vw - 90px); }
 }
 </style>
 </head>
@@ -69,8 +66,10 @@ body.camera-switching #selfCanvas { visibility:hidden; }
 </div>
 
 <div class="self-panel" id="selfPanel">
-  <video id="selfVideo" autoplay muted playsinline></video>
-  <canvas id="selfCanvas"></canvas>
+  <div class="self-preview-media">
+    <video id="selfVideo" autoplay muted playsinline></video>
+    <canvas id="selfCanvas"></canvas>
+  </div>
   <button id="switchCamera" type="button">カメラ切替</button>
 </div>
 <div id="messageDisplay" aria-live="polite"></div>
@@ -297,60 +296,184 @@ messageInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preve
 
 /* カメラ切替 */
 
-document.getElementById("switchCamera").onclick = async () => {
+async function switchCameraFunc() {
   if (document.body.classList.contains("camera-switching")) return;
 
   document.body.classList.add("camera-switching");
 
-  currentFacing =
-    currentFacing === "user"
-      ? "environment"
-      : "user";
+  const oldStream = localStream;
+  const oldFacing = currentFacing;
+  const oldVideoTrack = oldStream?.getVideoTracks()[0] || null;
+  const audioTracks = oldStream ? oldStream.getAudioTracks() : [];
 
-  updateSelfMirror();
+  let cameraStream = null;
+  let newVideoTrack = null;
 
-  selfVideo.style.opacity = "0";
+  const getCameraStream = async facing => {
+    const mediaDevices = navigator.mediaDevices;
+    const currentDeviceId = oldVideoTrack && typeof oldVideoTrack.getSettings === "function"
+      ? oldVideoTrack.getSettings().deviceId
+      : null;
+
+    if (mediaDevices && typeof mediaDevices.enumerateDevices === "function") {
+      try {
+        const devices = await mediaDevices.enumerateDevices();
+        const cameras = devices.filter(d => d.kind === "videoinput" && d.deviceId);
+        const alternatives = cameras.filter(d => d.deviceId !== currentDeviceId);
+        const wantsRear = facing === "environment";
+        const labelMatch = alternatives.find(d =>
+          wantsRear
+            ? /back|rear|environment|外側|背面/i.test(d.label)
+            : /front|user|前面|前側/i.test(d.label)
+        );
+        const target = labelMatch || alternatives[0];
+        if (target) {
+          try {
+            return await mediaDevices.getUserMedia({
+              video: { deviceId: { exact: target.deviceId } },
+              audio: false
+            });
+          } catch (deviceIdError) {
+            // deviceId 指定が使えない場合は facingMode 指定へ進む
+          }
+        }
+      } catch (enumerateError) {
+        // デバイス一覧を取得できない場合は facingMode 指定へ進む
+      }
+    }
+
+    try {
+      return await mediaDevices.getUserMedia({
+        video: { facingMode: { exact: facing } },
+        audio: false
+      });
+    } catch (exactError) {
+      return await mediaDevices.getUserMedia({
+        video: { facingMode: facing },
+        audio: false
+      });
+    }
+  };
+
+  const waitForVideo = async () => {
+    if (selfVideo.readyState >= 2 && selfVideo.videoWidth > 0) return;
+
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("カメラ映像の読み込みがタイムアウトしました"));
+      }, 7000);
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        selfVideo.removeEventListener("loadeddata", onReady);
+        selfVideo.removeEventListener("canplay", onReady);
+      };
+      const onReady = () => {
+        if (selfVideo.videoWidth > 0) {
+          cleanup();
+          resolve();
+        }
+      };
+      selfVideo.addEventListener("loadeddata", onReady);
+      selfVideo.addEventListener("canplay", onReady);
+    });
+  };
+
+  const replaceStreamVideoTrack = (stream, previousTrack, nextTrack) => {
+    if (stream && typeof stream.removeTrack === "function" &&
+        typeof stream.addTrack === "function") {
+      if (previousTrack) stream.removeTrack(previousTrack);
+      stream.addTrack(nextTrack);
+      return stream;
+    }
+    return new MediaStream([...audioTracks, nextTrack]);
+  };
 
   try {
-    const oldStream = localStream;
+    currentFacing = oldFacing === "user" ? "environment" : "user";
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: currentFacing }
-      },
-      audio: true
-    });
-
-    selfVideo.srcObject = stream;
-    localStream = stream;
-
-    const videoTrack = stream.getVideoTracks()[0];
-    const videoSender = adminPc?.getSenders()
-      .find(s => s.track?.kind === "video");
-
-    if (videoSender) {
-      await videoSender.replaceTrack(videoTrack);
+    try {
+      cameraStream = await getCameraStream(currentFacing);
+    } catch (firstError) {
+      // 前後カメラを同時に起動できない端末では、旧映像を止めて再試行する
+      if (oldVideoTrack && oldVideoTrack.readyState === "live") oldVideoTrack.stop();
+      cameraStream = await getCameraStream(currentFacing);
     }
 
-    await selfVideo.play();
+    newVideoTrack = cameraStream.getVideoTracks()[0];
+    if (!newVideoTrack) throw new Error("新しいカメラを取得できませんでした");
 
-    if (selfVideo.videoWidth && selfVideo.videoHeight) {
-      selfCanvas.width = selfVideo.videoWidth;
-      selfCanvas.height = selfVideo.videoHeight;
+    const previewStream = replaceStreamVideoTrack(oldStream, oldVideoTrack, newVideoTrack);
+    selfVideo.srcObject = previewStream;
+    localStream = previewStream;
+    updateSelfMirror();
+
+    try {
+      await selfVideo.play();
+    } catch (playError) {
+      console.warn("プレビュー再生の確認:", playError);
+    }
+    await waitForVideo();
+
+    // このデモには通話相手用 pc がないため、管理者への映像だけ差し替える
+    const adminSender = adminPc?.getSenders().find(sender => sender.track?.kind === "video");
+    if (adminSender) await adminSender.replaceTrack(newVideoTrack);
+
+    const adminAudioSender = adminPc?.getSenders().find(sender => sender.track?.kind === "audio");
+    if (adminAudioSender && audioTracks[0]) await adminAudioSender.replaceTrack(audioTracks[0]);
+
+    if (oldVideoTrack && oldVideoTrack !== newVideoTrack && oldVideoTrack.readyState === "live") {
+      oldVideoTrack.stop();
     }
 
-    // 新しい映像を表示できる状態になってから旧カメラを停止
-    oldStream?.getTracks().forEach(track => track.stop());
-
-    selfVideo.style.opacity = "1";
-    document.body.classList.remove("camera-switching");
-
+    selfCanvas.width = selfVideo.videoWidth || selfCanvas.width;
+    selfCanvas.height = selfVideo.videoHeight || selfCanvas.height;
+    updateSelfMirror();
   } catch (err) {
     console.error("カメラ切替に失敗しました:", err);
+    cameraStream?.getVideoTracks().forEach(track => {
+      if (track !== oldVideoTrack) track.stop();
+    });
+
+    currentFacing = oldFacing;
+    updateSelfMirror();
+
+    if (oldStream && oldVideoTrack && oldVideoTrack.readyState === "live") {
+      localStream = oldStream;
+      selfVideo.srcObject = oldStream;
+      try { await selfVideo.play(); } catch (e) { console.warn("元の映像の再生待機:", e); }
+    } else {
+      try {
+        const restoredCameraStream = await getCameraStream(oldFacing);
+        const restoredTrack = restoredCameraStream.getVideoTracks()[0];
+        if (!restoredTrack) throw new Error("元のカメラを取得できませんでした");
+
+        const restoredStream = replaceStreamVideoTrack(oldStream, oldVideoTrack, restoredTrack);
+        localStream = restoredStream;
+        selfVideo.srcObject = restoredStream;
+
+        const adminSender = adminPc?.getSenders().find(sender => sender.track?.kind === "video");
+        if (adminSender) await adminSender.replaceTrack(restoredTrack);
+
+        const adminAudioSender = adminPc?.getSenders().find(sender => sender.track?.kind === "audio");
+        if (adminAudioSender && audioTracks[0]) await adminAudioSender.replaceTrack(audioTracks[0]);
+
+        try { await selfVideo.play(); } catch (e) { console.warn("復旧映像の再生待機:", e); }
+        await waitForVideo();
+        selfCanvas.width = selfVideo.videoWidth || selfCanvas.width;
+        selfCanvas.height = selfVideo.videoHeight || selfCanvas.height;
+      } catch (restoreError) {
+        console.error("元のカメラの復旧に失敗しました:", restoreError);
+        alert("カメラを復旧できませんでした。ページを再読み込みしてください。");
+      }
+    }
+  } finally {
     document.body.classList.remove("camera-switching");
-    selfVideo.style.opacity = "1";
   }
-};
+}
+
+document.getElementById("switchCamera").onclick = switchCameraFunc;
 
 async function deleteCollection(collectionRef) {
   const snapshot = await collectionRef.get();
